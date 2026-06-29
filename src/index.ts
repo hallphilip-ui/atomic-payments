@@ -1,19 +1,23 @@
 import express from 'express';
-import dotenv from 'dotenv';
 import intentRoutes from './routes/intents';
 
-dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(express.json());
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'Atomic Payments API is active' });
+// 🛡️ Native CORS Middleware to allow browser interface connections
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-atomic-key');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
 });
 
 app.use(intentRoutes);
 
+const PORT = 3005;
 app.listen(PORT, () => {
-  console.log(`🚀 Atomic Payments engine running on http://localhost:${PORT}`);
+  console.log(`🚀 Atomic Payments engine running on http://localhost:3005`);
 });

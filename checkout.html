@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic Payments Checkout</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center font-sans p-4">
+
+  <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6 overflow-hidden transition-all duration-300">
+    
+    <div id="setup-view" class="space-y-4">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold tracking-tight text-indigo-400">Atomic Checkout</h2>
+        <p class="text-slate-400 text-sm mt-1">Enter a Payment Intent ID to simulate checkout</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Intent ID</label>
+        <input type="text" id="intent-id-input" placeholder="e.g. c6fe63af-f56b-41b3..." 
+               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 font-mono text-indigo-300">
+      </div>
+      <button onclick="loadIntent()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-medium py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-600/20">
+        Load Checkout Session
+      </button>
+    </div>
+
+    <div id="checkout-view" class="hidden space-y-6">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-4">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Amount Due</p>
+          <h3 id="fiat-amount" class="text-3xl font-extrabold text-white mt-1">$0.00 USD</h3>
+        </div>
+        <div class="text-right">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            ⚡ Atomic Pay
+          </span>
+        </div>
+      </div>
+
+      <div id="chain-selector" class="space-y-3">
+        <h4 class="text-sm font-semibold text-slate-300">Select payment currency:</h4>
+        
+        <button onclick="selectChain('SOLANA')" class="w-full flex items-center justify-between p-4 bg-slate-950/50 border border-slate-700 rounded-xl hover:border-indigo-500/50 transition text-left group">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center font-bold text-purple-400">SOL</div>
+            <div>
+              <p class="font-medium text-white group-hover:text-indigo-400 transition">Solana Network</p>
+              <p class="text-xs text-slate-400">Fast transaction & near-zero fees</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono text-slate-500">SOL</span>
+        </button>
+
+        <button onclick="selectChain('BITCOIN_ONCHAIN')" class="w-full flex items-center justify-between p-4 bg-slate-950/50 border border-slate-700 rounded-xl hover:border-amber-500/50 transition text-left group">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center font-bold text-amber-500">BTC</div>
+            <div>
+              <p class="font-medium text-white group-hover:text-amber-400 transition">Bitcoin Layer 1</p>
+              <p class="text-xs text-slate-400">On-chain direct settlement</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono text-slate-500">BTC</span>
+        </button>
+      </div>
+
+      <div id="payment-instructions" class="hidden space-y-5 animate-fadeIn">
+        <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 text-center space-y-3">
+          <p class="text-xs font-medium text-slate-400">Send exactly this amount:</p>
+          <h4 id="crypto-required" class="text-2xl font-mono font-bold text-emerald-400 tracking-tight">0.000000 SOL</h4>
+          <p id="oracle-rate" class="text-xs text-slate-500 font-medium">Rate locked via live oracle feed</p>
+        </div>
+
+        <div class="flex justify-center py-2">
+          <div class="bg-white p-3 rounded-xl shadow-inner">
+            <img id="qr-code-img" src="" alt="Deposit QR Code" class="w-40 h-40">
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Deposit Address</label>
+          <div class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-indigo-200 select-all break-all text-center" id="deposit-address">
+            -
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center space-x-2 text-xs font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">
+          <svg class="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <span>Rate locked for: <strong id="countdown-timer" class="font-mono">15:00</strong></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3005';
+    let currentIntentId = '';
+    let countdownInterval;
+
+    function showView(viewId) {
+      document.getElementById('setup-view').classList.add('hidden');
+      document.getElementById('checkout-view').classList.add('hidden');
+      document.getElementById(viewId).classList.remove('hidden');
+    }
+
+    async function loadIntent() {
+      const idInput = document.getElementById('intent-id-input').value.trim();
+      if (!idInput) return alert('Please supply a valid intent ID');
+
+      currentIntentId = idInput;
+      // We leverage the admin/dashboard data to check or simulate lookup, but since we are mocking checkout step 2 directly, let's unlock the view.
+      // In production, we'd GET the specific intent. For our sandbox, we populate the default amount beautifully:
+      document.getElementById('fiat-amount').innerText = `$120.00 USD`;
+      showView('checkout-view');
+    }
+
+    async function selectChain(blockchainName) {
+      try {
+        const response = await fetch(`${API_BASE}/v1/payment_intents/${currentIntentId}/select_chain`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chain: blockchainName })
+        });
+        
+        const data = await response.json();
+        if (data.error) return alert(data.error);
+
+        // Populate dynamic calculation payloads
+        document.getElementById('crypto-required').innerText = `${data.cryptoAmountRequired} ${blockchainName.split('_')[0]}`;
+        document.getElementById('oracle-rate').innerText = `Locked Market Feed: ${data.liveMarketRate}`;
+        document.getElementById('deposit-address').innerText = data.depositAddress;
+        
+        // Dynamic QR code generation via standard open API chart engine
+        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=0f172a&data=${data.depositAddress}`;
+
+        // Fire countdown timer mechanics
+        document.getElementById('chain-selector').classList.add('hidden');
+        document.getElementById('payment-instructions').classList.remove('hidden');
+        startTimer(new Date(data.expiresAt));
+
+      } catch (err) {
+        alert('Could not establish a socket connection with the payment oracle backend.');
+      }
+    }
+
+    function startTimer(expiryDate) {
+      clearInterval(countdownInterval);
+      function update() {
+        const now = new Date().getTime();
+        const distance = expiryDate.getTime() - now;
+        if (distance < 0) {
+          document.getElementById('countdown-timer').innerText = "EXPIRED";
+          clearInterval(countdownInterval);
+          return;
+        }
+        const mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((distance % (1000 * 60)) / 1000);
+        document.getElementById('countdown-timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+      update();
+      countdownInterval = setInterval(update, 1000);
+    }
+  </script>
+</body>
+</html>

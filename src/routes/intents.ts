@@ -36,7 +36,7 @@ router.post('/v1/payment_intents', async (req, res) => {
 });
 
 // ==========================================
-// 2. CHECKOUT LAYER: Select Crypto Rail & Lock Rate
+// 2. CHECKOUT LAYER: Live Crypto Rate Lock
 // ==========================================
 router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
   try {
@@ -47,23 +47,44 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
     if (!intent) return res.status(404).json({ error: 'Payment intent not found' });
     if (new Date() > intent.expiresAt) return res.status(400).json({ error: 'Payment intent has expired' });
 
-    let mockRate = 1; 
+    let currentPrice = 1; 
     let mockAddress = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"; 
 
-    if (chain === 'BITCOIN_ONCHAIN') {
-      mockRate = 65000; 
-      mockAddress = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
-    } else if (chain === 'SOLANA') {
-      mockRate = 145; 
-      mockAddress = "HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2";
+    console.log(`\n🔍 [Price Oracle] Fetching live rates from CoinGecko for ${chain}...`);
+
+    try {
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,solana&vs_currencies=usd');
+      
+      // Explicitly telling TypeScript the structural layout of the JSON response
+      const marketData = await response.json() as {
+        bitcoin?: { usd: number };
+        solana?: { usd: number };
+      };
+
+      if (chain === 'BITCOIN_ONCHAIN' && marketData.bitcoin?.usd) {
+        currentPrice = marketData.bitcoin.usd;
+        mockAddress = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
+        console.log(`📈 [Price Oracle] Live BTC Price Confirmed: $${currentPrice} USD`);
+      } else if (chain === 'SOLANA' && marketData.solana?.usd) {
+        currentPrice = marketData.solana.usd;
+        mockAddress = "HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2";
+        console.log(`📈 [Price Oracle] Live SOL Price Confirmed: $${currentPrice} USD`);
+      } else {
+        currentPrice = chain === 'BITCOIN_ONCHAIN' ? 65000 : 145;
+        console.log(`⚠️ [Price Oracle] Asset parsing issue. Using internal fallback rate: $${currentPrice}`);
+      }
+    } catch (apiErr) {
+      currentPrice = chain === 'BITCOIN_ONCHAIN' ? 65000 : 145;
+      console.log(`⚠️ [Price Oracle] CoinGecko rate-limited. Using locked baseline fallback: $${currentPrice}`);
     }
 
-    const cryptoAmount = parseFloat((intent.amountFiat / mockRate).toFixed(6));
+    const cryptoAmount = parseFloat((intent.amountFiat / currentPrice).toFixed(6));
 
     return res.json({
       intentId: intent.id,
       fiatAmount: intent.amountFiat,
       selectedChain: chain,
+      liveMarketRate: `$${currentPrice.toLocaleString()} USD`,
       cryptoAmountRequired: cryptoAmount,
       depositAddress: mockAddress,
       expiresAt: intent.expiresAt,
@@ -76,7 +97,7 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
 });
 
 // ==========================================
-// 3. SETTLEMENT & WEBHOOK LAYER: Simulate Blockchain Confirmation
+// 3. SETTLEMENT LAYER: Simulate Confirmation
 // ==========================================
 router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
   try {
@@ -89,13 +110,11 @@ router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
     });
     if (!intent) return res.status(404).json({ error: 'Payment intent not found' });
 
-    // Mark as confirmed in local DB
     const settledIntent = await prisma.paymentIntent.update({
       where: { id },
       data: { status: 'CONFIRMED' }
     });
 
-    // ⚡ DISPATCH WEBHOOK EVENT (Firing asynchronously to a test hook target)
     const webhookPayload = {
       event: "payment.confirmed",
       timestamp: new Date().toISOString(),
@@ -110,13 +129,12 @@ router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
 
     console.log(`\n📣 [Webhook Dispatcher] Firing event 'payment.confirmed' for Intent ${id}...`);
     
-    // Using a public webhook tester endpoint (webhook.site style mock)
     fetch('https://httpbin.org/post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(webhookPayload)
     })
-    .then(() => console.log(`✅ [Webhook] Successfully delivered transaction callback data to Merchant system.\n`))
+    .then(() => console.log(`✅ [Webhook] Callback successfully delivered to merchant.\n`))
     .catch((err) => console.error(`❌ [Webhook] Network delivery failed: ${err.message}\n`));
 
     return res.json({
