@@ -4,88 +4,79 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 const router = Router();
 
-// 1. Register a Network Identity Profile
+// Validation regex helpers
+const ETH_REGEX = /^0x[a-fA-F0-9]{40}$/;
+const SOL_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
 router.post('/v1/users', async (req, res) => {
   try {
     const { username, email } = req.body;
-    const user = await prisma.user.create({
-      data: { username, email }
-    });
-    return res.json({ message: "🎉 User directory profile activated!", user });
+    const user = await prisma.user.create({ data: { username, email } });
+    return res.json({ message: "🎉 User profile activated!", user });
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }
 });
 
-// 2. Save/Update a Wallet Address for a Specific Currency
+// Guarded address endpoint with cryptographic string matching checking
 router.post('/v1/users/:id/wallets', async (req, res) => {
   try {
     const { id } = req.params;
-    const { chain, address } = req.body; // e.g., chain: "SOLANA", address: "HN7c7w..."
+    const { chain, address } = req.body;
+
+    if (chain === 'ETHEREUM' && !ETH_REGEX.test(address)) {
+      return res.status(400).json({ error: "Malformatted Ethereum or EVM address pattern detected." });
+    }
+    if (chain === 'SOLANA' && !SOL_REGEX.test(address)) {
+      return res.status(400).json({ error: "Malformatted Solana base58 address pattern detected." });
+    }
 
     const wallet = await prisma.wallet.upsert({
-      where: {
-        userId_chain: { userId: id, chain }
-      },
+      where: { userId_chain: { userId: id, chain } },
       update: { address },
       create: { userId: id, chain, address }
     });
 
-    return res.json({ message: `✅ Saved ${chain} routing address successfully.`, wallet });
+    return res.json({ message: `✅ Verified and saved ${chain} path.`, wallet });
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }
 });
 
-// 3. Link Seamlessly to Another Network Peer
 router.post('/v1/users/:id/connections', async (req, res) => {
   try {
-    const { id } = req.params; // The source user initiating the link
-    const { linkToUsername } = req.body; // The target user handle to connect with
+    const { id } = req.params;
+    const { linkToUsername } = req.body;
 
     const targetUser = await prisma.user.findUnique({ where: { username: linkToUsername } });
-    if (!targetUser) return res.status(404).json({ error: 'Target peer username not found in directory.' });
-    if (id === targetUser.id) return res.status(400).json({ error: 'You cannot initiate a directory link to yourself.' });
+    if (!targetUser) return res.status(404).json({ error: 'Target peer not found.' });
 
     const connection = await prisma.connection.create({
-      data: {
-        userId: id,
-        linkedUserId: targetUser.id
-      }
+      data: { userId: id, linkedUserId: targetUser.id }
     });
 
-    return res.json({ message: `🔗 You are now seamlessly connected to @${linkToUsername}!`, connection });
+    return res.json({ message: `🔗 Linked to @${linkToUsername}!`, connection });
   } catch (error: any) {
-    return res.status(400).json({ error: "Connection mapping already exists or is invalid." });
+    return res.status(400).json({ error: "Connection anomaly or link already exists." });
   }
 });
 
-// 4. Resolve Peer Wallets Intuitively (Query what currency addresses your connections hold)
 router.get('/v1/users/:id/network_directory', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Fetch user alongside everyone they've connected to, resolving their wallet setups instantly
     const userDirectory = await prisma.user.findUnique({
       where: { id },
       include: {
         connections: {
-          include: {
-            linkedUser: {
-              include: { wallets: true }
-            }
-          }
+          include: { linkedUser: { include: { wallets: true } } }
         }
       }
     });
 
     if (!userDirectory) return res.status(404).json({ error: 'Identity not found.' });
     
-    // Flatten out payload for clean frontend consumption
     const cleanDirectory = userDirectory.connections.map(c => ({
-      userId: c.linkedUser.id,
       username: c.linkedUser.username,
-      email: c.linkedUser.email,
       availableAddresses: c.linkedUser.wallets.map(w => ({ chain: w.chain, address: w.address }))
     }));
 
