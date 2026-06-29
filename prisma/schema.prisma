@@ -1,0 +1,27 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Merchant {
+  id            String          @id @default(uuid())
+  businessName  String
+  apiKey        String          @unique
+  createdAt     DateTime        @default(now())
+  intents       PaymentIntent[]
+}
+
+model PaymentIntent {
+  id             String   @id @default(uuid())
+  merchantId     String
+  merchant       Merchant @relation(fields: [merchantId], references: [id])
+  amountFiat     Float
+  currencyFiat   String   @default("USD")
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+}
