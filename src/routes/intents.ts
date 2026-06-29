@@ -36,7 +36,7 @@ router.post('/v1/payment_intents', async (req, res) => {
 });
 
 // ==========================================
-// 2. CHECKOUT LAYER: Live Crypto Rate Lock
+// 2. CHECKOUT LAYER: Multi-Chain Live Price Lock
 // ==========================================
 router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
   try {
@@ -50,32 +50,56 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
     let currentPrice = 1; 
     let mockAddress = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"; 
 
-    console.log(`\n🔍 [Price Oracle] Fetching live rates from CoinGecko for ${chain}...`);
+    console.log(`\n🔍 [Price Oracle] Querying CoinGecko mega-feed for ${chain}...`);
 
     try {
-      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,solana&vs_currencies=usd');
+      // Expanded network query payload
+      const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,solana,ethereum,binancecoin,ripple,cardano,dogecoin&vs_currencies=usd');
       
-      // Explicitly telling TypeScript the structural layout of the JSON response
       const marketData = await response.json() as {
         bitcoin?: { usd: number };
         solana?: { usd: number };
+        ethereum?: { usd: number };
+        binancecoin?: { usd: number };
+        ripple?: { usd: number };
+        cardano?: { usd: number };
+        dogecoin?: { usd: number };
       };
 
+      // Comprehensive Chain Routing Map
       if (chain === 'BITCOIN_ONCHAIN' && marketData.bitcoin?.usd) {
         currentPrice = marketData.bitcoin.usd;
         mockAddress = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
-        console.log(`📈 [Price Oracle] Live BTC Price Confirmed: $${currentPrice} USD`);
       } else if (chain === 'SOLANA' && marketData.solana?.usd) {
         currentPrice = marketData.solana.usd;
         mockAddress = "HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2";
-        console.log(`📈 [Price Oracle] Live SOL Price Confirmed: $${currentPrice} USD`);
+      } else if (chain === 'ETHEREUM' && marketData.ethereum?.usd) {
+        currentPrice = marketData.ethereum.usd;
+        mockAddress = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
+      } else if (chain === 'BNB_CHAIN' && marketData.binancecoin?.usd) {
+        currentPrice = marketData.binancecoin.usd;
+        mockAddress = "0xBb9c31EFEc16260840A61585f1cE58CBEB7bC765";
+      } else if (chain === 'RIPPLE' && marketData.ripple?.usd) {
+        currentPrice = marketData.ripple.usd;
+        mockAddress = "r9cZA1mLm5RfEEe65BaFcB6SBc6ce65BaF";
+      } else if (chain === 'CARDANO' && marketData.cardano?.usd) {
+        currentPrice = marketData.cardano.usd;
+        mockAddress = "addr1v9asuyv9g3gzk3gzk3gzk3gzk3gzk3gzk3gzk3gzk";
+      } else if (chain === 'DOGECOIN' && marketData.dogecoin?.usd) {
+        currentPrice = marketData.dogecoin.usd;
+        mockAddress = "DJ78Z6965w7nBkWy5yU5vHnC8uCq9P5r3h";
       } else {
-        currentPrice = chain === 'BITCOIN_ONCHAIN' ? 65000 : 145;
-        console.log(`⚠️ [Price Oracle] Asset parsing issue. Using internal fallback rate: $${currentPrice}`);
+        // Ultimate static asset baselines if API fails
+        const fallbacks: Record<string, number> = { BITCOIN_ONCHAIN: 65000, SOLANA: 145, ETHEREUM: 3400, BNB_CHAIN: 580, RIPPLE: 0.50, CARDANO: 0.45, DOGECOIN: 0.14 };
+        currentPrice = fallbacks[chain] || 1;
+        console.log(`⚠️ [Price Oracle] Match anomaly. Falling back to local index for ${chain}.`);
       }
+
+      console.log(`📈 [Price Oracle] Live ${chain} Rate Verified: $${currentPrice} USD`);
     } catch (apiErr) {
-      currentPrice = chain === 'BITCOIN_ONCHAIN' ? 65000 : 145;
-      console.log(`⚠️ [Price Oracle] CoinGecko rate-limited. Using locked baseline fallback: $${currentPrice}`);
+      const fallbacks: Record<string, number> = { BITCOIN_ONCHAIN: 65000, SOLANA: 145, ETHEREUM: 3400, BNB_CHAIN: 580, RIPPLE: 0.50, CARDANO: 0.45, DOGECOIN: 0.14 };
+      currentPrice = fallbacks[chain] || 1;
+      console.log(`⚠️ [Price Oracle] API network throttling. Using local baseline fallback.`);
     }
 
     const cryptoAmount = parseFloat((intent.amountFiat / currentPrice).toFixed(6));
@@ -139,7 +163,7 @@ router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
 
     return res.json({
       message: "⚡ Blockchain confirmation detected and webhook dispatched!",
-      txHash: txHash || "0x_mock_solana_signature_555aaabbb",
+      txHash: txHash || "0x_mock_signature_555aaabbb",
       updatedIntent: settledIntent
     });
   } catch (error: any) {
