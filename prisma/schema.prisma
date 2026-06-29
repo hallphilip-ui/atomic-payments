@@ -1,6 +1,6 @@
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db"
 }
 
 generator client {
@@ -8,20 +8,57 @@ generator client {
 }
 
 model Merchant {
-  id            String          @id @default(uuid())
-  businessName  String
-  apiKey        String          @unique
-  createdAt     DateTime        @default(now())
-  intents       PaymentIntent[]
+  id           String          @id @default(uuid())
+  apiKey       String          @unique
+  businessName String
+  createdAt    DateTime        @default(now())
+  intents      PaymentIntent[]
 }
 
 model PaymentIntent {
-  id             String   @id @default(uuid())
-  merchantId     String
-  merchant       Merchant @relation(fields: [merchantId], references: [id])
-  amountFiat     Float
-  currencyFiat   String   @default("USD")
-  status         String   @default("PENDING")
-  createdAt      DateTime @default(now())
-  expiresAt      DateTime
+  id                  String   @id @default(uuid())
+  merchantId          String
+  merchant            Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  amount              Float
+  currency            String
+  status              String   @default("PENDING")
+  selectedChain       String?
+  cryptoAmountRequired String?
+  depositAddress      String?
+  liveMarketRate      String?
+  txHash              String?
+  expiresAt           DateTime
+  createdAt           DateTime @default(now())
+}
+
+model User {
+  id           String       @id @default(uuid())
+  username     String       @unique
+  email        String       @unique
+  createdAt    DateTime     @default(now())
+  wallets      Wallet[]
+  connections  Connection[] @relation("UserConnections")
+  linkedFrom   Connection[] @relation("LinkedToUser")
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chain     String   
+  address   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, chain])
+}
+
+model Connection {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation("UserConnections", fields: [userId], references: [id], onDelete: Cascade)
+  linkedUserId String
+  linkedUser   User     @relation("LinkedToUser", fields: [linkedUserId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, linkedUserId])
 }

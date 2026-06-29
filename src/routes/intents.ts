@@ -22,8 +22,8 @@ router.post('/v1/payment_intents', async (req, res) => {
     const intent = await prisma.paymentIntent.create({
       data: {
         merchantId: merchant.id,
-        amountFiat: parseFloat(amount),
-        currencyFiat: currency || 'USD',
+        amount: parseFloat(amount), // Field name fixed from amountFiat to amount
+        currency: currency || 'USD', // Field name fixed from currencyFiat to currency
         expiresAt,
         status: 'PENDING'
       }
@@ -53,7 +53,7 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
     console.log(`\n🔍 [Price Oracle] Querying CoinGecko mega-feed for ${chain}...`);
 
     try {
-      // Expanded network query payload
+      // Comprehensive multi-asset query payload (all top 7 cryptos)
       const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,solana,ethereum,binancecoin,ripple,cardano,dogecoin&vs_currencies=usd');
       
       const marketData = await response.json() as {
@@ -66,7 +66,7 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
         dogecoin?: { usd: number };
       };
 
-      // Comprehensive Chain Routing Map
+      // Full Chain Routing Mapping
       if (chain === 'BITCOIN_ONCHAIN' && marketData.bitcoin?.usd) {
         currentPrice = marketData.bitcoin.usd;
         mockAddress = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
@@ -89,24 +89,26 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
         currentPrice = marketData.dogecoin.usd;
         mockAddress = "DJ78Z6965w7nBkWy5yU5vHnC8uCq9P5r3h";
       } else {
-        // Ultimate static asset baselines if API fails
+        // Ultimate static asset baseline falls
         const fallbacks: Record<string, number> = { BITCOIN_ONCHAIN: 65000, SOLANA: 145, ETHEREUM: 3400, BNB_CHAIN: 580, RIPPLE: 0.50, CARDANO: 0.45, DOGECOIN: 0.14 };
         currentPrice = fallbacks[chain] || 1;
-        console.log(`⚠️ [Price Oracle] Match anomaly. Falling back to local index for ${chain}.`);
+        console.log(`⚠️ [Price Oracle] Asset parsing issue. Using internal index fallback for ${chain}.`);
       }
 
-      console.log(`📈 [Price Oracle] Live ${chain} Rate Verified: $${currentPrice} USD`);
+      console.log(`📈 [Price Oracle] Live ${chain} Rate Confirmed: $${currentPrice} USD`);
     } catch (apiErr) {
+      // Network/Rate limit protection with locked baseline fallback
       const fallbacks: Record<string, number> = { BITCOIN_ONCHAIN: 65000, SOLANA: 145, ETHEREUM: 3400, BNB_CHAIN: 580, RIPPLE: 0.50, CARDANO: 0.45, DOGECOIN: 0.14 };
       currentPrice = fallbacks[chain] || 1;
-      console.log(`⚠️ [Price Oracle] API network throttling. Using local baseline fallback.`);
+      console.log(`⚠️ [Price Oracle] CoinGecko rate-limited. Using locked baseline fallback.`);
     }
 
-    const cryptoAmount = parseFloat((intent.amountFiat / currentPrice).toFixed(6));
+    // Exact crypto fractional math (intent.amountFiat fixed to intent.amount)
+    const cryptoAmount = parseFloat((intent.amount / currentPrice).toFixed(6));
 
     return res.json({
       intentId: intent.id,
-      fiatAmount: intent.amountFiat,
+      fiatAmount: intent.amount, // Field name fixed
       selectedChain: chain,
       liveMarketRate: `$${currentPrice.toLocaleString()} USD`,
       cryptoAmountRequired: cryptoAmount,
@@ -144,8 +146,8 @@ router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
       timestamp: new Date().toISOString(),
       data: {
         id: settledIntent.id,
-        amount: settledIntent.amountFiat,
-        currency: settledIntent.currencyFiat,
+        amount: settledIntent.amount, // Field name fixed from amountFiat to amount
+        currency: settledIntent.currency, // Field name fixed from currencyFiat to currency
         txHash: txHash || "0x_mock_signature_999",
         merchant: intent.merchant.businessName
       }
@@ -163,7 +165,7 @@ router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
 
     return res.json({
       message: "⚡ Blockchain confirmation detected and webhook dispatched!",
-      txHash: txHash || "0x_mock_signature_555aaabbb",
+      txHash: txHash || "0x_mock_solana_signature_555aaabbb",
       updatedIntent: settledIntent
     });
   } catch (error: any) {
@@ -180,7 +182,8 @@ router.get('/v1/admin/dashboard', async (req, res) => {
     const pendingCount = await prisma.paymentIntent.count({ where: { status: 'PENDING' } });
     const confirmedTransactions = await prisma.paymentIntent.findMany({ where: { status: 'CONFIRMED' } });
     
-    const totalVolume = confirmedTransactions.reduce((acc, current) => acc + current.amountFiat, 0);
+    // totalVolume math fixed from current.amountFiat to current.amount
+    const totalVolume = confirmedTransactions.reduce((acc, current) => acc + current.amount, 0);
 
     return res.json({
       metrics: {

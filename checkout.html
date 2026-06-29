@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atomic Payments UI</title>
+  <title>Atomic Payments UI Gateway</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center font-sans p-4">
 
-  <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto transition-all duration-300">
+  <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[95vh] overflow-y-auto transition-all duration-300">
     
+    <!-- View 1: Initial System Handshake -->
     <div id="setup-view" class="space-y-4">
       <div class="text-center">
         <h2 class="text-2xl font-bold tracking-tight text-indigo-400">Atomic Gateway</h2>
@@ -25,6 +26,7 @@
       </button>
     </div>
 
+    <!-- View 2: Main Context Router -->
     <div id="checkout-view" class="hidden space-y-6">
       <div class="flex justify-between items-center border-b border-slate-700 pb-4">
         <div>
@@ -36,80 +38,75 @@
         </span>
       </div>
 
+      <!-- Chain Grid Selector -->
       <div id="chain-selector" class="space-y-2.5">
         <h4 class="text-sm font-semibold text-slate-300">Select asset payment method:</h4>
         
+        <!-- BTC -->
         <button onclick="selectChain('BITCOIN_ONCHAIN')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-amber-500/50 transition text-left group">
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center font-bold text-amber-500 text-sm">BTC</div>
-            <div>
-              <p class="font-medium text-sm text-white group-hover:text-amber-400 transition">Bitcoin Layer 1</p>
-            </div>
+            <span class="font-medium text-sm text-white group-hover:text-amber-400 transition">Bitcoin Layer 1</span>
           </div>
           <span class="text-xs font-mono text-slate-500">BTC</span>
         </button>
 
+        <!-- ETH -->
         <button onclick="selectChain('ETHEREUM')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-blue-400/50 transition text-left group">
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center font-bold text-blue-400 text-sm">ETH</div>
-            <div>
-              <p class="font-medium text-sm text-white group-hover:text-blue-400 transition">Ethereum Network</p>
-            </div>
+            <span class="font-medium text-sm text-white group-hover:text-blue-400 transition">Ethereum Network</span>
           </div>
           <span class="text-xs font-mono text-slate-500">ETH</span>
         </button>
 
+        <!-- BNB -->
         <button onclick="selectChain('BNB_CHAIN')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-yellow-500/50 transition text-left group">
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 rounded-lg bg-yellow-500/10 flex items-center justify-center font-bold text-yellow-500 text-sm">BNB</div>
-            <div>
-              <p class="font-medium text-sm text-white group-hover:text-yellow-400 transition">BNB Smart Chain</p>
-            </div>
+            <span class="font-medium text-sm text-white group-hover:text-yellow-400 transition">BNB Smart Chain</span>
           </div>
           <span class="text-xs font-mono text-slate-500">BSC</span>
         </button>
 
+        <!-- SOL -->
         <button onclick="selectChain('SOLANA')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-purple-500/50 transition text-left group">
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center font-bold text-purple-400 text-sm">SOL</div>
-            <div>
-              <p class="font-medium text-sm text-white group-hover:text-purple-400 transition">Solana High-Speed</p>
-            </div>
+            <span class="font-medium text-sm text-white group-hover:text-purple-400 transition">Solana High-Speed</span>
           </div>
           <span class="text-xs font-mono text-slate-500">SOL</span>
         </button>
 
+        <!-- XRP -->
         <button onclick="selectChain('RIPPLE')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-sky-400/50 transition text-left group">
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center font-bold text-sky-400 text-sm">XRP</div>
-            <div>
-              <p class="font-medium text-sm text-white group-hover:text-sky-400 transition">Ripple Ledger</p>
-            </div>
+            <span class="font-medium text-sm text-white group-hover:text-sky-400 transition">Ripple Ledger</span>
           </div>
           <span class="text-xs font-mono text-slate-500">XRP</span>
         </button>
 
+        <!-- ADA -->
         <button onclick="selectChain('CARDANO')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-cyan-500/50 transition text-left group">
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 rounded-lg bg-cyan-500/10 flex items-center justify-center font-bold text-cyan-400 text-sm">ADA</div>
-            <div>
-              <p class="font-medium text-sm text-white group-hover:text-cyan-400 transition">Cardano Settlement</p>
-            </div>
+            <span class="font-medium text-sm text-white group-hover:text-cyan-400 transition">Cardano Settlement</span>
           </div>
           <span class="text-xs font-mono text-slate-500">ADA</span>
         </button>
 
+        <!-- DOGE -->
         <button onclick="selectChain('DOGECOIN')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-orange-400/50 transition text-left group">
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center font-bold text-orange-400 text-sm">DOGE</div>
-            <div>
-              <p class="font-medium text-sm text-white group-hover:text-orange-400 transition">Dogecoin Core</p>
-            </div>
+            <span class="font-medium text-sm text-white group-hover:text-orange-400 transition">Dogecoin Core</span>
           </div>
           <span class="text-xs font-mono text-slate-500">DOGE</span>
         </button>
       </div>
 
+      <!-- View 3: Instructions & Simulator Controls -->
       <div id="payment-instructions" class="hidden space-y-5">
         <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 text-center space-y-2">
           <p class="text-xs font-medium text-slate-400">Total Required Remittance:</p>
@@ -133,9 +130,42 @@
         <div class="flex items-center justify-center space-x-2 text-xs font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">
           <span>Rate Lock Expiry Countdown: <strong id="countdown-timer" class="font-mono">15:00</strong></span>
         </div>
+
+        <!-- 🧪 Simulation Testing Interface Row -->
+        <button onclick="triggerSimulatePayment()" id="sim-btn" class="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold tracking-wider uppercase py-3 rounded-xl transition shadow-lg shadow-emerald-600/10 flex items-center justify-center space-x-2">
+          <span>🚀 Simulate Network Settlement</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- View 4: Elegant Success State Screen -->
+    <div id="success-view" class="hidden text-center space-y-6 py-4 animate-fadeIn">
+      <div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto text-emerald-400">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-2xl font-extrabold text-white tracking-tight">Invoice Confirmed!</h2>
+        <p class="text-slate-400 text-sm mt-1">Payment has successfully cleared on-chain</p>
+      </div>
+      
+      <div class="bg-slate-950 rounded-xl p-4 border border-slate-850 space-y-3 text-left">
+        <div>
+          <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Transaction Signature</span>
+          <span id="res-hash" class="text-xs font-mono text-indigo-300 break-all">0x_</span>
+        </div>
+        <div class="border-t border-slate-800/60 pt-2.5 flex justify-between text-xs">
+          <span class="text-slate-400">Webhook Dispatch:</span>
+          <span class="text-emerald-400 font-bold flex items-center">● Delivered (200)</span>
+        </div>
       </div>
 
+      <button onclick="window.location.reload()" class="w-full bg-slate-700 hover:bg-slate-600 font-medium py-2.5 text-xs rounded-xl transition">
+        Reset Gateway Simulator
+      </button>
     </div>
+
   </div>
 
   <script>
@@ -144,9 +174,10 @@
     let countdownInterval;
 
     function showView(viewId) {
-      document.getElementById('setup-view').classList.add('hidden');
-      document.getElementById('checkout-view').classList.add('hidden');
-      document.getElementById(viewId).classList.remove('hidden');
+      document.getElementById('setup-view').className = 'hidden';
+      document.getElementById('checkout-view').className = 'hidden';
+      document.getElementById('success-view').className = 'hidden';
+      document.getElementById(viewId).className = 'space-y-6';
     }
 
     function loadIntent() {
@@ -177,6 +208,40 @@
         startTimer(new Date(data.expiresAt));
       } catch (err) {
         alert('Payment processing node connection error.');
+      }
+    }
+
+    async function triggerSimulatePayment() {
+      const btn = document.getElementById('sim-btn');
+      btn.innerText = "Processing On-Chain Block...";
+      btn.disabled = true;
+
+      try {
+        const response = await fetch(`${API_BASE}/v1/payment_intents/${currentIntentId}/simulate_payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ txHash: "0x" + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('') })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+          alert(data.error);
+          btn.innerText = "🚀 Simulate Network Settlement";
+          btn.disabled = false;
+          return;
+        }
+
+        clearInterval(countdownInterval);
+        document.getElementById('res-hash').innerText = data.txHash;
+        
+        // Push view instantly to structural success block
+        document.getElementById('checkout-view').classList.add('hidden');
+        document.getElementById('success-view').classList.remove('hidden');
+
+      } catch (err) {
+        alert('Could not deliver transactional block to settlement layer.');
+        btn.innerText = "🚀 Simulate Network Settlement";
+        btn.disabled = false;
       }
     }
 
