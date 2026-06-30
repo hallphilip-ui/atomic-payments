@@ -631,6 +631,7 @@
 
             <div class="actions">
               <button class="primary" id="quoteBtn" data-i18n="defi.getQuote">Get Quote</button>
+              <button class="secondary" id="connectWalletBtn" data-i18n="defi.connectWallet">Connect Wallet</button>
               <button class="secondary" id="autofillBtn" data-i18n="defi.autofillWallet">Autofill Wallet</button>
             </div>
           </section>
@@ -712,7 +713,8 @@
       countdown: null,
       eventSource: null,
       apiStatusOk: false,
-      apiStatusKey: 'common.checkingApi'
+      apiStatusKey: 'common.checkingApi',
+      wallet: null
     };
 
     const el = (id) => document.getElementById(id);
@@ -737,6 +739,11 @@
       return state.assets.find((asset) => asset.assetId === el(selectId).value);
     }
 
+    function shortAddress(address) {
+      if (!address) return '';
+      return address.length > 18 ? `${address.slice(0, 10)}...${address.slice(-6)}` : address;
+    }
+
     function validateAddress(asset, address) {
       const value = address.trim();
       if (!asset || !value) return { ok: false, key: 'defi.chooseDestination' };
@@ -757,9 +764,80 @@
     function updateWalletMode() {
       const hasEthereum = Boolean(window.ethereum);
       const hasSolana = Boolean(window.solana);
-      if (hasSolana) el('walletMode').textContent = t('defi.walletPhantom');
+      if (state.wallet?.address) el('walletMode').textContent = t('defi.walletConnected', { address: shortAddress(state.wallet.address) });
+      else if (hasSolana) el('walletMode').textContent = t('defi.walletPhantom');
       else if (hasEthereum) el('walletMode').textContent = t('defi.walletEvm');
       else el('walletMode').textContent = t('defi.walletManual');
+    }
+
+    function fillConnectedDestination() {
+      const toAsset = selectedAsset('toAsset');
+      if (!state.wallet?.address || !toAsset) return;
+      if (state.wallet.type === 'evm' && toAsset.chainFamily === 'evm') {
+        el('destination').value = state.wallet.address;
+      }
+      if (state.wallet.type === 'svm' && toAsset.chainFamily === 'svm') {
+        el('destination').value = state.wallet.address;
+      }
+      updateAddressValidation();
+    }
+
+    async function connectWallet() {
+      const toAsset = selectedAsset('toAsset');
+      try {
+        if (toAsset?.chainFamily === 'evm' && window.ethereum?.request) {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          state.wallet = { type: 'evm', address: accounts[0] };
+        } else if (toAsset?.chainFamily === 'svm' && window.solana?.connect) {
+          const result = await window.solana.connect();
+          state.wallet = { type: 'svm', address: result.publicKey.toString() };
+        } else if (window.ethereum?.request) {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          state.wallet = { type: 'evm', address: accounts[0] };
+        } else if (window.solana?.connect) {
+          const result = await window.solana.connect();
+          state.wallet = { type: 'svm', address: result.publicKey.toString() };
+        } else {
+          throw new Error(t('defi.walletUnavailable'));
+        }
+
+        fillConnectedDestination();
+        updateWalletMode();
+        setActionHint('good', t('defi.walletReady'));
+      } catch (error) {
+        setActionHint('bad', error.message || t('defi.walletConnectionFailed'));
+      }
+    }
+
+    function quoteSignatureMessage() {
+      if (!state.quote) return 'Atomic Payments quote authorization';
+      return [
+        'Atomic Payments swap authorization',
+        `Quote: ${state.quote.id}`,
+        `Route: ${state.quote.fromAsset.assetId} -> ${state.quote.toAsset.assetId}`,
+        `Amount: ${state.quote.amount}`,
+        `Expires: ${state.quote.expiresAt}`
+      ].join('\n');
+    }
+
+    async function getWalletSignature() {
+      const message = quoteSignatureMessage();
+
+      if (state.wallet?.type === 'evm' && window.ethereum?.request) {
+        return window.ethereum.request({
+          method: 'personal_sign',
+          params: [message, state.wallet.address]
+        });
+      }
+
+      if (state.wallet?.type === 'svm' && window.solana?.signMessage) {
+        const encoded = new TextEncoder().encode(message);
+        const signed = await window.solana.signMessage(encoded, 'utf8');
+        const bytes = Array.from(signed.signature || []);
+        return `solana:${btoa(String.fromCharCode(...bytes))}`;
+      }
+
+      return `0xatomic_ui_signature_${Date.now()}`;
     }
 
     function renderTimeline() {
@@ -887,10 +965,18 @@
 
     async function approveQuote() {
       if (!state.quote) return;
+      let signature = '';
+      try {
+        signature = await getWalletSignature();
+      } catch (error) {
+        setActionHint('bad', error.message || t('defi.walletConnectionFailed'));
+        return;
+      }
+
       const response = await fetch(`${API_BASE}/v1/swaps/quotes/${state.quote.id}/authorize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signature: `0xatomic_ui_signature_${Date.now()}` })
+        body: JSON.stringify({ signature })
       });
       const data = await response.json();
       if (data.error) {
@@ -968,10 +1054,15 @@
     }
 
     el('quoteBtn').addEventListener('click', getQuote);
+    el('connectWalletBtn').addEventListener('click', connectWallet);
     el('approveBtn').addEventListener('click', approveQuote);
     el('advanceBtn').addEventListener('click', advanceQuote);
     el('autofillBtn').addEventListener('click', autofillWallet);
-    el('toAsset').addEventListener('change', updateAddressValidation);
+    el('toAsset').addEventListener('change', () => {
+      fillConnectedDestination();
+      updateWalletMode();
+      updateAddressValidation();
+    });
     el('destination').addEventListener('input', updateAddressValidation);
 
     window.atomicI18n?.init();

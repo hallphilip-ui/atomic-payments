@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 62-65%
+Estimated total completion: 64-66%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -38,19 +38,20 @@ Production gaps:
 
 ### DeFi Atomic Swap Core
 
-Completion: 55-60%
+Completion: 58-62%
 
 - Target top-25 crypto asset registry.
 - Quote path with platform fee guardrails.
 - Rango/THORChain adapter boundary with simulation default.
 - Provider diagnostics surfaced in API and UI.
 - Swap lifecycle states, authorization, advance flow, event log, and SSE stream.
+- Browser wallet boundary for EVM and Solana detection, connection, destination fill, and signature capture with simulation fallback.
 
 Production gaps:
 
 - Verify live Rango and THORChain request/response formats against current official docs.
 - Real provider execution, not just quote simulation.
-- Real wallet signatures and transaction submission.
+- Production wallet transaction submission and chain-specific signing flows.
 - Chain-specific gas, slippage, failure, and refund handling.
 
 ### AML And Compliance
@@ -71,7 +72,7 @@ Production gaps:
 
 ### Console UX And Brand
 
-Completion: 55-60%
+Completion: 58-62%
 
 - DeFi swap console at `/defi-swap`.
 - Compliance review console at `/admin-compliance`.
@@ -79,6 +80,7 @@ Completion: 55-60%
 - Logo integrated into the top bar without a pasted background box.
 - Provider diagnostics, quote state, action hints, compliance status, and event logs visible.
 - Internationalization layer with 15 languages and RTL support for Arabic and Urdu.
+- Connect Wallet control in the swap console with EVM/Solana detection.
 
 Production gaps:
 
@@ -138,9 +140,9 @@ Open the main local consoles:
 
 ## Next Recommended Build Slices
 
-1. Real wallet connection boundary
+1. Real wallet production signing
 
-Add wallet adapter contracts for EVM and Solana, capture wallet address from injected providers, and separate simulated authorization from real signature capture.
+Turn the browser wallet boundary into production signing and transaction submission for the supported chains, with chain-specific payloads, error handling, and refund/failure states.
 
 2. Provider adapter verification
 
@@ -171,7 +173,7 @@ Make Docker a repeatable path for app, database migration, smoke checks, and fut
 
 The project can reach roughly 75% completion by finishing:
 
-- real wallet adapter boundary
+- production wallet signing/submission
 - provider live-doc verification
 - test database isolation
 - Docker/CI smoke execution
