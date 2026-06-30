@@ -113,7 +113,14 @@ router.get('/v1/swaps/quotes/:id/stream', async (req, res) => {
 
 router.post('/v1/swaps/quotes/:id/authorize', async (req, res) => {
   try {
-    const quote = await authorizeStoredSwapQuote(req.params.id, String(req.body.signature ?? ''));
+    const quote = await authorizeStoredSwapQuote(req.params.id, {
+      signature: String(req.body.signature ?? ''),
+      walletType: req.body.walletType ? String(req.body.walletType) : undefined,
+      walletAddress: req.body.walletAddress ? String(req.body.walletAddress) : undefined,
+      signatureKind: req.body.signatureKind ? String(req.body.signatureKind) : undefined,
+      signedMessage: req.body.signedMessage ? String(req.body.signedMessage) : undefined,
+      chainIntent: req.body.chainIntent ? String(req.body.chainIntent) : undefined
+    });
     return res.json({
       quote,
       nextStep: 'Background tracker advances routing states as provider confirmations arrive.'

@@ -92,9 +92,21 @@ async function main() {
 
   const authorized = await request(`/v1/swaps/quotes/${quoted.quote.id}/authorize`, {
     method: 'POST',
-    body: JSON.stringify({ signature: `smoke_signature_${Date.now()}` })
+    body: JSON.stringify({
+      signature: `smoke_signature_${Date.now()}`,
+      walletType: 'smoke',
+      walletAddress: quotePayload.userAddress,
+      signatureKind: 'smoke_message_signature',
+      signedMessage: `Smoke authorization for ${quoted.quote.id}`,
+      chainIntent: 'quote_authorization'
+    })
   });
   assert.equal(authorized.quote.status, 'AUTHORIZED', 'cleared quote authorizes');
+  assert.equal(authorized.quote.walletAuthorization.walletType, 'smoke', 'authorization records wallet type');
+  assert.equal(authorized.quote.walletAuthorization.signatureKind, 'smoke_message_signature', 'authorization records signature kind');
+  assert.ok(authorized.quote.walletAuthorization.signatureHash, 'authorization records signature hash');
+  assert.ok(authorized.quote.walletAuthorization.signedMessageHash, 'authorization records signed message hash');
+  assert.equal(authorized.quote.walletAuthorization.metadata.rawSignatureStored, false, 'authorization avoids raw signature storage');
 
   const advanced = await request(`/v1/swaps/quotes/${quoted.quote.id}/advance`, { method: 'POST' });
   assert.ok(['ROUTING', 'COMPLETE'].includes(advanced.quote.status), 'authorized quote advances');

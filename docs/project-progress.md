@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 69-71%
+Estimated total completion: 70-72%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -39,7 +39,7 @@ Production gaps:
 
 ### DeFi Atomic Swap Core
 
-Completion: 60-63%
+Completion: 63-66%
 
 - Target top-25 crypto asset registry.
 - Quote path with platform fee guardrails.
@@ -48,12 +48,13 @@ Completion: 60-63%
 - Provider adapter contract coverage for simulation and live-with-fallback behavior.
 - Swap lifecycle states, authorization, advance flow, event log, and SSE stream.
 - Browser wallet boundary for EVM and Solana detection, connection, destination fill, and signature capture with simulation fallback.
+- Wallet authorization audit trail records wallet type, wallet address, signature kind, signature hash, signed message hash, chain intent, and timestamp.
 
 Production gaps:
 
 - Verify live Rango and THORChain request/response formats against current official docs.
 - Real provider execution, not just quote simulation.
-- Production wallet transaction submission and chain-specific signing flows.
+- Production wallet transaction submission and chain-specific broadcast flows.
 - Chain-specific gas, slippage, failure, and refund handling.
 
 ### AML And Compliance
@@ -101,6 +102,7 @@ Completion: 58-61%
   - i18n asset serving
   - quote creation
   - authorization
+  - wallet authorization audit metadata
   - event log
   - manual AML review
   - compliance approval
@@ -163,7 +165,7 @@ Open the main local consoles:
 
 1. Real wallet production signing
 
-Turn the browser wallet boundary into production signing and transaction submission for the supported chains, with chain-specific payloads, error handling, and refund/failure states.
+Turn the wallet authorization audit trail into chain-specific transaction submission for the supported chains, with payload validation, broadcast results, error handling, and refund/failure states.
 
 2. Provider adapter verification
 
@@ -185,7 +187,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 
 - Live provider integration is scaffolded but not production-verified.
 - AML now has a provider boundary with simulated KYT metadata, but not a production compliance vendor.
-- Wallet signing is simulated.
+- Wallet signing now records auditable authorization metadata, but production transaction broadcast is still simulated.
 - Local SQLite is useful for development but not production persistence.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.

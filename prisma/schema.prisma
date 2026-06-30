@@ -161,6 +161,13 @@ model SwapQuote {
   executionStates       String
   guardrails            String
   currentState          String               @default("SOURCING")
+  walletType            String?
+  walletAddress         String?
+  signatureKind         String?
+  signatureHash         String?
+  signedMessageHash     String?
+  authorizationMetadata String               @default("{}")
+  authorizedAt          DateTime?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   events                SwapExecutionEvent[]

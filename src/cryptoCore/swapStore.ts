@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { UnifiedSwapQuote, UnifiedSwapQuoteRequest, getEnforcedPlatformQuote } from './routing';
 import { getSwapAsset } from './tokens';
@@ -29,6 +30,13 @@ type StoredSwapQuote = {
   executionStates: string;
   guardrails: string;
   currentState: string;
+  walletType: string | null;
+  walletAddress: string | null;
+  signatureKind: string | null;
+  signatureHash: string | null;
+  signedMessageHash: string | null;
+  authorizationMetadata: string;
+  authorizedAt: Date | null;
   createdAt: Date;
 };
 
@@ -96,6 +104,15 @@ function toEventView(event: StoredSwapEvent): SwapExecutionEventView {
 function toSwapQuoteView(quote: StoredSwapQuote): UnifiedSwapQuote & {
   currentState: string;
   userAddress: string;
+  walletAuthorization: {
+    walletType: string | null;
+    walletAddress: string | null;
+    signatureKind: string | null;
+    signatureHash: string | null;
+    signedMessageHash: string | null;
+    metadata: Record<string, unknown>;
+    authorizedAt: string | null;
+  };
   createdAt: string;
 } {
   const fromAsset = getSwapAsset(quote.fromAsset);
@@ -128,6 +145,15 @@ function toSwapQuoteView(quote: StoredSwapQuote): UnifiedSwapQuote & {
     guardrails: parseJson<string[]>(quote.guardrails, []),
     currentState: quote.currentState,
     userAddress: quote.userAddress,
+    walletAuthorization: {
+      walletType: quote.walletType,
+      walletAddress: quote.walletAddress,
+      signatureKind: quote.signatureKind,
+      signatureHash: quote.signatureHash,
+      signedMessageHash: quote.signedMessageHash,
+      metadata: parseJson<Record<string, unknown>>(quote.authorizationMetadata, {}),
+      authorizedAt: quote.authorizedAt?.toISOString() ?? null
+    },
     createdAt: quote.createdAt.toISOString()
   };
 }
@@ -241,8 +267,20 @@ export async function listSwapExecutionEvents(quoteId: string) {
   return events.map(toEventView);
 }
 
-export async function authorizeStoredSwapQuote(quoteId: string, signature: string) {
-  if (!signature || signature.trim().length < 8) {
+function sha256(value: string): string {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+export async function authorizeStoredSwapQuote(quoteId: string, authorization: {
+  signature: string;
+  walletType?: string;
+  walletAddress?: string;
+  signatureKind?: string;
+  signedMessage?: string;
+  chainIntent?: string;
+}) {
+  const signature = authorization.signature?.trim() ?? '';
+  if (signature.length < 8) {
     throw new Error('A wallet signature or transaction hash is required.');
   }
 
@@ -287,9 +325,31 @@ export async function authorizeStoredSwapQuote(quoteId: string, signature: strin
   }
 
   const updatedQuote = await prisma.$transaction(async (tx) => {
+    const signedMessage = authorization.signedMessage?.trim() ?? '';
+    const walletAddress = authorization.walletAddress?.trim() || quote.userAddress;
+    const walletType = authorization.walletType?.trim() || 'manual';
+    const signatureKind = authorization.signatureKind?.trim() || 'message_signature';
+    const signatureHash = sha256(signature);
+    const signedMessageHash = signedMessage ? sha256(signedMessage) : null;
+    const authorizationMetadata = {
+      chainIntent: authorization.chainIntent?.trim() || 'signature_only',
+      quoteStatusBeforeAuthorization: quote.status,
+      authorizationMode: 'wallet_attestation',
+      rawSignatureStored: false
+    };
     const updated = await tx.swapQuote.update({
       where: { id: quote.id },
-      data: { status: 'AUTHORIZED', currentState: 'ESCROW_ESCORTING' }
+      data: {
+        status: 'AUTHORIZED',
+        currentState: 'ESCROW_ESCORTING',
+        walletType,
+        walletAddress,
+        signatureKind,
+        signatureHash,
+        signedMessageHash,
+        authorizationMetadata: JSON.stringify(authorizationMetadata),
+        authorizedAt: new Date()
+      }
     });
 
     await tx.swapExecutionEvent.create({
@@ -297,7 +357,7 @@ export async function authorizeStoredSwapQuote(quoteId: string, signature: strin
         quoteId: quote.id,
         state: 'ESCROW_ESCORTING',
         status: 'AUTHORIZED',
-        message: `Wallet authorization captured: ${signature.slice(0, 12)}...`
+        message: `Wallet authorization captured for ${walletType}:${walletAddress.slice(0, 12)} with ${signatureKind}.`
       }
     });
 

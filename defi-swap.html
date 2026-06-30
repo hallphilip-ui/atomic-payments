@@ -824,20 +824,21 @@
       const message = quoteSignatureMessage();
 
       if (state.wallet?.type === 'evm' && window.ethereum?.request) {
-        return window.ethereum.request({
+        const signature = await window.ethereum.request({
           method: 'personal_sign',
           params: [message, state.wallet.address]
         });
+        return { signature, signedMessage: message, signatureKind: 'evm_personal_sign' };
       }
 
       if (state.wallet?.type === 'svm' && window.solana?.signMessage) {
         const encoded = new TextEncoder().encode(message);
         const signed = await window.solana.signMessage(encoded, 'utf8');
         const bytes = Array.from(signed.signature || []);
-        return `solana:${btoa(String.fromCharCode(...bytes))}`;
+        return { signature: `solana:${btoa(String.fromCharCode(...bytes))}`, signedMessage: message, signatureKind: 'solana_sign_message' };
       }
 
-      return `0xatomic_ui_signature_${Date.now()}`;
+      return { signature: `0xatomic_ui_signature_${Date.now()}`, signedMessage: message, signatureKind: 'simulated_message_signature' };
     }
 
     function renderTimeline() {
@@ -965,9 +966,9 @@
 
     async function approveQuote() {
       if (!state.quote) return;
-      let signature = '';
+      let authorization = null;
       try {
-        signature = await getWalletSignature();
+        authorization = await getWalletSignature();
       } catch (error) {
         setActionHint('bad', error.message || t('defi.walletConnectionFailed'));
         return;
@@ -976,7 +977,12 @@
       const response = await fetch(`${API_BASE}/v1/swaps/quotes/${state.quote.id}/authorize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signature })
+        body: JSON.stringify({
+          ...authorization,
+          walletType: state.wallet?.type || 'manual',
+          walletAddress: state.wallet?.address || el('destination').value.trim(),
+          chainIntent: 'quote_authorization'
+        })
       });
       const data = await response.json();
       if (data.error) {
