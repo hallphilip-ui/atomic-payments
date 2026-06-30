@@ -117,6 +117,35 @@
       white-space: nowrap;
     }
 
+    .language-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(14, 34, 51, 0.8);
+      color: var(--steel);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .language-control span {
+      color: var(--muted);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .language-control select {
+      min-height: 28px;
+      width: auto;
+      padding: 0 26px 0 8px;
+      border-color: rgba(128, 200, 235, 0.16);
+      background: rgba(3, 10, 17, 0.65);
+      color: var(--ink);
+    }
+
     .dot {
       width: 8px;
       height: 8px;
@@ -526,63 +555,67 @@
     }
   </style>
 </head>
-<body>
+<body data-i18n-title="admin.title">
   <div class="app">
     <header class="topbar">
       <div class="brand">
         <img src="/assets/atomic-mark.png" alt="Atomic Payments logo">
         <div>
           <strong>Atomic Payments</strong>
-          <span>AML review desk</span>
+          <span data-i18n="admin.subtitle">AML review desk</span>
         </div>
       </div>
       <div class="top-actions">
-        <span class="pill" id="apiStatus"><span class="dot"></span> Connecting</span>
-        <a class="link-button" href="/defi-swap">Swap Console</a>
-        <button class="icon-button" id="refreshButton" title="Refresh reviews" aria-label="Refresh reviews">&#8635;</button>
+        <label class="language-control">
+          <span data-i18n="common.language">Language</span>
+          <select data-atomic-language-select aria-label="Language"></select>
+        </label>
+        <span class="pill" id="apiStatus"><span class="dot"></span><span data-i18n="common.connecting">Connecting</span></span>
+        <a class="link-button" href="/defi-swap" data-i18n="admin.swapConsole">Swap Console</a>
+        <button class="icon-button" id="refreshButton" data-i18n-title="common.refresh" data-i18n-aria="common.refresh" title="Refresh reviews" aria-label="Refresh reviews">&#8635;</button>
       </div>
     </header>
 
     <main>
       <section class="hero">
         <div>
-          <h1>Compliance Review</h1>
-          <p>Screen wallet activity, inspect swap context, and record operator decisions before manual-review quotes can move forward.</p>
+          <h1 data-i18n="admin.complianceReview">Compliance Review</h1>
+          <p data-i18n="admin.heroDesc">Screen wallet activity, inspect swap context, and record operator decisions before manual-review quotes can move forward.</p>
         </div>
-        <span class="pill" id="lastUpdated">Waiting for review data</span>
+        <span class="pill" id="lastUpdated" data-i18n="admin.waitingData">Waiting for review data</span>
       </section>
 
-      <section class="stats" aria-label="Compliance queue summary">
-        <div class="stat"><span>Manual review</span><strong id="manualCount">0</strong></div>
-        <div class="stat"><span>Blocked</span><strong id="blockedCount">0</strong></div>
-        <div class="stat"><span>Approved</span><strong id="approvedCount">0</strong></div>
-        <div class="stat"><span>Auto cleared</span><strong id="clearedCount">0</strong></div>
+      <section class="stats" aria-label="Compliance queue summary" data-i18n-aria="admin.queueSummary">
+        <div class="stat"><span data-i18n="status.MANUAL_REVIEW">Manual review</span><strong id="manualCount">0</strong></div>
+        <div class="stat"><span data-i18n="status.BLOCKED">Blocked</span><strong id="blockedCount">0</strong></div>
+        <div class="stat"><span data-i18n="status.APPROVED">Approved</span><strong id="approvedCount">0</strong></div>
+        <div class="stat"><span data-i18n="status.AUTO_CLEARED">Auto cleared</span><strong id="clearedCount">0</strong></div>
       </section>
 
       <section class="toolbar" aria-label="Review filters">
         <div class="field">
-          <label for="searchInput">Search</label>
-          <input id="searchInput" type="search" placeholder="Wallet, quote, route, flag">
+          <label for="searchInput" data-i18n="admin.search">Search</label>
+          <input id="searchInput" type="search" placeholder="Wallet, quote, route, flag" data-i18n-placeholder="admin.searchPlaceholder">
         </div>
         <div class="field">
-          <label for="statusFilter">Status</label>
+          <label for="statusFilter" data-i18n="defi.status">Status</label>
           <select id="statusFilter">
-            <option value="">All statuses</option>
-            <option value="MANUAL_REVIEW">Manual review</option>
-            <option value="BLOCKED">Blocked</option>
-            <option value="AUTO_CLEARED">Auto cleared</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
+            <option value="" data-i18n="admin.allStatuses">All statuses</option>
+            <option value="MANUAL_REVIEW" data-i18n="status.MANUAL_REVIEW">Manual review</option>
+            <option value="BLOCKED" data-i18n="status.BLOCKED">Blocked</option>
+            <option value="AUTO_CLEARED" data-i18n="status.AUTO_CLEARED">Auto cleared</option>
+            <option value="APPROVED" data-i18n="status.APPROVED">Approved</option>
+            <option value="REJECTED" data-i18n="status.REJECTED">Rejected</option>
           </select>
         </div>
         <div class="field">
-          <label for="riskFilter">Risk tier</label>
+          <label for="riskFilter" data-i18n="admin.riskTier">Risk tier</label>
           <select id="riskFilter">
-            <option value="">All risks</option>
-            <option value="CRITICAL">Critical</option>
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
+            <option value="" data-i18n="admin.allRisks">All risks</option>
+            <option value="CRITICAL" data-i18n="risk.CRITICAL">Critical</option>
+            <option value="HIGH" data-i18n="risk.HIGH">High</option>
+            <option value="MEDIUM" data-i18n="risk.MEDIUM">Medium</option>
+            <option value="LOW" data-i18n="risk.LOW">Low</option>
           </select>
         </div>
       </section>
@@ -590,7 +623,7 @@
       <section class="grid">
         <section class="panel" aria-label="Compliance review queue">
           <div class="panel-head">
-            <h2>Review Queue</h2>
+            <h2 data-i18n="admin.reviewQueue">Review Queue</h2>
             <span class="pill" id="visibleCount">0 visible</span>
           </div>
           <div class="queue" id="queue"></div>
@@ -598,24 +631,30 @@
 
         <section class="panel" aria-label="Selected review detail">
           <div class="panel-head">
-            <h2>Review Detail</h2>
-            <span class="pill" id="selectedStatus">No selection</span>
+            <h2 data-i18n="admin.reviewDetail">Review Detail</h2>
+            <span class="pill" id="selectedStatus" data-i18n="common.noSelection">No selection</span>
           </div>
-          <div id="detail" class="detail-empty">Select a review to inspect wallet risk and quote context.</div>
+          <div id="detail" class="detail-empty" data-i18n="admin.selectReview">Select a review to inspect wallet risk and quote context.</div>
         </section>
       </section>
     </main>
   </div>
 
+  <script src="/assets/i18n.js"></script>
   <script>
     const state = {
       reviews: [],
       filtered: [],
       selectedId: null,
-      loading: false
+      loading: false,
+      lastUpdatedAt: null
     };
 
     const el = (id) => document.getElementById(id);
+    const t = (key, vars) => window.atomicI18n?.t(key, vars) || key;
+    const statusLabel = (status) => window.atomicI18n?.statusLabel(status) || status;
+    const riskLabel = (risk) => window.atomicI18n?.riskLabel(risk) || risk;
+    const stateLabel = (name) => window.atomicI18n?.stateLabel(name) || String(name || '').replaceAll('_', ' ');
 
     function statusClass(status) {
       if (['AUTO_CLEARED', 'APPROVED'].includes(status)) return 'good';
@@ -642,7 +681,7 @@
 
     function routeLabel(review) {
       const quote = review.swapQuote;
-      if (!quote) return review.assetContext || 'No route';
+      if (!quote) return review.assetContext || t('common.noRoute');
       return `${quote.fromAsset} -> ${quote.toAsset}`;
     }
 
@@ -694,10 +733,10 @@
 
     function renderQueue() {
       const queue = el('queue');
-      el('visibleCount').textContent = `${state.filtered.length} visible`;
+      el('visibleCount').textContent = t('common.visible', { count: state.filtered.length });
 
       if (!state.filtered.length) {
-        queue.innerHTML = '<div class="detail-empty">No reviews match the current filters.</div>';
+        queue.innerHTML = `<div class="detail-empty">${t('admin.noReviews')}</div>`;
         return;
       }
 
@@ -705,11 +744,11 @@
         <button class="review-row ${review.id === state.selectedId ? 'active' : ''}" data-id="${review.id}">
           <div>
             <div class="review-title">
-              <span class="badge ${statusClass(review.status)}">${review.status}</span>
-              <span class="badge ${statusClass(review.riskTier === 'LOW' ? 'AUTO_CLEARED' : review.riskTier === 'MEDIUM' ? 'MANUAL_REVIEW' : 'BLOCKED')}">${review.riskTier}</span>
+              <span class="badge ${statusClass(review.status)}">${statusLabel(review.status)}</span>
+              <span class="badge ${statusClass(review.riskTier === 'LOW' ? 'AUTO_CLEARED' : review.riskTier === 'MEDIUM' ? 'MANUAL_REVIEW' : 'BLOCKED')}">${riskLabel(review.riskTier)}</span>
               <strong>${routeLabel(review)}</strong>
             </div>
-            <div class="row-meta">${shorten(review.walletAddress, 12, 8)} &bull; ${review.flags.length ? review.flags.join(', ') : 'No flags'} &bull; ${formatDate(review.createdAt)}</div>
+            <div class="row-meta">${shorten(review.walletAddress, 12, 8)} &bull; ${review.flags.length ? review.flags.join(', ') : t('common.noFlags')} &bull; ${formatDate(review.createdAt)}</div>
           </div>
           <div class="risk-score">${review.riskScore}</div>
         </button>
@@ -729,58 +768,58 @@
       const detail = el('detail');
 
       if (!review) {
-        el('selectedStatus').textContent = 'No selection';
+        el('selectedStatus').textContent = t('common.noSelection');
         detail.className = 'detail-empty';
-        detail.textContent = 'Select a review to inspect wallet risk and quote context.';
+        detail.textContent = t('admin.selectReview');
         return;
       }
 
       const quote = review.swapQuote;
-      el('selectedStatus').textContent = review.status;
+      el('selectedStatus').textContent = statusLabel(review.status);
       detail.className = 'detail';
       detail.innerHTML = `
         <div class="alert ${statusClass(review.status)}">
-          ${review.status} &bull; ${review.riskTier} risk &bull; score ${review.riskScore}
+          ${statusLabel(review.status)} &bull; ${riskLabel(review.riskTier)} risk &bull; score ${review.riskScore}
         </div>
 
         <div class="detail-grid">
-          <div class="metric"><span>Wallet</span><strong>${review.walletAddress || 'n/a'}</strong></div>
-          <div class="metric"><span>Route</span><strong>${routeLabel(review)}</strong></div>
-          <div class="metric"><span>Quote status</span><strong>${quote ? `${quote.status} / ${quote.currentState}` : 'n/a'}</strong></div>
-          <div class="metric"><span>Provider</span><strong>${quote ? `${quote.provider} (${quote.providerMode})` : 'n/a'}</strong></div>
-          <div class="metric"><span>Input</span><strong>${quote ? quote.amount : 'n/a'}</strong></div>
-          <div class="metric"><span>Estimated output</span><strong>${quote ? quote.estimatedOutputAmount : 'n/a'}</strong></div>
-          <div class="metric"><span>Quote ID</span><strong>${quote ? shorten(quote.id, 12, 8) : 'n/a'}</strong></div>
-          <div class="metric"><span>Expires</span><strong>${quote ? formatDate(quote.expiresAt) : 'n/a'}</strong></div>
+          <div class="metric"><span>${t('admin.wallet')}</span><strong>${review.walletAddress || t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('admin.route')}</span><strong>${routeLabel(review)}</strong></div>
+          <div class="metric"><span>${t('admin.quoteStatus')}</span><strong>${quote ? `${statusLabel(quote.status)} / ${stateLabel(quote.currentState)}` : t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('defi.provider')}</span><strong>${quote ? `${quote.provider} (${quote.providerMode})` : t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('admin.input')}</span><strong>${quote ? quote.amount : t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('admin.estimatedOutput')}</span><strong>${quote ? quote.estimatedOutputAmount : t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('defi.quoteId')}</span><strong>${quote ? shorten(quote.id, 12, 8) : t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('defi.expires')}</span><strong>${quote ? formatDate(quote.expiresAt) : t('common.nA')}</strong></div>
         </div>
 
         <div>
-          <label>Checks</label>
-          <div class="flags">${review.checks.length ? review.checks.map((check) => `<span class="badge info">${check}</span>`).join('') : '<span class="badge">No checks</span>'}</div>
+          <label>${t('admin.checks')}</label>
+          <div class="flags">${review.checks.length ? review.checks.map((check) => `<span class="badge info">${check}</span>`).join('') : `<span class="badge">${t('common.noChecks')}</span>`}</div>
         </div>
 
         <div>
-          <label>Flags</label>
-          <div class="flags">${review.flags.length ? review.flags.map((flag) => `<span class="badge ${statusClass(review.status)}">${flag}</span>`).join('') : '<span class="badge good">No flags</span>'}</div>
+          <label>${t('admin.flags')}</label>
+          <div class="flags">${review.flags.length ? review.flags.map((flag) => `<span class="badge ${statusClass(review.status)}">${flag}</span>`).join('') : `<span class="badge good">${t('common.noFlags')}</span>`}</div>
         </div>
 
         <div class="decision-box ${['APPROVED', 'REJECTED', 'AUTO_CLEARED'].includes(review.status) ? 'hidden' : ''}">
           <div class="field">
-            <label for="decisionNotes">Decision notes</label>
-            <textarea id="decisionNotes" placeholder="Add operator rationale"></textarea>
+            <label for="decisionNotes">${t('admin.decisionNotes')}</label>
+            <textarea id="decisionNotes" placeholder="${t('admin.notesPlaceholder')}"></textarea>
           </div>
           <div class="field">
-            <label for="reviewedBy">Reviewed by</label>
+            <label for="reviewedBy">${t('admin.reviewedBy')}</label>
             <input id="reviewedBy" value="ops" autocomplete="off">
           </div>
           <div class="decision-actions">
-            <button class="primary" id="approveButton">Approve</button>
-            <button class="danger" id="rejectButton">Reject</button>
+            <button class="primary" id="approveButton">${t('admin.approve')}</button>
+            <button class="danger" id="rejectButton">${t('admin.reject')}</button>
           </div>
         </div>
 
         <div class="alert ${review.decisionNotes ? 'good' : ''}">
-          ${review.decisionNotes ? `Decision: ${review.decisionNotes} &bull; ${review.reviewedBy || 'ops'} &bull; ${formatDate(review.reviewedAt)}` : 'No operator decision recorded yet.'}
+          ${review.decisionNotes ? t('admin.decision', { notes: review.decisionNotes, by: review.reviewedBy || 'ops', time: formatDate(review.reviewedAt) }) : t('admin.noDecision')}
         </div>
       `;
 
@@ -793,19 +832,20 @@
     async function loadReviews() {
       if (state.loading) return;
       state.loading = true;
-      el('apiStatus').innerHTML = '<span class="dot"></span> Syncing';
+      el('apiStatus').innerHTML = `<span class="dot"></span><span>${t('common.syncing')}</span>`;
 
       try {
         const response = await fetch('/v1/admin/compliance/reviews');
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || 'Unable to load reviews');
         state.reviews = payload.reviews || [];
+        state.lastUpdatedAt = new Date().toISOString();
         updateStats();
         applyFilters();
-        el('apiStatus').innerHTML = '<span class="dot good"></span> API live';
-        el('lastUpdated').textContent = `Updated ${formatDate(new Date().toISOString())}`;
+        el('apiStatus').innerHTML = `<span class="dot good"></span><span>${t('common.apiLive')}</span>`;
+        el('lastUpdated').textContent = t('common.updated', { time: formatDate(state.lastUpdatedAt) });
       } catch (error) {
-        el('apiStatus').innerHTML = '<span class="dot bad"></span> API offline';
+        el('apiStatus').innerHTML = `<span class="dot bad"></span><span>${t('common.apiOffline')}</span>`;
         el('queue').innerHTML = `<div class="detail-empty">${error.message}</div>`;
       } finally {
         state.loading = false;
@@ -821,7 +861,7 @@
       if (approveButton) approveButton.disabled = true;
       if (rejectButton) rejectButton.disabled = true;
 
-      const notes = el('decisionNotes')?.value || `Compliance review ${decision.toLowerCase()}`;
+      const notes = el('decisionNotes')?.value || t('admin.defaultDecision', { decision: statusLabel(decision) });
       const reviewedBy = el('reviewedBy')?.value || 'ops';
 
       try {
@@ -846,6 +886,13 @@
     el('searchInput').addEventListener('input', applyFilters);
     el('statusFilter').addEventListener('change', applyFilters);
     el('riskFilter').addEventListener('change', applyFilters);
+
+    window.atomicI18n?.init();
+    window.addEventListener('atomic-i18n-change', () => {
+      if (state.lastUpdatedAt) el('lastUpdated').textContent = t('common.updated', { time: formatDate(state.lastUpdatedAt) });
+      applyFilters();
+      if (!state.loading) loadReviews();
+    });
 
     loadReviews();
     setInterval(loadReviews, 30000);

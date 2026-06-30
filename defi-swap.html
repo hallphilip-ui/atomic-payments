@@ -110,6 +110,43 @@
       white-space: nowrap;
     }
 
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .language-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(14, 34, 51, 0.8);
+      color: var(--steel);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .language-control span {
+      color: var(--muted);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .language-control select {
+      min-height: 28px;
+      width: auto;
+      padding: 0 26px 0 8px;
+      border-color: rgba(128, 200, 235, 0.16);
+      background: rgba(3, 10, 17, 0.65);
+      color: var(--ink);
+    }
+
     .dot {
       width: 8px;
       height: 8px;
@@ -523,20 +560,31 @@
         align-items: flex-start;
         gap: 12px;
       }
+
+      .top-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
     }
   </style>
 </head>
-<body>
+<body data-i18n-title="defi.title">
   <div class="app">
     <header class="topbar">
       <div class="brand">
         <img src="/assets/atomic-mark.png" alt="Atomic Payments logo">
         <div>
-          <strong>Atomic DeFi Swap</strong>
-          <span>Any-to-any cross-chain execution</span>
+          <strong data-i18n="defi.title">Atomic DeFi Swap</strong>
+          <span data-i18n="defi.subtitle">Any-to-any cross-chain execution</span>
         </div>
       </div>
-      <div class="status-pill" id="apiStatus"><span class="dot"></span><span>Checking API</span></div>
+      <div class="top-actions">
+        <label class="language-control">
+          <span data-i18n="common.language">Language</span>
+          <select data-atomic-language-select aria-label="Language"></select>
+        </label>
+        <div class="status-pill" id="apiStatus"><span class="dot"></span><span data-i18n="common.checkingApi">Checking API</span></div>
+      </div>
     </header>
 
     <main>
@@ -545,128 +593,137 @@
           <section class="section">
             <div class="section-head">
               <div>
-                <h1>Unified Swap Matrix</h1>
-                <p class="subtle">Select source and destination networks, get a locked quote, and keep AML/compliance visible before signature.</p>
+                <h1 data-i18n="defi.heading">Unified Swap Matrix</h1>
+                <p class="subtle" data-i18n="defi.description">Select source and destination networks, get a locked quote, and keep AML/compliance visible before signature.</p>
               </div>
             </div>
 
             <div class="swap-grid">
               <div class="field">
-                <label for="fromAsset">From</label>
+                <label for="fromAsset" data-i18n="defi.from">From</label>
                 <select id="fromAsset"></select>
               </div>
               <div class="swap-icon" aria-hidden="true">⇄</div>
               <div class="field">
-                <label for="toAsset">To</label>
+                <label for="toAsset" data-i18n="defi.to">To</label>
                 <select id="toAsset"></select>
               </div>
             </div>
 
             <div class="swap-grid" style="margin-top: 14px;">
               <div class="field">
-                <label for="amount">Input Amount</label>
+                <label for="amount" data-i18n="defi.inputAmount">Input Amount</label>
                 <input id="amount" class="amount-input" inputmode="numeric" value="100000000" aria-label="Atomic integer amount">
               </div>
               <div></div>
               <div class="field">
-                <label for="destination">Destination Address</label>
+                <label for="destination" data-i18n="defi.destinationAddress">Destination Address</label>
                 <input id="destination" value="0x742d35Cc6634C0532925a3b844Bc454e4438f44e" aria-label="Destination wallet address">
               </div>
             </div>
 
             <div class="meta-row">
-              <span class="metric">Quote lock: <strong id="quoteLock">30s</strong></span>
-              <span class="metric warning">Slip tolerance: <strong>1.0%</strong></span>
-              <span class="metric good">Spread: <strong>0.5%</strong></span>
-              <span class="metric" id="walletMode">Wallet: detecting</span>
+              <span class="metric"><span data-i18n="defi.quoteLock">Quote lock:</span> <strong id="quoteLock">30s</strong></span>
+              <span class="metric warning"><span data-i18n="defi.slipTolerance">Slip tolerance:</span> <strong>1.0%</strong></span>
+              <span class="metric good"><span data-i18n="defi.spread">Spread:</span> <strong>0.5%</strong></span>
+              <span class="metric" id="walletMode" data-i18n="defi.walletDetecting">Wallet: detecting</span>
             </div>
 
             <div class="actions">
-              <button class="primary" id="quoteBtn">Get Quote</button>
-              <button class="secondary" id="autofillBtn">Autofill Wallet</button>
+              <button class="primary" id="quoteBtn" data-i18n="defi.getQuote">Get Quote</button>
+              <button class="secondary" id="autofillBtn" data-i18n="defi.autofillWallet">Autofill Wallet</button>
             </div>
           </section>
 
           <section class="section">
             <div class="section-head">
               <div>
-                <h2>Destination Address Validation</h2>
-                <p class="subtle">Format checks run before quote creation and AML screening runs during quote creation.</p>
+                <h2 data-i18n="defi.validationTitle">Destination Address Validation</h2>
+                <p class="subtle" data-i18n="defi.validationDesc">Format checks run before quote creation and AML screening runs during quote creation.</p>
               </div>
             </div>
             <div class="validation">
-              <div class="alert" id="addressValidation">Enter a destination address to validate its network format.</div>
-              <div class="alert" id="complianceStatus">Compliance status will appear after quote creation.</div>
+              <div class="alert" id="addressValidation" data-i18n="defi.enterAddress">Enter a destination address to validate its network format.</div>
+              <div class="alert" id="complianceStatus" data-i18n="defi.compliancePending">Compliance status will appear after quote creation.</div>
             </div>
           </section>
 
           <section class="section">
             <div class="section-head">
               <div>
-                <h2>Review Swap Parameters</h2>
-                <p class="subtle">The order breakdown exposes provider, platform fee, price impact, and approval readiness.</p>
+                <h2 data-i18n="defi.reviewTitle">Review Swap Parameters</h2>
+                <p class="subtle" data-i18n="defi.reviewDesc">The order breakdown exposes provider, platform fee, price impact, and approval readiness.</p>
               </div>
             </div>
             <div class="review-grid">
-              <div class="review-item"><span>Provider</span><strong id="reviewProvider">-</strong></div>
-              <div class="review-item"><span>Estimated Received</span><strong id="reviewOutput">-</strong></div>
-              <div class="review-item"><span>Platform Fee</span><strong id="reviewFee">-</strong></div>
-              <div class="review-item"><span>Price Impact</span><strong id="reviewImpact">-</strong></div>
+              <div class="review-item"><span data-i18n="defi.provider">Provider</span><strong id="reviewProvider">-</strong></div>
+              <div class="review-item"><span data-i18n="defi.estimatedReceived">Estimated Received</span><strong id="reviewOutput">-</strong></div>
+              <div class="review-item"><span data-i18n="defi.platformFee">Platform Fee</span><strong id="reviewFee">-</strong></div>
+              <div class="review-item"><span data-i18n="defi.priceImpact">Price Impact</span><strong id="reviewImpact">-</strong></div>
             </div>
             <div class="review-grid three">
-              <div class="review-item"><span>Provider Mode</span><strong id="providerMode">-</strong></div>
-              <div class="review-item"><span>Provider Quote</span><strong id="providerQuoteId">-</strong></div>
-              <div class="review-item"><span>Latency</span><strong id="providerLatency">-</strong></div>
+              <div class="review-item"><span data-i18n="defi.providerMode">Provider Mode</span><strong id="providerMode">-</strong></div>
+              <div class="review-item"><span data-i18n="defi.providerQuote">Provider Quote</span><strong id="providerQuoteId">-</strong></div>
+              <div class="review-item"><span data-i18n="defi.latency">Latency</span><strong id="providerLatency">-</strong></div>
             </div>
             <div class="actions">
-              <button class="primary" id="approveBtn" disabled>Approve & Broadcast</button>
-              <button class="secondary" id="advanceBtn" disabled>Advance Tracker</button>
+              <button class="primary" id="approveBtn" disabled data-i18n="defi.approveBroadcast">Approve & Broadcast</button>
+              <button class="secondary" id="advanceBtn" disabled data-i18n="defi.advanceTracker">Advance Tracker</button>
             </div>
-            <div class="alert" id="actionHint" style="margin-top: 12px;">Create a quote to unlock the next action.</div>
+            <div class="alert" id="actionHint" style="margin-top: 12px;" data-i18n="defi.createQuote">Create a quote to unlock the next action.</div>
           </section>
         </div>
 
         <aside class="side-panel">
           <div>
-            <h2>Quote State</h2>
-            <p class="subtle">Live state and compliance trail for the current swap.</p>
+            <h2 data-i18n="defi.quoteState">Quote State</h2>
+            <p class="subtle" data-i18n="defi.quoteStateDesc">Live state and compliance trail for the current swap.</p>
           </div>
 
           <div class="quote-box">
-            <div class="quote-line"><span>Quote ID</span><strong id="quoteId">-</strong></div>
-            <div class="quote-line"><span>Status</span><strong id="quoteStatus">-</strong></div>
-            <div class="quote-line"><span>Current State</span><strong id="currentState">-</strong></div>
-            <div class="quote-line"><span>Expires</span><strong id="expiresAt">-</strong></div>
+            <div class="quote-line"><span data-i18n="defi.quoteId">Quote ID</span><strong id="quoteId">-</strong></div>
+            <div class="quote-line"><span data-i18n="defi.status">Status</span><strong id="quoteStatus">-</strong></div>
+            <div class="quote-line"><span data-i18n="defi.currentState">Current State</span><strong id="currentState">-</strong></div>
+            <div class="quote-line"><span data-i18n="defi.expires">Expires</span><strong id="expiresAt">-</strong></div>
           </div>
 
           <div>
-            <h3>Provider Diagnostics</h3>
-            <div class="diagnostics" id="providerDiagnostics"><span>No provider quote yet.</span></div>
+            <h3 data-i18n="defi.providerDiagnostics">Provider Diagnostics</h3>
+            <div class="diagnostics" id="providerDiagnostics"><span data-i18n="defi.noProviderQuote">No provider quote yet.</span></div>
           </div>
 
           <div class="timeline" id="timeline"></div>
 
           <div>
-            <h3>Event Log</h3>
-            <div class="event-log" id="eventLog"><span class="empty">No swap events yet.</span></div>
+            <h3 data-i18n="defi.eventLog">Event Log</h3>
+            <div class="event-log" id="eventLog"><span class="empty" data-i18n="defi.noEvents">No swap events yet.</span></div>
           </div>
         </aside>
       </div>
     </main>
   </div>
 
+  <script src="/assets/i18n.js"></script>
   <script>
     const API_BASE = 'http://localhost:3005';
     const state = {
       assets: [],
       quote: null,
       countdown: null,
-      eventSource: null
+      eventSource: null,
+      apiStatusOk: false,
+      apiStatusKey: 'common.checkingApi'
     };
 
     const el = (id) => document.getElementById(id);
+    const t = (key, vars) => window.atomicI18n?.t(key, vars) || key;
+    const statusLabel = (status) => window.atomicI18n?.statusLabel(status) || status;
+    const riskLabel = (risk) => window.atomicI18n?.riskLabel(risk) || risk;
+    const stateLabel = (name) => window.atomicI18n?.stateLabel(name) || String(name || '').replaceAll('_', ' ');
 
-    function setApiStatus(ok, text) {
+    function setApiStatus(ok, text, key) {
+      state.apiStatusOk = ok;
+      if (key) state.apiStatusKey = key;
       const dot = el('apiStatus').querySelector('.dot');
       dot.className = ok ? 'dot ok' : 'dot bad';
       el('apiStatus').lastElementChild.textContent = text;
@@ -682,27 +739,27 @@
 
     function validateAddress(asset, address) {
       const value = address.trim();
-      if (!asset || !value) return { ok: false, text: 'Choose a destination asset and enter an address.' };
-      if (asset.chainFamily === 'evm') return { ok: /^0x[a-fA-F0-9]{40}$/.test(value), text: 'EVM hex address check' };
-      if (asset.chainFamily === 'svm') return { ok: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value), text: 'Solana Base58 public key check' };
-      if (asset.chain === 'BITCOIN') return { ok: /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(value), text: 'Bitcoin Bech32/legacy check' };
-      if (asset.chain === 'LITECOIN') return { ok: /^(ltc1|[LM3])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(value), text: 'Litecoin address check' };
-      return { ok: value.length >= 8, text: 'Generic destination format check' };
+      if (!asset || !value) return { ok: false, key: 'defi.chooseDestination' };
+      if (asset.chainFamily === 'evm') return { ok: /^0x[a-fA-F0-9]{40}$/.test(value), key: 'defi.evmCheck' };
+      if (asset.chainFamily === 'svm') return { ok: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value), key: 'defi.solanaCheck' };
+      if (asset.chain === 'BITCOIN') return { ok: /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(value), key: 'defi.bitcoinCheck' };
+      if (asset.chain === 'LITECOIN') return { ok: /^(ltc1|[LM3])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(value), key: 'defi.litecoinCheck' };
+      return { ok: value.length >= 8, key: 'defi.genericCheck' };
     }
 
     function updateAddressValidation() {
       const asset = selectedAsset('toAsset');
       const result = validateAddress(asset, el('destination').value);
       el('addressValidation').className = `alert ${result.ok ? 'good' : 'warn'}`;
-      el('addressValidation').textContent = `${result.text}: ${result.ok ? 'valid format detected' : 'needs attention'}`;
+      el('addressValidation').textContent = `${t(result.key)}: ${result.ok ? t('defi.validFormat') : t('defi.needsAttention')}`;
     }
 
     function updateWalletMode() {
       const hasEthereum = Boolean(window.ethereum);
       const hasSolana = Boolean(window.solana);
-      if (hasSolana) el('walletMode').textContent = 'Wallet: Phantom injection active';
-      else if (hasEthereum) el('walletMode').textContent = 'Wallet: EVM extension active';
-      else el('walletMode').textContent = 'Wallet: WalletConnect/manual';
+      if (hasSolana) el('walletMode').textContent = t('defi.walletPhantom');
+      else if (hasEthereum) el('walletMode').textContent = t('defi.walletEvm');
+      else el('walletMode').textContent = t('defi.walletManual');
     }
 
     function renderTimeline() {
@@ -711,7 +768,8 @@
       const currentIndex = Math.max(0, states.indexOf(quote?.currentState));
       el('timeline').innerHTML = states.map((name, index) => {
         const mode = quote?.status === 'COMPLETE' || index < currentIndex ? 'done' : index === currentIndex ? 'active' : '';
-        return `<div class="step ${mode}"><div class="step-marker">${index + 1}</div><div><strong>${name.replaceAll('_', ' ')}</strong><span class="subtle">${index === currentIndex ? 'Current network state' : index < currentIndex ? 'Confirmed' : 'Pending'}</span></div></div>`;
+        const subtext = index === currentIndex ? t('common.currentNetworkState') : index < currentIndex ? t('common.confirmed') : t('common.pending');
+        return `<div class="step ${mode}"><div class="step-marker">${index + 1}</div><div><strong>${stateLabel(name)}</strong><span class="subtle">${subtext}</span></div></div>`;
       }).join('');
     }
 
@@ -727,20 +785,20 @@
       el('providerLatency').textContent = `${quote.providerLatencyMs ?? 0} ms`;
       el('providerDiagnostics').innerHTML = diagnostics.length
         ? diagnostics.map((item) => `<div>${item}</div>`).join('')
-        : '<span>No provider diagnostics returned.</span>';
+        : `<span>${t('defi.noProviderDiagnostics')}</span>`;
     }
 
     function explainNextAction(quote, review) {
-      if (quote.status === 'HALTED') return { kind: 'bad', text: 'Quote halted because price impact breached the configured limit.' };
-      if (quote.status === 'BLOCKED') return { kind: 'bad', text: 'Compliance blocked this quote. A new destination or route is required.' };
-      if (review?.status === 'MANUAL_REVIEW') return { kind: 'warn', text: 'Manual AML review is required before wallet authorization.' };
-      if (review?.status === 'REJECTED') return { kind: 'bad', text: 'Compliance rejected this quote.' };
-      if (quote.status === 'QUOTED') return { kind: 'good', text: 'Quote is cleared for wallet authorization before the countdown expires.' };
-      if (quote.status === 'AUTHORIZED') return { kind: 'good', text: 'Wallet authorization captured. Advance tracker as provider confirmations arrive.' };
-      if (quote.status === 'ROUTING') return { kind: 'good', text: 'Swap is routing. Continue advancing as simulated provider events land.' };
-      if (quote.status === 'COMPLETE') return { kind: 'good', text: 'Swap simulation is complete.' };
-      if (quote.status === 'EXPIRED') return { kind: 'bad', text: 'Quote expired. Refresh pricing before authorizing.' };
-      return { kind: '', text: 'Create a quote to unlock the next action.' };
+      if (quote.status === 'HALTED') return { kind: 'bad', text: t('defi.quoteHalted') };
+      if (quote.status === 'BLOCKED') return { kind: 'bad', text: t('defi.complianceBlocked') };
+      if (review?.status === 'MANUAL_REVIEW') return { kind: 'warn', text: t('defi.manualReview') };
+      if (review?.status === 'REJECTED') return { kind: 'bad', text: t('defi.complianceRejected') };
+      if (quote.status === 'QUOTED') return { kind: 'good', text: t('defi.quoteCleared') };
+      if (quote.status === 'AUTHORIZED') return { kind: 'good', text: t('defi.authorizationCaptured') };
+      if (quote.status === 'ROUTING') return { kind: 'good', text: t('defi.swapRouting') };
+      if (quote.status === 'COMPLETE') return { kind: 'good', text: t('defi.simulationComplete') };
+      if (quote.status === 'EXPIRED') return { kind: 'bad', text: t('defi.quoteExpired') };
+      return { kind: '', text: t('defi.createQuote') };
     }
 
     function renderQuote(result) {
@@ -750,8 +808,8 @@
       if (result.complianceReview) state.lastComplianceReview = result.complianceReview;
 
       el('quoteId').textContent = quote.id;
-      el('quoteStatus').textContent = quote.status;
-      el('currentState').textContent = quote.currentState;
+      el('quoteStatus').textContent = statusLabel(quote.status);
+      el('currentState').textContent = stateLabel(quote.currentState);
       el('expiresAt').textContent = new Date(quote.expiresAt).toLocaleTimeString();
       el('reviewProvider').textContent = quote.provider;
       el('reviewOutput').textContent = quote.estimatedOutputAmount;
@@ -762,7 +820,7 @@
       if (review) {
         const className = review.status === 'AUTO_CLEARED' || review.status === 'APPROVED' ? 'good' : review.status === 'BLOCKED' || review.status === 'REJECTED' ? 'bad' : 'warn';
         el('complianceStatus').className = `alert ${className}`;
-        el('complianceStatus').textContent = `AML ${review.status}: ${review.riskTier} risk, score ${review.riskScore}. Flags: ${review.flags.length ? review.flags.join(', ') : 'none'}`;
+        el('complianceStatus').textContent = `AML ${statusLabel(review.status)}: ${riskLabel(review.riskTier)} risk, score ${review.riskScore}. ${t('admin.flags')}: ${review.flags.length ? review.flags.join(', ') : t('common.noFlags')}`;
       }
 
       const canApprove = quote.status === 'QUOTED' && (!review || review.status === 'AUTO_CLEARED' || review.status === 'APPROVED');
@@ -783,7 +841,7 @@
           el('quoteLock').textContent = 'expired';
           if (state.quote?.status === 'QUOTED') {
             el('approveBtn').disabled = true;
-            setActionHint('bad', 'Quote expired. Refresh pricing before authorizing.');
+            setActionHint('bad', t('defi.quoteExpired'));
           }
           clearInterval(state.countdown);
           return;
@@ -802,7 +860,7 @@
       el('fromAsset').value = 'BITCOIN.BTC';
       el('toAsset').value = 'ETH.USDC';
       updateAddressValidation();
-      setApiStatus(true, 'API connected');
+      setApiStatus(true, t('defi.apiConnected'), 'defi.apiConnected');
     }
 
     async function getQuote() {
@@ -863,8 +921,8 @@
       const data = await response.json();
       const events = data.events || [];
       el('eventLog').innerHTML = events.length
-        ? events.map((event) => `<div>${new Date(event.createdAt).toLocaleTimeString()} · ${event.state} · ${event.message}</div>`).join('')
-        : '<span class="empty">No swap events yet.</span>';
+        ? events.map((event) => `<div>${new Date(event.createdAt).toLocaleTimeString()} · ${stateLabel(event.state)} · ${event.message}</div>`).join('')
+        : `<span class="empty">${t('defi.noEvents')}</span>`;
       renderTimeline();
     }
 
@@ -884,8 +942,8 @@
         const data = JSON.parse(event.data);
         const events = data.events || [];
         el('eventLog').innerHTML = events.length
-          ? events.map((item) => `<div>${new Date(item.createdAt).toLocaleTimeString()} · ${item.state} · ${item.message}</div>`).join('')
-          : '<span class="empty">No swap events yet.</span>';
+          ? events.map((item) => `<div>${new Date(item.createdAt).toLocaleTimeString()} · ${stateLabel(item.state)} · ${item.message}</div>`).join('')
+          : `<span class="empty">${t('defi.noEvents')}</span>`;
       });
       stream.addEventListener('swap-error', (event) => {
         const data = JSON.parse(event.data);
@@ -916,8 +974,16 @@
     el('toAsset').addEventListener('change', updateAddressValidation);
     el('destination').addEventListener('input', updateAddressValidation);
 
+    window.atomicI18n?.init();
+    window.addEventListener('atomic-i18n-change', () => {
+      updateWalletMode();
+      setApiStatus(state.apiStatusOk, t(state.apiStatusKey), state.apiStatusKey);
+      updateAddressValidation();
+      if (state.quote) renderQuote({ quote: state.quote });
+    });
+
     updateWalletMode();
-    loadAssets().catch(() => setApiStatus(false, 'Start API on port 3005'));
+    loadAssets().catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
   </script>
 </body>
 </html>
