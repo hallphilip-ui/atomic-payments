@@ -80,6 +80,37 @@ router.get('/v1/swaps/quotes/:id/events', async (req, res) => {
   return res.json({ events: await listSwapExecutionEvents(req.params.id) });
 });
 
+router.get('/v1/swaps/quotes/:id/stream', async (req, res) => {
+  res.header('Content-Type', 'text/event-stream');
+  res.header('Cache-Control', 'no-cache');
+  res.header('Connection', 'keep-alive');
+
+  let lastPayload = '';
+
+  const writeEvents = async () => {
+    try {
+      const events = await listSwapExecutionEvents(req.params.id);
+      const payload = JSON.stringify({ events });
+      if (payload !== lastPayload) {
+        res.write(`event: swap-events\n`);
+        res.write(`data: ${payload}\n\n`);
+        lastPayload = payload;
+      }
+    } catch (error: any) {
+      res.write(`event: swap-error\n`);
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
+    }
+  };
+
+  await writeEvents();
+  const interval = setInterval(writeEvents, 2000);
+
+  req.on('close', () => {
+    clearInterval(interval);
+    res.end();
+  });
+});
+
 router.post('/v1/swaps/quotes/:id/authorize', async (req, res) => {
   try {
     const quote = await authorizeStoredSwapQuote(req.params.id, String(req.body.signature ?? ''));

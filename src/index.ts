@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import express from 'express';
 import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -25,5 +27,11 @@ app.use(userRoutes);
 app.use(adminRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
+
+app.use('/defi-swap', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'defi-swap.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+});
 
 app.listen(3005, () => console.log('🚀 Atomic Admin Engine Live'));

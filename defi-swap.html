@@ -595,7 +595,7 @@
       assets: [],
       quote: null,
       countdown: null,
-      eventsTimer: null
+      eventSource: null
     };
 
     const el = (id) => document.getElementById(id);
@@ -673,7 +673,7 @@
       el('advanceBtn').disabled = !['AUTHORIZED', 'ROUTING'].includes(quote.status);
       renderTimeline();
       startCountdown(quote.expiresAt);
-      loadEvents();
+      connectEventStream(quote.id);
     }
 
     function startCountdown(expiresAt) {
@@ -762,6 +762,37 @@
       renderTimeline();
     }
 
+    function connectEventStream(quoteId) {
+      if (state.eventSource) {
+        state.eventSource.close();
+        state.eventSource = null;
+      }
+
+      if (!window.EventSource) {
+        loadEvents();
+        return;
+      }
+
+      const stream = new EventSource(`${API_BASE}/v1/swaps/quotes/${quoteId}/stream`);
+      stream.addEventListener('swap-events', (event) => {
+        const data = JSON.parse(event.data);
+        const events = data.events || [];
+        el('eventLog').innerHTML = events.length
+          ? events.map((item) => `<div>${new Date(item.createdAt).toLocaleTimeString()} · ${item.state} · ${item.message}</div>`).join('')
+          : '<span class="empty">No swap events yet.</span>';
+      });
+      stream.addEventListener('swap-error', (event) => {
+        const data = JSON.parse(event.data);
+        el('eventLog').innerHTML = `<span class="empty">${data.error}</span>`;
+      });
+      stream.onerror = () => {
+        stream.close();
+        state.eventSource = null;
+        loadEvents();
+      };
+      state.eventSource = stream;
+    }
+
     function autofillWallet() {
       const toAsset = selectedAsset('toAsset');
       if (window.ethereum && toAsset?.chainFamily === 'evm') {
@@ -781,7 +812,6 @@
 
     updateWalletMode();
     loadAssets().catch(() => setApiStatus(false, 'Start API on port 3005'));
-    setInterval(loadEvents, 4000);
   </script>
 </body>
 </html>

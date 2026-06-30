@@ -4,13 +4,17 @@ declare module 'express' {
     params: Record<string, string>;
     query: Record<string, unknown>;
     method?: string;
+    on(event: string, callback: () => void): Request;
   };
 
   export type Response = {
     status(code: number): Response;
     json(payload: any): Response;
     header(name: string, value: string): Response;
+    send(payload: any): Response;
     sendStatus(code: number): Response;
+    write(payload: string): boolean;
+    end(): void;
   };
 
   export type Handler = (req: Request, res: Response, next?: () => void) => unknown;
@@ -25,6 +29,7 @@ declare module 'express' {
 
   type ExpressApp = {
     use(handler: any): void;
+    use(path: string, handler: Handler): void;
     listen(port: number, callback?: () => void): void;
   };
 
