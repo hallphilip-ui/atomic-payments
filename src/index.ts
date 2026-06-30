@@ -8,6 +8,7 @@ import userRoutes from './routes/users';
 import adminRoutes from './routes/admin';
 import settlementRoutes from './routes/settlement';
 import swapRoutes from './routes/swaps';
+import healthRoutes from './routes/health';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3005);
@@ -28,6 +29,7 @@ app.use(userRoutes);
 app.use(adminRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
+app.use(healthRoutes);
 
 app.use('/defi-swap', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'defi-swap.html'), 'utf8');

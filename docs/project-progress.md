@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 70-72%
+Estimated total completion: 71-73%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -20,6 +20,7 @@ Completion: 68-72%
 - CORS, JSON handling, and local static console routes.
 - Build passes with `npm run build`.
 - Docker image and Compose service for repeatable local app startup.
+- Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -112,6 +113,7 @@ Completion: 58-61%
 - Isolated smoke command creates a temporary SQLite database and API port for clean local/CI runs.
 - Provider adapter contract test runs in CI without network or database dependencies.
 - Docker smoke command builds the container, starts the service, waits for readiness, runs the core smoke, and tears the stack down.
+- Smoke coverage verifies `/v1/health`; Docker healthcheck uses the dedicated readiness endpoint.
 
 Production gaps:
 
@@ -192,6 +194,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
+- Health/readiness exists, but production observability still needs structured logs, metrics, traces, and alerting.
 
 ## Near-Term Completion Target
 

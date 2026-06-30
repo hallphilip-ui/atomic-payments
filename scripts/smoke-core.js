@@ -51,10 +51,16 @@ async function cleanupSmokeData() {
 async function main() {
   console.log(`Smoke target: ${BASE_URL}`);
 
-  const [assets, config] = await Promise.all([
+  const [health, assets, config] = await Promise.all([
+    request('/v1/health'),
     request('/v1/swaps/assets'),
     request('/v1/swaps/config')
   ]);
+
+  assert.equal(health.status, 'ok', 'health endpoint reports ok');
+  assert.equal(health.database, 'ready', 'health endpoint reports database readiness');
+  assert.equal(health.service, 'atomic-payments', 'health endpoint reports service name');
+  console.log(`OK health: ${health.database}, ${health.providerMode} provider mode`);
 
   assert.ok(Array.isArray(assets.assets), 'assets response includes assets array');
   assert.ok(assets.assets.length >= 20, 'asset registry has at least 20 enabled assets');

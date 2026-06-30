@@ -15,7 +15,7 @@ trap cleanup EXIT INT TERM
 docker compose -f "$COMPOSE_FILE" up --build -d "$SERVICE"
 
 attempt=0
-until node -e "fetch('${BASE_URL}/v1/swaps/config').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; do
+until node -e "fetch('${BASE_URL}/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; do
   attempt=$((attempt + 1))
   if [ "$attempt" -ge 30 ]; then
     docker compose -f "$COMPOSE_FILE" logs "$SERVICE"
