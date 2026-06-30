@@ -1,0 +1,23 @@
+services:
+  atomic-payments:
+    build:
+      context: .
+    image: atomic-payments:local
+    ports:
+      - "${ATOMIC_DOCKER_PORT:-3005}:3005"
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DATABASE_URL: file:/data/atomic.db
+      ATOMIC_SWAP_PROVIDER_MODE: simulation
+    volumes:
+      - atomic-payments-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/v1/swaps/config').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  atomic-payments-data:

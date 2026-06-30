@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 67-69%
+Estimated total completion: 68-70%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -12,13 +12,14 @@ Atomic Payments now has a working local foundation for merchant payments, off-ex
 
 ### Core App And API
 
-Completion: 65-70%
+Completion: 68-72%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
 - Merchant payment intent endpoints and admin fee configuration.
 - CORS, JSON handling, and local static console routes.
 - Build passes with `npm run build`.
+- Docker image and Compose service for repeatable local app startup.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -91,7 +92,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 56-59%
+Completion: 58-61%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -106,6 +107,7 @@ Completion: 56-59%
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
 - Isolated smoke command creates a temporary SQLite database and API port for clean local/CI runs.
 - Provider adapter contract test runs in CI without network or database dependencies.
+- Docker smoke command builds the container, starts the service, waits for readiness, runs the core smoke, and tears the stack down.
 
 Production gaps:
 
@@ -134,6 +136,13 @@ Run provider adapter contract checks:
 ```bash
 cd /Users/philiphall/atomic-payments
 npm run test:providers
+```
+
+Run the Docker smoke path:
+
+```bash
+cd /Users/philiphall/atomic-payments
+npm run smoke:docker
 ```
 
 Run the core smoke test while the app is running:
@@ -168,7 +177,7 @@ Add vendor abstraction for KYT/sanctions screening, case decisions, and audit ex
 
 5. Docker and deploy finish
 
-Make Docker a repeatable path for app, database migration, smoke checks, and future deploy readiness.
+Extend the Docker path into production deploy configuration, environment secrets, hosted database migrations, image publishing, and release rollback steps.
 
 ## Current Risk Register
 
@@ -178,6 +187,7 @@ Make Docker a repeatable path for app, database migration, smoke checks, and fut
 - Local SQLite is useful for development but not production persistence.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
+- Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
 
 ## Near-Term Completion Target
 
@@ -186,7 +196,7 @@ The project can reach roughly 75% completion by finishing:
 - production wallet signing/submission
 - provider live-doc verification
 - browser test isolation
-- Docker smoke execution
+- Docker deploy hardening
 - first compliance vendor abstraction
 
 The remaining 25% after that is launch-grade production work: regulated operations, vendor contracts, security review, observability, incident runbooks, reconciliation, and real liquidity/settlement operations.

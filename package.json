@@ -7,7 +7,8 @@
     "build": "tsc",
     "test:providers": "node scripts/provider-adapter-contract.js",
     "smoke:core": "node scripts/smoke-core.js",
-    "smoke:core:isolated": "node scripts/smoke-core-isolated.js"
+    "smoke:core:isolated": "node scripts/smoke-core-isolated.js",
+    "smoke:docker": "sh scripts/smoke-docker.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
