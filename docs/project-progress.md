@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 65-67%
+Estimated total completion: 66-68%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -90,7 +90,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 45-50%
+Completion: 52-55%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -103,10 +103,11 @@ Completion: 45-50%
   - compliance approval
 - Smoke-created quotes are cleaned up by default after each run.
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
+- Isolated smoke command creates a temporary SQLite database and API port for clean local/CI runs.
 
 Production gaps:
 
-- Add dedicated test database isolation for CI and parallel runs.
+- Add broader test isolation for future browser and provider-contract suites.
 - Add provider-adapter contract tests.
 - Add browser-level UI regression tests.
 
@@ -150,7 +151,7 @@ Use official Rango and THORChain documentation to confirm live quote payloads, r
 
 3. Test hardening
 
-Add isolated test database setup and teardown for CI and parallel runs. Local smoke-created quote records are already cleaned up by the script.
+Extend the isolated smoke pattern into browser and provider-contract test suites as those suites are added.
 
 4. Compliance production bridge
 
@@ -167,7 +168,7 @@ Make Docker a repeatable path for app, database migration, smoke checks, and fut
 - Wallet signing is simulated.
 - Local SQLite is useful for development but not production persistence.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
-- Smoke tests clean up their own quote records, but should still use an isolated database before CI.
+- Core smoke tests now use an isolated database in CI; future browser/provider suites should follow the same pattern.
 
 ## Near-Term Completion Target
 
@@ -175,7 +176,7 @@ The project can reach roughly 75% completion by finishing:
 
 - production wallet signing/submission
 - provider live-doc verification
-- test database isolation
+- browser/provider test isolation
 - Docker smoke execution
 - first compliance vendor abstraction
 

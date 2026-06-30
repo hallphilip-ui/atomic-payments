@@ -5,7 +5,8 @@
   "scripts": {
     "start": "ts-node --files src/index.ts",
     "build": "tsc",
-    "smoke:core": "node scripts/smoke-core.js"
+    "smoke:core": "node scripts/smoke-core.js",
+    "smoke:core:isolated": "node scripts/smoke-core-isolated.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

@@ -10,6 +10,7 @@ import settlementRoutes from './routes/settlement';
 import swapRoutes from './routes/swaps';
 
 const app = express();
+const port = Number(process.env.PORT ?? 3005);
 app.use(express.json());
 
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
@@ -58,4 +59,4 @@ app.use('/assets/i18n.js', (_req: Request, res: Response) => {
   return res.send(script);
 });
 
-app.listen(3005, () => console.log('🚀 Atomic Admin Engine Live'));
+app.listen(port, () => console.log(`🚀 Atomic Admin Engine Live on ${port}`));

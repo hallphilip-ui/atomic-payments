@@ -25,32 +25,12 @@ jobs:
         run: npm ci
 
       - name: Prepare Prisma database
-        run: |
-          npx prisma generate
-          npx prisma db push --skip-generate
+        run: npx prisma generate
+        env:
+          DATABASE_URL: file:./ci-generate.db
 
       - name: Build
         run: npm run build
 
-      - name: Start API
-        run: |
-          npm start > /tmp/atomic-payments.log 2>&1 &
-          echo $! > /tmp/atomic-payments.pid
-          for attempt in {1..30}; do
-            if curl -fsS http://127.0.0.1:3005/v1/swaps/config > /dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          cat /tmp/atomic-payments.log
-          exit 1
-
-      - name: Run core smoke test
-        run: npm run smoke:core
-
-      - name: Stop API
-        if: always()
-        run: |
-          if [ -f /tmp/atomic-payments.pid ]; then
-            kill "$(cat /tmp/atomic-payments.pid)" || true
-          fi
+      - name: Run isolated core smoke test
+        run: npm run smoke:core:isolated
