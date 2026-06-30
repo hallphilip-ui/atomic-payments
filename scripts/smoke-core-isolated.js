@@ -96,7 +96,7 @@ async function main() {
   ensureDatabaseFile();
   await run('npx', ['prisma', 'db', 'push', '--skip-generate']);
 
-  server = spawn('npm', ['start'], {
+  server = spawn('npx', ['ts-node', '--files', 'src/index.ts'], {
     cwd: repoRoot,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
