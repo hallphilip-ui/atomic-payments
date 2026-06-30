@@ -1,6 +1,10 @@
 const assert = require('node:assert/strict');
+const { PrismaClient } = require('@prisma/client');
 
 const BASE_URL = process.env.ATOMIC_BASE_URL || 'http://127.0.0.1:3005';
+const KEEP_SMOKE_DATA = process.env.ATOMIC_SMOKE_KEEP_DATA === '1';
+const prisma = new PrismaClient();
+const createdQuoteIds = new Set();
 
 async function request(path, options = {}) {
   const response = await fetch(`${BASE_URL}${path}`, {
@@ -27,6 +31,21 @@ async function assertContains(path, text) {
   const body = await request(path);
   assert.equal(typeof body, 'string');
   assert.ok(body.includes(text), `${path} should include ${text}`);
+}
+
+function trackQuote(result) {
+  if (result?.quote?.id) createdQuoteIds.add(result.quote.id);
+  return result;
+}
+
+async function cleanupSmokeData() {
+  if (KEEP_SMOKE_DATA || createdQuoteIds.size === 0) return;
+
+  const ids = Array.from(createdQuoteIds);
+  await prisma.swapQuote.deleteMany({
+    where: { id: { in: ids } }
+  });
+  console.log(`OK smoke cleanup removed ${ids.length} quote records`);
 }
 
 async function main() {
@@ -57,10 +76,10 @@ async function main() {
     amount: '100000000',
     userAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'
   };
-  const quoted = await request('/v1/swaps/quote', {
+  const quoted = trackQuote(await request('/v1/swaps/quote', {
     method: 'POST',
     body: JSON.stringify(quotePayload)
-  });
+  }));
 
   assert.equal(quoted.quote.status, 'QUOTED', 'valid quote is quoted');
   assert.equal(quoted.quote.platformFeeBps, 50, 'quote embeds platform fee');
@@ -81,14 +100,14 @@ async function main() {
   assert.ok(events.events.length >= 3, 'quote event log contains lifecycle entries');
   console.log(`OK authorize/advance/events: ${events.events.length} events`);
 
-  const reviewQuote = await request('/v1/swaps/quote', {
+  const reviewQuote = trackQuote(await request('/v1/swaps/quote', {
     method: 'POST',
     body: JSON.stringify({
       ...quotePayload,
       amount: '250000',
       userAddress: '0x987654321'
     })
-  });
+  }));
   assert.equal(reviewQuote.complianceReview.status, 'MANUAL_REVIEW', 'invalid EVM address creates manual review');
   assert.equal(reviewQuote.complianceReview.riskTier, 'HIGH', 'manual review carries high risk tier');
 
@@ -112,7 +131,15 @@ async function main() {
   console.log('Smoke complete');
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+main()
+  .catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    try {
+      await cleanupSmokeData();
+    } finally {
+      await prisma.$disconnect();
+    }
+  });

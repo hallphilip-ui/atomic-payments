@@ -99,11 +99,12 @@ Completion: 35-40%
   - event log
   - manual AML review
   - compliance approval
+- Smoke-created quotes are cleaned up by default after each run.
 
 Production gaps:
 
 - Add CI execution.
-- Add test database isolation and cleanup.
+- Add dedicated test database isolation for CI and parallel runs.
 - Add provider-adapter contract tests.
 - Add browser-level UI regression tests.
 
@@ -147,7 +148,7 @@ Use official Rango and THORChain documentation to confirm live quote payloads, r
 
 3. Test hardening
 
-Add isolated test database setup and teardown so smoke tests do not leave persistent local review/quote records.
+Add isolated test database setup and teardown for CI and parallel runs. Local smoke-created quote records are already cleaned up by the script.
 
 4. Compliance production bridge
 
@@ -164,7 +165,7 @@ Make Docker a repeatable path for app, database migration, smoke checks, and fut
 - Wallet signing is simulated.
 - Local SQLite is useful for development but not production persistence.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
-- Smoke tests currently create local dev data and should be isolated before CI.
+- Smoke tests clean up their own quote records, but should still use an isolated database before CI.
 
 ## Near-Term Completion Target
 
