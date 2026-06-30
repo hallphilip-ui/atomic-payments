@@ -3,14 +3,17 @@ declare module 'express' {
     body: any;
     params: Record<string, string>;
     query: Record<string, unknown>;
+    method?: string;
   };
 
   export type Response = {
     status(code: number): Response;
     json(payload: any): Response;
+    header(name: string, value: string): Response;
+    sendStatus(code: number): Response;
   };
 
-  export type Handler = (req: Request, res: Response) => unknown;
+  export type Handler = (req: Request, res: Response, next?: () => void) => unknown;
 
   export type Router = {
     get(path: string, handler: Handler): Router;

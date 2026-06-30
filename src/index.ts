@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import intentRoutes from './routes/intents';
 import userRoutes from './routes/users';
@@ -10,6 +11,14 @@ const app = express();
 app.use(express.json());
 
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+
+app.use((req: Request, res: Response, next?: () => void) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-atomic-key');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  return next?.();
+});
 
 app.use(intentRoutes);
 app.use(userRoutes);

@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic DeFi Swap</title>
+  <style>
+    :root {
+      --ink: #12161f;
+      --muted: #5f6b7a;
+      --line: #dbe3ec;
+      --paper: #f8fafc;
+      --panel: #ffffff;
+      --blue: #0877d8;
+      --cyan: #08a7c5;
+      --green: #138a55;
+      --amber: #b76312;
+      --red: #bd2d3a;
+      --violet: #6f42c1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(18px, 4vw, 48px);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand img {
+      width: 42px;
+      height: 42px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 16px;
+      line-height: 1.1;
+    }
+
+    .brand span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--amber);
+    }
+
+    .dot.ok { background: var(--green); }
+    .dot.bad { background: var(--red); }
+
+    main {
+      padding: clamp(20px, 4vw, 44px);
+    }
+
+    .shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .workspace, .side-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 16px 50px rgba(28, 44, 64, 0.08);
+    }
+
+    .workspace {
+      overflow: hidden;
+    }
+
+    .section {
+      padding: clamp(18px, 3vw, 28px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section:last-child {
+      border-bottom: 0;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(24px, 3vw, 38px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .swap-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+      gap: 14px;
+      align-items: end;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    select, input {
+      width: 100%;
+      min-height: 46px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(8, 119, 216, 0.12);
+    }
+
+    .amount-input {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .swap-icon {
+      height: 46px;
+      width: 44px;
+      display: grid;
+      place-items: center;
+      color: var(--blue);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f3f8fd;
+    }
+
+    .meta-row {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .metric {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: #eef7f9;
+      color: #176676;
+      font-size: 13px;
+      border: 1px solid #cce7ed;
+    }
+
+    .metric.warning {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: var(--amber);
+    }
+
+    .metric.good {
+      background: #effaf4;
+      border-color: #c8efd8;
+      color: var(--green);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .primary, .secondary, .danger {
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+
+    .primary {
+      color: #fff;
+      background: var(--blue);
+    }
+
+    .secondary {
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .danger {
+      color: #fff;
+      background: var(--red);
+    }
+
+    .validation {
+      display: grid;
+      gap: 12px;
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .review-item {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      background: #fbfdff;
+      min-height: 74px;
+    }
+
+    .review-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .review-item strong {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    .side-panel {
+      position: sticky;
+      top: 92px;
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .quote-box {
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfdff;
+    }
+
+    .quote-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .quote-line strong {
+      color: var(--ink);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      color: var(--muted);
+    }
+
+    .step-marker {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .step.active .step-marker {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .step.done .step-marker {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+
+    .step strong {
+      display: block;
+      color: var(--ink);
+      font-size: 14px;
+    }
+
+    .event-log {
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #101820;
+      color: #d9e9f6;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .empty {
+      color: #87a3ba;
+    }
+
+    .alert {
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: #fbfdff;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .alert.good {
+      background: #effaf4;
+      border-color: #c8efd8;
+      color: var(--green);
+    }
+
+    .alert.warn {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: var(--amber);
+    }
+
+    .alert.bad {
+      background: #fff1f2;
+      border-color: #fecdd3;
+      color: var(--red);
+    }
+
+    @media (max-width: 920px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .side-panel {
+        position: static;
+      }
+
+      .swap-grid, .review-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .swap-icon {
+        width: 100%;
+      }
+
+      .topbar {
+        height: auto;
+        padding-top: 14px;
+        padding-bottom: 14px;
+        align-items: flex-start;
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="Atomic Logo.png" alt="Atomic Payments logo">
+        <div>
+          <strong>Atomic DeFi Swap</strong>
+          <span>Any-to-any cross-chain execution</span>
+        </div>
+      </div>
+      <div class="status-pill" id="apiStatus"><span class="dot"></span><span>Checking API</span></div>
+    </header>
+
+    <main>
+      <div class="shell">
+        <div class="workspace">
+          <section class="section">
+            <div class="section-head">
+              <div>
+                <h1>Unified Swap Matrix</h1>
+                <p class="subtle">Select source and destination networks, get a locked quote, and keep AML/compliance visible before signature.</p>
+              </div>
+            </div>
+
+            <div class="swap-grid">
+              <div class="field">
+                <label for="fromAsset">From</label>
+                <select id="fromAsset"></select>
+              </div>
+              <div class="swap-icon" aria-hidden="true">⇄</div>
+              <div class="field">
+                <label for="toAsset">To</label>
+                <select id="toAsset"></select>
+              </div>
+            </div>
+
+            <div class="swap-grid" style="margin-top: 14px;">
+              <div class="field">
+                <label for="amount">Input Amount</label>
+                <input id="amount" class="amount-input" inputmode="numeric" value="100000000" aria-label="Atomic integer amount">
+              </div>
+              <div></div>
+              <div class="field">
+                <label for="destination">Destination Address</label>
+                <input id="destination" value="0x742d35Cc6634C0532925a3b844Bc454e4438f44e" aria-label="Destination wallet address">
+              </div>
+            </div>
+
+            <div class="meta-row">
+              <span class="metric">Quote lock: <strong id="quoteLock">30s</strong></span>
+              <span class="metric warning">Slip tolerance: <strong>1.0%</strong></span>
+              <span class="metric good">Spread: <strong>0.5%</strong></span>
+              <span class="metric" id="walletMode">Wallet: detecting</span>
+            </div>
+
+            <div class="actions">
+              <button class="primary" id="quoteBtn">Get Quote</button>
+              <button class="secondary" id="autofillBtn">Autofill Wallet</button>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-head">
+              <div>
+                <h2>Destination Address Validation</h2>
+                <p class="subtle">Format checks run before quote creation and AML screening runs during quote creation.</p>
+              </div>
+            </div>
+            <div class="validation">
+              <div class="alert" id="addressValidation">Enter a destination address to validate its network format.</div>
+              <div class="alert" id="complianceStatus">Compliance status will appear after quote creation.</div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-head">
+              <div>
+                <h2>Review Swap Parameters</h2>
+                <p class="subtle">The order breakdown exposes provider, platform fee, price impact, and approval readiness.</p>
+              </div>
+            </div>
+            <div class="review-grid">
+              <div class="review-item"><span>Provider</span><strong id="reviewProvider">-</strong></div>
+              <div class="review-item"><span>Estimated Received</span><strong id="reviewOutput">-</strong></div>
+              <div class="review-item"><span>Platform Fee</span><strong id="reviewFee">-</strong></div>
+              <div class="review-item"><span>Price Impact</span><strong id="reviewImpact">-</strong></div>
+            </div>
+            <div class="actions">
+              <button class="primary" id="approveBtn" disabled>Approve & Broadcast</button>
+              <button class="secondary" id="advanceBtn" disabled>Advance Tracker</button>
+            </div>
+          </section>
+        </div>
+
+        <aside class="side-panel">
+          <div>
+            <h2>Quote State</h2>
+            <p class="subtle">Live state and compliance trail for the current swap.</p>
+          </div>
+
+          <div class="quote-box">
+            <div class="quote-line"><span>Quote ID</span><strong id="quoteId">-</strong></div>
+            <div class="quote-line"><span>Status</span><strong id="quoteStatus">-</strong></div>
+            <div class="quote-line"><span>Current State</span><strong id="currentState">-</strong></div>
+            <div class="quote-line"><span>Expires</span><strong id="expiresAt">-</strong></div>
+          </div>
+
+          <div class="timeline" id="timeline"></div>
+
+          <div>
+            <h3>Event Log</h3>
+            <div class="event-log" id="eventLog"><span class="empty">No swap events yet.</span></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3005';
+    const state = {
+      assets: [],
+      quote: null,
+      countdown: null,
+      eventsTimer: null
+    };
+
+    const el = (id) => document.getElementById(id);
+
+    function setApiStatus(ok, text) {
+      const dot = el('apiStatus').querySelector('.dot');
+      dot.className = ok ? 'dot ok' : 'dot bad';
+      el('apiStatus').lastElementChild.textContent = text;
+    }
+
+    function assetLabel(asset) {
+      return `${asset.symbol} · ${asset.name} · ${asset.chain}`;
+    }
+
+    function selectedAsset(selectId) {
+      return state.assets.find((asset) => asset.assetId === el(selectId).value);
+    }
+
+    function validateAddress(asset, address) {
+      const value = address.trim();
+      if (!asset || !value) return { ok: false, text: 'Choose a destination asset and enter an address.' };
+      if (asset.chainFamily === 'evm') return { ok: /^0x[a-fA-F0-9]{40}$/.test(value), text: 'EVM hex address check' };
+      if (asset.chainFamily === 'svm') return { ok: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value), text: 'Solana Base58 public key check' };
+      if (asset.chain === 'BITCOIN') return { ok: /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(value), text: 'Bitcoin Bech32/legacy check' };
+      if (asset.chain === 'LITECOIN') return { ok: /^(ltc1|[LM3])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(value), text: 'Litecoin address check' };
+      return { ok: value.length >= 8, text: 'Generic destination format check' };
+    }
+
+    function updateAddressValidation() {
+      const asset = selectedAsset('toAsset');
+      const result = validateAddress(asset, el('destination').value);
+      el('addressValidation').className = `alert ${result.ok ? 'good' : 'warn'}`;
+      el('addressValidation').textContent = `${result.text}: ${result.ok ? 'valid format detected' : 'needs attention'}`;
+    }
+
+    function updateWalletMode() {
+      const hasEthereum = Boolean(window.ethereum);
+      const hasSolana = Boolean(window.solana);
+      if (hasSolana) el('walletMode').textContent = 'Wallet: Phantom injection active';
+      else if (hasEthereum) el('walletMode').textContent = 'Wallet: EVM extension active';
+      else el('walletMode').textContent = 'Wallet: WalletConnect/manual';
+    }
+
+    function renderTimeline() {
+      const quote = state.quote;
+      const states = quote?.executionStates || ['SOURCING', 'ESCROW_ESCORTING', 'MULTI_BRIDGE_ROUTING', 'TREASURY_CLEARING', 'DISTRIBUTION_COMPLETE'];
+      const currentIndex = Math.max(0, states.indexOf(quote?.currentState));
+      el('timeline').innerHTML = states.map((name, index) => {
+        const mode = quote?.status === 'COMPLETE' || index < currentIndex ? 'done' : index === currentIndex ? 'active' : '';
+        return `<div class="step ${mode}"><div class="step-marker">${index + 1}</div><div><strong>${name.replaceAll('_', ' ')}</strong><span class="subtle">${index === currentIndex ? 'Current network state' : index < currentIndex ? 'Confirmed' : 'Pending'}</span></div></div>`;
+      }).join('');
+    }
+
+    function renderQuote(result) {
+      state.quote = result.quote;
+      const quote = result.quote;
+      el('quoteId').textContent = quote.id;
+      el('quoteStatus').textContent = quote.status;
+      el('currentState').textContent = quote.currentState;
+      el('expiresAt').textContent = new Date(quote.expiresAt).toLocaleTimeString();
+      el('reviewProvider').textContent = quote.provider;
+      el('reviewOutput').textContent = quote.estimatedOutputAmount;
+      el('reviewFee').textContent = `${quote.platformFeeAmount} (${quote.platformFeeBps} bps)`;
+      el('reviewImpact').textContent = `${quote.priceImpactPct}% / limit ${quote.priceImpactLimitPct}%`;
+
+      const review = result.complianceReview;
+      if (review) {
+        const className = review.status === 'AUTO_CLEARED' || review.status === 'APPROVED' ? 'good' : review.status === 'BLOCKED' || review.status === 'REJECTED' ? 'bad' : 'warn';
+        el('complianceStatus').className = `alert ${className}`;
+        el('complianceStatus').textContent = `AML ${review.status}: ${review.riskTier} risk, score ${review.riskScore}. Flags: ${review.flags.length ? review.flags.join(', ') : 'none'}`;
+      }
+
+      const canApprove = quote.status === 'QUOTED' && (!review || review.status === 'AUTO_CLEARED' || review.status === 'APPROVED');
+      el('approveBtn').disabled = !canApprove;
+      el('advanceBtn').disabled = !['AUTHORIZED', 'ROUTING'].includes(quote.status);
+      renderTimeline();
+      startCountdown(quote.expiresAt);
+      loadEvents();
+    }
+
+    function startCountdown(expiresAt) {
+      clearInterval(state.countdown);
+      state.countdown = setInterval(() => {
+        const remaining = new Date(expiresAt).getTime() - Date.now();
+        if (remaining <= 0) {
+          el('quoteLock').textContent = 'expired';
+          clearInterval(state.countdown);
+          return;
+        }
+        el('quoteLock').textContent = `${Math.ceil(remaining / 1000)}s`;
+      }, 250);
+    }
+
+    async function loadAssets() {
+      const response = await fetch(`${API_BASE}/v1/swaps/assets`);
+      const data = await response.json();
+      state.assets = data.assets;
+      for (const id of ['fromAsset', 'toAsset']) {
+        el(id).innerHTML = state.assets.map((asset) => `<option value="${asset.assetId}">${assetLabel(asset)}</option>`).join('');
+      }
+      el('fromAsset').value = 'BITCOIN.BTC';
+      el('toAsset').value = 'ETH.USDC';
+      updateAddressValidation();
+      setApiStatus(true, 'API connected');
+    }
+
+    async function getQuote() {
+      const payload = {
+        fromAsset: el('fromAsset').value,
+        toAsset: el('toAsset').value,
+        amount: el('amount').value.trim(),
+        userAddress: el('destination').value.trim()
+      };
+      const response = await fetch(`${API_BASE}/v1/swaps/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data.error) {
+        el('complianceStatus').className = 'alert bad';
+        el('complianceStatus').textContent = data.error;
+        return;
+      }
+      renderQuote(data);
+    }
+
+    async function approveQuote() {
+      if (!state.quote) return;
+      const response = await fetch(`${API_BASE}/v1/swaps/quotes/${state.quote.id}/authorize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature: `0xatomic_ui_signature_${Date.now()}` })
+      });
+      const data = await response.json();
+      if (data.error) {
+        el('complianceStatus').className = 'alert bad';
+        el('complianceStatus').textContent = data.error;
+        return;
+      }
+      renderQuote(data);
+    }
+
+    async function advanceQuote() {
+      if (!state.quote) return;
+      const response = await fetch(`${API_BASE}/v1/swaps/quotes/${state.quote.id}/advance`, { method: 'POST' });
+      const data = await response.json();
+      if (data.error) {
+        el('complianceStatus').className = 'alert bad';
+        el('complianceStatus').textContent = data.error;
+        return;
+      }
+      renderQuote({ quote: data.quote });
+    }
+
+    async function loadEvents() {
+      if (!state.quote) return;
+      const response = await fetch(`${API_BASE}/v1/swaps/quotes/${state.quote.id}/events`);
+      const data = await response.json();
+      const events = data.events || [];
+      el('eventLog').innerHTML = events.length
+        ? events.map((event) => `<div>${new Date(event.createdAt).toLocaleTimeString()} · ${event.state} · ${event.message}</div>`).join('')
+        : '<span class="empty">No swap events yet.</span>';
+      renderTimeline();
+    }
+
+    function autofillWallet() {
+      const toAsset = selectedAsset('toAsset');
+      if (window.ethereum && toAsset?.chainFamily === 'evm') {
+        el('destination').value = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+      } else if (window.solana && toAsset?.chainFamily === 'svm') {
+        el('destination').value = 'Gx2Fv9pYJYHVG1nZBq9vFhFJ4HWLcxXy8wQz7';
+      }
+      updateAddressValidation();
+    }
+
+    el('quoteBtn').addEventListener('click', getQuote);
+    el('approveBtn').addEventListener('click', approveQuote);
+    el('advanceBtn').addEventListener('click', advanceQuote);
+    el('autofillBtn').addEventListener('click', autofillWallet);
+    el('toAsset').addEventListener('change', updateAddressValidation);
+    el('destination').addEventListener('input', updateAddressValidation);
+
+    updateWalletMode();
+    loadAssets().catch(() => setApiStatus(false, 'Start API on port 3005'));
+    setInterval(loadEvents, 4000);
+  </script>
+</body>
+</html>
