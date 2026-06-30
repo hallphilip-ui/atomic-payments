@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 66-68%
+Estimated total completion: 67-69%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -38,12 +38,13 @@ Production gaps:
 
 ### DeFi Atomic Swap Core
 
-Completion: 58-62%
+Completion: 60-63%
 
 - Target top-25 crypto asset registry.
 - Quote path with platform fee guardrails.
 - Rango/THORChain adapter boundary with simulation default.
 - Provider diagnostics surfaced in API and UI.
+- Provider adapter contract coverage for simulation and live-with-fallback behavior.
 - Swap lifecycle states, authorization, advance flow, event log, and SSE stream.
 - Browser wallet boundary for EVM and Solana detection, connection, destination fill, and signature capture with simulation fallback.
 
@@ -90,7 +91,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 52-55%
+Completion: 56-59%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -104,11 +105,12 @@ Completion: 52-55%
 - Smoke-created quotes are cleaned up by default after each run.
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
 - Isolated smoke command creates a temporary SQLite database and API port for clean local/CI runs.
+- Provider adapter contract test runs in CI without network or database dependencies.
 
 Production gaps:
 
-- Add broader test isolation for future browser and provider-contract suites.
-- Add provider-adapter contract tests.
+- Add broader test isolation for future browser suites.
+- Expand provider-adapter contract tests after live Rango/THORChain schemas are verified.
 - Add browser-level UI regression tests.
 
 ## Current Run Commands
@@ -125,6 +127,13 @@ Run the TypeScript build:
 ```bash
 cd /Users/philiphall/atomic-payments
 npm run build
+```
+
+Run provider adapter contract checks:
+
+```bash
+cd /Users/philiphall/atomic-payments
+npm run test:providers
 ```
 
 Run the core smoke test while the app is running:
@@ -168,7 +177,7 @@ Make Docker a repeatable path for app, database migration, smoke checks, and fut
 - Wallet signing is simulated.
 - Local SQLite is useful for development but not production persistence.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
-- Core smoke tests now use an isolated database in CI; future browser/provider suites should follow the same pattern.
+- Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 
 ## Near-Term Completion Target
 
@@ -176,7 +185,7 @@ The project can reach roughly 75% completion by finishing:
 
 - production wallet signing/submission
 - provider live-doc verification
-- browser/provider test isolation
+- browser test isolation
 - Docker smoke execution
 - first compliance vendor abstraction
 

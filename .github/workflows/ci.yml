@@ -32,5 +32,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Run provider adapter contract tests
+        run: npm run test:providers
+
       - name: Run isolated core smoke test
         run: npm run smoke:core:isolated
