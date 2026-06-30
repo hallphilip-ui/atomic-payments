@@ -11,10 +11,12 @@ const env = {
   ...process.env,
   PORT: port,
   DATABASE_URL: databaseUrl,
-  ATOMIC_BASE_URL: baseUrl
+  ATOMIC_BASE_URL: baseUrl,
+  TS_NODE_FILES: 'true'
 };
 
 let server;
+let serverExited = false;
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -49,16 +51,23 @@ async function waitForApi() {
 
 function stopServer() {
   return new Promise((resolve) => {
-    if (!server || server.killed) {
+    if (!server || serverExited) {
       resolve();
       return;
     }
 
-    server.once('exit', () => resolve());
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    server.once('exit', done);
     server.kill('SIGTERM');
     setTimeout(() => {
-      if (!server.killed) server.kill('SIGKILL');
-      resolve();
+      if (!serverExited) server.kill('SIGKILL');
+      done();
     }, 3000);
   });
 }
@@ -96,7 +105,7 @@ async function main() {
   ensureDatabaseFile();
   await run('npx', ['prisma', 'db', 'push', '--skip-generate']);
 
-  server = spawn('npx', ['ts-node', '--files', 'src/index.ts'], {
+  server = spawn(process.execPath, ['-r', 'ts-node/register', 'src/index.ts'], {
     cwd: repoRoot,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -104,6 +113,9 @@ async function main() {
   });
   server.stdout.on('data', (chunk) => process.stdout.write(chunk));
   server.stderr.on('data', (chunk) => process.stderr.write(chunk));
+  server.once('exit', () => {
+    serverExited = true;
+  });
 
   await waitForApi();
   await run('node', ['scripts/smoke-core.js']);
