@@ -7,6 +7,7 @@ import {
   QUOTE_TTL_SECONDS,
   THOR_AFFILIATE_NAME,
 } from '../cryptoCore/routing';
+import { getProviderModeLabel } from '../cryptoCore/providerAdapters';
 import {
   advanceStoredSwapQuote,
   authorizeStoredSwapQuote,
@@ -38,7 +39,8 @@ router.get('/v1/swaps/config', (_req, res) => {
     thorAffiliateName: THOR_AFFILIATE_NAME,
     quoteTtlSeconds: QUOTE_TTL_SECONDS,
     priceImpactLimitPct: PRICE_IMPACT_LIMIT_PCT,
-    mode: 'simulation_payloads_no_live_provider_execution'
+    providerMode: getProviderModeLabel(),
+    mode: 'provider_adapters_with_simulation_default'
   });
 });
 

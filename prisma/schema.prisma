@@ -151,6 +151,10 @@ model SwapQuote {
   platformFeeAmount     String
   priceImpactPct        Float
   priceImpactLimitPct   Float
+  providerMode          String               @default("simulation")
+  providerQuoteId       String?
+  providerLatencyMs     Int                  @default(0)
+  providerDiagnostics   String               @default("[]")
   quoteTtlSeconds       Int
   expiresAt             DateTime
   requestPayload        String

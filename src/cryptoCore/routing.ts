@@ -1,12 +1,23 @@
 import crypto from 'crypto';
 import { TokenRegistryEntry, getSwapAsset, isNativeL1Asset } from './tokens';
+import { getProviderQuote } from './providerAdapters';
+import {
+  PLATFORM_SPREAD_BPS,
+  PLATFORM_SPREAD_PERCENT,
+  PLATFORM_TREASURY_ADDRESS,
+  PRICE_IMPACT_LIMIT_PCT,
+  QUOTE_TTL_SECONDS,
+  THOR_AFFILIATE_NAME
+} from './swapConfig';
 
-export const PLATFORM_SPREAD_PERCENT = '0.5';
-export const PLATFORM_SPREAD_BPS = 50;
-export const PLATFORM_TREASURY_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
-export const THOR_AFFILIATE_NAME = 'ATOMIC_MOBILE_PROD';
-export const QUOTE_TTL_SECONDS = 30;
-export const PRICE_IMPACT_LIMIT_PCT = 1.5;
+export {
+  PLATFORM_SPREAD_BPS,
+  PLATFORM_SPREAD_PERCENT,
+  PLATFORM_TREASURY_ADDRESS,
+  PRICE_IMPACT_LIMIT_PCT,
+  QUOTE_TTL_SECONDS,
+  THOR_AFFILIATE_NAME
+};
 
 export type UnifiedSwapQuoteRequest = {
   fromAsset: string;
@@ -30,6 +41,10 @@ export type UnifiedSwapQuote = {
   platformFeeAmount: string;
   priceImpactPct: number;
   priceImpactLimitPct: number;
+  providerMode?: string;
+  providerQuoteId?: string;
+  providerLatencyMs?: number;
+  providerDiagnostics?: string[];
   expiresAt: string;
   quoteTtlSeconds: number;
   requestPayload: Record<string, string>;
@@ -63,51 +78,7 @@ function selectProvider(fromAssetId: string, toAssetId: string): SwapRoutingProv
   return isNativeL1Asset(fromAssetId) || isNativeL1Asset(toAssetId) ? 'THORCHAIN' : 'RANGO';
 }
 
-function estimatePriceImpactPct(amount: bigint, provider: SwapRoutingProvider): number {
-  const amountDigits = amount.toString().length;
-  const baseImpact = provider === 'THORCHAIN' ? 0.45 : 0.3;
-  const sizeImpact = Math.max(0, amountDigits - 8) * 0.11;
-  return Number(Math.min(4.5, baseImpact + sizeImpact).toFixed(2));
-}
-
-function applyFee(amount: bigint): { output: string; fee: string } {
-  const feeAmount = amount * BigInt(PLATFORM_SPREAD_BPS) / 10000n;
-  const outputAmount = amount - feeAmount;
-
-  return {
-    output: outputAmount.toString(),
-    fee: feeAmount.toString()
-  };
-}
-
-function buildRequestPayload(
-  request: UnifiedSwapQuoteRequest,
-  provider: SwapRoutingProvider
-): Record<string, string> {
-  if (provider === 'THORCHAIN') {
-    return {
-      endpoint: 'https://thornode.ninerealms.com/thorchain/quote/swap',
-      from_asset: request.fromAsset,
-      to_asset: request.toAsset,
-      amount: request.amount,
-      destination: request.userAddress,
-      affiliate: THOR_AFFILIATE_NAME,
-      affiliate_bps: String(PLATFORM_SPREAD_BPS)
-    };
-  }
-
-  return {
-    endpoint: 'https://api.rango.exchange/v1/quote',
-    from: request.fromAsset,
-    to: request.toAsset,
-    amount: request.amount,
-    slippage: '1.0',
-    referrerFee: PLATFORM_SPREAD_PERCENT,
-    referrerAddress: PLATFORM_TREASURY_ADDRESS
-  };
-}
-
-export function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest): UnifiedSwapQuote {
+export async function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest): Promise<UnifiedSwapQuote> {
   const fromAsset = requireAsset(request.fromAsset, 'fromAsset');
   const toAsset = requireAsset(request.toAsset, 'toAsset');
   const amount = parseAtomicAmount(request.amount);
@@ -121,9 +92,9 @@ export function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest): Unif
   }
 
   const provider = selectProvider(fromAsset.assetId, toAsset.assetId);
-  const priceImpactPct = estimatePriceImpactPct(amount, provider);
+  const providerQuote = await getProviderQuote({ request, provider, amount });
+  const priceImpactPct = providerQuote.priceImpactPct;
   const priceImpactLimitPct = Math.min(fromAsset.priceImpactLimitPct, toAsset.priceImpactLimitPct, PRICE_IMPACT_LIMIT_PCT);
-  const fee = applyFee(amount);
   const status: SwapQuoteStatus = priceImpactPct > priceImpactLimitPct ? 'HALTED' : 'QUOTED';
   const now = new Date();
 
@@ -134,14 +105,18 @@ export function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest): Unif
     fromAsset,
     toAsset,
     amount: amount.toString(),
-    estimatedOutputAmount: fee.output,
+    estimatedOutputAmount: providerQuote.estimatedOutputAmount,
     platformFeeBps: PLATFORM_SPREAD_BPS,
-    platformFeeAmount: fee.fee,
+    platformFeeAmount: providerQuote.platformFeeAmount,
     priceImpactPct,
     priceImpactLimitPct,
+    providerMode: providerQuote.mode,
+    providerQuoteId: providerQuote.providerQuoteId,
+    providerLatencyMs: providerQuote.latencyMs,
+    providerDiagnostics: providerQuote.diagnostics,
     expiresAt: new Date(now.getTime() + QUOTE_TTL_SECONDS * 1000).toISOString(),
     quoteTtlSeconds: QUOTE_TTL_SECONDS,
-    requestPayload: buildRequestPayload(request, provider),
+    requestPayload: providerQuote.requestPayload,
     executionStates: ['SOURCING', 'ESCROW_ESCORTING', 'MULTI_BRIDGE_ROUTING', 'TREASURY_CLEARING', 'DISTRIBUTION_COMPLETE'],
     guardrails: [
       'immutable_30_second_quote_ttl',

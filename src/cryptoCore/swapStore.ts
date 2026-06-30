@@ -19,6 +19,10 @@ type StoredSwapQuote = {
   platformFeeAmount: string;
   priceImpactPct: number;
   priceImpactLimitPct: number;
+  providerMode: string;
+  providerQuoteId: string | null;
+  providerLatencyMs: number;
+  providerDiagnostics: string;
   quoteTtlSeconds: number;
   expiresAt: Date;
   requestPayload: string;
@@ -107,6 +111,10 @@ function toSwapQuoteView(quote: StoredSwapQuote): UnifiedSwapQuote & {
     platformFeeAmount: quote.platformFeeAmount,
     priceImpactPct: quote.priceImpactPct,
     priceImpactLimitPct: quote.priceImpactLimitPct,
+    providerMode: quote.providerMode,
+    providerQuoteId: quote.providerQuoteId ?? undefined,
+    providerLatencyMs: quote.providerLatencyMs,
+    providerDiagnostics: parseJson<string[]>(quote.providerDiagnostics, []),
     expiresAt: quote.expiresAt.toISOString(),
     quoteTtlSeconds: quote.quoteTtlSeconds,
     requestPayload: parseJson<Record<string, string>>(quote.requestPayload, {}),
@@ -119,7 +127,7 @@ function toSwapQuoteView(quote: StoredSwapQuote): UnifiedSwapQuote & {
 }
 
 export async function createStoredSwapQuote(request: UnifiedSwapQuoteRequest) {
-  const quote = getEnforcedPlatformQuote(request);
+  const quote = await getEnforcedPlatformQuote(request);
   const compliance = assessSwapCompliance({
     fromAsset: quote.fromAsset,
     toAsset: quote.toAsset,
@@ -142,6 +150,10 @@ export async function createStoredSwapQuote(request: UnifiedSwapQuoteRequest) {
         platformFeeAmount: quote.platformFeeAmount,
         priceImpactPct: quote.priceImpactPct,
         priceImpactLimitPct: quote.priceImpactLimitPct,
+        providerMode: quote.providerMode ?? 'simulation',
+        providerQuoteId: quote.providerQuoteId,
+        providerLatencyMs: quote.providerLatencyMs ?? 0,
+        providerDiagnostics: JSON.stringify(quote.providerDiagnostics ?? []),
         quoteTtlSeconds: quote.quoteTtlSeconds,
         expiresAt: new Date(quote.expiresAt),
         requestPayload: JSON.stringify(quote.requestPayload),

@@ -32,6 +32,7 @@ The first compliance slice is simulation-safe:
 - Add suspicious activity report workflow.
 - Add immutable audit export.
 - Add compliance release gates to off-exchange settlement instructions.
+- Carry provider mode, provider quote ID, latency, and fallback diagnostics into compliance reviews for live swap investigations.
 
 ## Target Operator Workflow
 
