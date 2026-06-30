@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 64-66%
+Estimated total completion: 65-67%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -90,7 +90,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 35-40%
+Completion: 45-50%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -102,10 +102,10 @@ Completion: 35-40%
   - manual AML review
   - compliance approval
 - Smoke-created quotes are cleaned up by default after each run.
+- GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
 
 Production gaps:
 
-- Add CI execution.
 - Add dedicated test database isolation for CI and parallel runs.
 - Add provider-adapter contract tests.
 - Add browser-level UI regression tests.
@@ -156,7 +156,7 @@ Add isolated test database setup and teardown for CI and parallel runs. Local sm
 
 Add vendor abstraction for KYT/sanctions screening, case decisions, and audit export.
 
-5. Docker and CI finish
+5. Docker and deploy finish
 
 Make Docker a repeatable path for app, database migration, smoke checks, and future deploy readiness.
 
@@ -176,7 +176,7 @@ The project can reach roughly 75% completion by finishing:
 - production wallet signing/submission
 - provider live-doc verification
 - test database isolation
-- Docker/CI smoke execution
+- Docker smoke execution
 - first compliance vendor abstraction
 
 The remaining 25% after that is launch-grade production work: regulated operations, vendor contracts, security review, observability, incident runbooks, reconciliation, and real liquidity/settlement operations.

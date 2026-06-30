@@ -1,0 +1,56 @@
+name: Atomic Payments CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Prisma database
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Start API
+        run: |
+          npm start > /tmp/atomic-payments.log 2>&1 &
+          echo $! > /tmp/atomic-payments.pid
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:3005/v1/swaps/config > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/atomic-payments.log
+          exit 1
+
+      - name: Run core smoke test
+        run: npm run smoke:core
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f /tmp/atomic-payments.pid ]; then
+            kill "$(cat /tmp/atomic-payments.pid)" || true
+          fi
