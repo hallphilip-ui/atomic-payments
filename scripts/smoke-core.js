@@ -85,6 +85,9 @@ async function main() {
   assert.equal(quoted.quote.platformFeeBps, 50, 'quote embeds platform fee');
   assert.ok(quoted.quote.providerQuoteId, 'quote includes provider quote id');
   assert.ok(['AUTO_CLEARED', 'APPROVED'].includes(quoted.complianceReview.status), 'valid quote is compliance-cleared');
+  assert.equal(quoted.complianceReview.vendorMode, 'simulation', 'compliance review includes vendor mode');
+  assert.equal(quoted.complianceReview.vendorProvider, 'atomic-simulated-kyt', 'compliance review includes vendor provider');
+  assert.ok(quoted.complianceReview.vendorReferenceId, 'compliance review includes vendor reference id');
   console.log(`OK quote created: ${quoted.quote.id}`);
 
   const authorized = await request(`/v1/swaps/quotes/${quoted.quote.id}/authorize`, {
@@ -110,11 +113,14 @@ async function main() {
   }));
   assert.equal(reviewQuote.complianceReview.status, 'MANUAL_REVIEW', 'invalid EVM address creates manual review');
   assert.equal(reviewQuote.complianceReview.riskTier, 'HIGH', 'manual review carries high risk tier');
+  assert.equal(reviewQuote.complianceReview.vendorDecision, 'review', 'manual review carries vendor review decision');
 
   const reviewList = await request('/v1/admin/compliance/reviews?status=MANUAL_REVIEW');
   const review = reviewList.reviews.find((item) => item.id === reviewQuote.complianceReview.id);
   assert.ok(review, 'manual review appears in admin queue');
   assert.ok(review.swapQuote, 'admin review includes swap quote context');
+  assert.equal(review.vendorProvider, 'atomic-simulated-kyt', 'admin review preserves vendor provider');
+  assert.equal(review.vendorMetadata.screeningModel, 'deterministic_v1', 'admin review preserves vendor metadata');
 
   const decision = await request(`/v1/admin/compliance/reviews/${review.id}/decision`, {
     method: 'POST',

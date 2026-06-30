@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { UnifiedSwapQuote, UnifiedSwapQuoteRequest, getEnforcedPlatformQuote } from './routing';
 import { getSwapAsset } from './tokens';
-import { assessSwapCompliance } from '../compliance/complianceEngine';
+import { screenSwapCompliance } from '../compliance/complianceProvider';
 import { toComplianceReviewView } from '../compliance/complianceStore';
 
 const prisma = new PrismaClient();
@@ -44,6 +44,12 @@ type StoredComplianceReview = {
   assetContext: string | null;
   checks: string;
   flags: string;
+  vendorMode: string;
+  vendorProvider: string;
+  vendorReferenceId: string | null;
+  vendorDecision: string | null;
+  vendorLatencyMs: number;
+  vendorMetadata: string;
   decisionNotes: string | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
@@ -128,7 +134,7 @@ function toSwapQuoteView(quote: StoredSwapQuote): UnifiedSwapQuote & {
 
 export async function createStoredSwapQuote(request: UnifiedSwapQuoteRequest) {
   const quote = await getEnforcedPlatformQuote(request);
-  const compliance = assessSwapCompliance({
+  const compliance = await screenSwapCompliance({
     fromAsset: quote.fromAsset,
     toAsset: quote.toAsset,
     amount: quote.amount,
@@ -174,7 +180,13 @@ export async function createStoredSwapQuote(request: UnifiedSwapQuoteRequest) {
         walletAddress: request.userAddress,
         assetContext: `${quote.fromAsset.assetId}->${quote.toAsset.assetId}`,
         checks: JSON.stringify(compliance.checks),
-        flags: JSON.stringify(compliance.flags)
+        flags: JSON.stringify(compliance.flags),
+        vendorMode: compliance.vendorMode,
+        vendorProvider: compliance.vendorProvider,
+        vendorReferenceId: compliance.vendorReferenceId,
+        vendorDecision: compliance.vendorDecision,
+        vendorLatencyMs: compliance.vendorLatencyMs,
+        vendorMetadata: JSON.stringify(compliance.vendorMetadata)
       }
     });
 

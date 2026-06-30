@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 68-70%
+Estimated total completion: 69-71%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -58,17 +58,18 @@ Production gaps:
 
 ### AML And Compliance
 
-Completion: 50-55%
+Completion: 55-58%
 
 - Compliance scoring engine for wallet format, watchlist keywords, enhanced chain review, amount thresholds, and price-impact risk.
 - Auto-clear, manual-review, blocked, approved, and rejected states.
 - Admin compliance API for listing reviews and recording decisions.
 - Operator review desk at `/admin-compliance`.
 - Compliance review response includes linked swap context.
+- Compliance provider boundary records simulated KYT vendor mode, provider, reference ID, decision, latency, and metadata.
 
 Production gaps:
 
-- Real KYT/sanctions provider integration.
+- Real KYT/sanctions provider credentials and live request/response mapping.
 - Case management, audit export, user/KYC identity links, Travel Rule vendor flow.
 - Role-based access control and immutable audit logs.
 
@@ -103,6 +104,7 @@ Completion: 58-61%
   - event log
   - manual AML review
   - compliance approval
+  - simulated KYT vendor metadata
 - Smoke-created quotes are cleaned up by default after each run.
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
 - Isolated smoke command creates a temporary SQLite database and API port for clean local/CI runs.
@@ -173,7 +175,7 @@ Extend the isolated smoke pattern into browser and provider-contract test suites
 
 4. Compliance production bridge
 
-Add vendor abstraction for KYT/sanctions screening, case decisions, and audit export.
+Connect the compliance provider boundary to a production KYT/sanctions vendor, add sensitive-field filtering, and exportable case evidence.
 
 5. Docker and deploy finish
 
@@ -182,7 +184,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 ## Current Risk Register
 
 - Live provider integration is scaffolded but not production-verified.
-- AML is deterministic simulation logic, not a production compliance vendor.
+- AML now has a provider boundary with simulated KYT metadata, but not a production compliance vendor.
 - Wallet signing is simulated.
 - Local SQLite is useful for development but not production persistence.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
@@ -197,6 +199,6 @@ The project can reach roughly 75% completion by finishing:
 - provider live-doc verification
 - browser test isolation
 - Docker deploy hardening
-- first compliance vendor abstraction
+- first live compliance vendor integration
 
 The remaining 25% after that is launch-grade production work: regulated operations, vendor contracts, security review, observability, incident runbooks, reconciliation, and real liquidity/settlement operations.

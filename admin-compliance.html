@@ -711,6 +711,9 @@
           review.riskTier,
           routeLabel(review),
           review.flags.join(' '),
+          review.vendorProvider,
+          review.vendorReferenceId,
+          review.vendorDecision,
           review.swapQuote?.id,
           review.swapQuote?.provider,
           review.swapQuote?.currentState
@@ -791,6 +794,10 @@
           <div class="metric"><span>${t('admin.estimatedOutput')}</span><strong>${quote ? quote.estimatedOutputAmount : t('common.nA')}</strong></div>
           <div class="metric"><span>${t('defi.quoteId')}</span><strong>${quote ? shorten(quote.id, 12, 8) : t('common.nA')}</strong></div>
           <div class="metric"><span>${t('defi.expires')}</span><strong>${quote ? formatDate(quote.expiresAt) : t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('admin.kytProvider')}</span><strong>${review.vendorProvider || t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('admin.kytReference')}</span><strong>${review.vendorReferenceId ? shorten(review.vendorReferenceId, 14, 8) : t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('admin.kytDecision')}</span><strong>${review.vendorDecision || t('common.nA')}</strong></div>
+          <div class="metric"><span>${t('admin.kytLatency')}</span><strong>${Number.isFinite(review.vendorLatencyMs) ? `${review.vendorLatencyMs} ms` : t('common.nA')}</strong></div>
         </div>
 
         <div>

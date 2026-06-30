@@ -16,6 +16,7 @@ The first compliance slice is simulation-safe:
 - Destination wallet format checks by chain family.
 - Keyword watchlist screening for blocked/sanctioned address patterns.
 - Risk scoring by chain, amount size, price impact, and address validity.
+- Vendor-screening boundary with simulated KYT provider metadata, reference IDs, decisions, and latency.
 - Auto-clear for low-risk quotes.
 - Manual review for medium/high risk quotes.
 - Block for critical-risk quotes.
@@ -24,8 +25,8 @@ The first compliance slice is simulation-safe:
 
 ## Required Before Production
 
-- Integrate a real sanctions/wallet-screening provider.
-- Store provider request IDs and raw decision metadata.
+- Integrate a real sanctions/wallet-screening provider behind the compliance provider boundary.
+- Store provider request IDs and raw decision metadata with sensitive-field filtering.
 - Add client identity/KYB/KYC objects.
 - Add travel rule threshold policy by jurisdiction.
 - Add jurisdiction and IP/device checks.

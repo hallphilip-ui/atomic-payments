@@ -14,6 +14,12 @@ type StoredComplianceReview = {
   assetContext: string | null;
   checks: string;
   flags: string;
+  vendorMode: string;
+  vendorProvider: string;
+  vendorReferenceId: string | null;
+  vendorDecision: string | null;
+  vendorLatencyMs: number;
+  vendorMetadata: string;
   decisionNotes: string | null;
   reviewedBy: string | null;
   reviewedAt: Date | null;
@@ -44,6 +50,15 @@ function parseList(value: string): string[] {
   }
 }
 
+function parseObject(value: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export function toComplianceReviewView(review: StoredComplianceReview & { swapQuote?: StoredSwapQuoteSummary | null }) {
   return {
     id: review.id,
@@ -57,6 +72,12 @@ export function toComplianceReviewView(review: StoredComplianceReview & { swapQu
     assetContext: review.assetContext,
     checks: parseList(review.checks),
     flags: parseList(review.flags),
+    vendorMode: review.vendorMode,
+    vendorProvider: review.vendorProvider,
+    vendorReferenceId: review.vendorReferenceId,
+    vendorDecision: review.vendorDecision,
+    vendorLatencyMs: review.vendorLatencyMs,
+    vendorMetadata: parseObject(review.vendorMetadata),
     swapQuote: review.swapQuote ? {
       id: review.swapQuote.id,
       status: review.swapQuote.status,
