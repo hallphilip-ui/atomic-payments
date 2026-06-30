@@ -16,36 +16,36 @@ model Merchant {
 }
 
 model PaymentIntent {
-  id                  String   @id @default(uuid())
-  merchantId          String
-  merchant            Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  amount              Float
-  currency            String
-  status              String   @default("PENDING")
-  selectedChain       String?
+  id                   String   @id @default(uuid())
+  merchantId           String
+  merchant             Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  amount               Float
+  currency             String
+  status               String   @default("PENDING")
+  selectedChain        String?
   cryptoAmountRequired String?
-  depositAddress      String?
-  liveMarketRate      String?
-  txHash              String?
-  expiresAt           DateTime
-  createdAt           DateTime @default(now())
+  depositAddress       String?
+  liveMarketRate       String?
+  txHash               String?
+  expiresAt            DateTime
+  createdAt            DateTime @default(now())
 }
 
 model User {
-  id           String       @id @default(uuid())
-  username     String       @unique
-  email        String       @unique
-  createdAt    DateTime     @default(now())
-  wallets      Wallet[]
-  connections  Connection[] @relation("UserConnections")
-  linkedFrom   Connection[] @relation("LinkedToUser")
+  id          String       @id @default(uuid())
+  username    String       @unique
+  email       String       @unique
+  createdAt   DateTime     @default(now())
+  wallets     Wallet[]
+  connections Connection[] @relation("UserConnections")
+  linkedFrom  Connection[] @relation("LinkedToUser")
 }
 
 model Wallet {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chain     String   
+  chain     String
   address   String
   createdAt DateTime @default(now())
 
@@ -61,4 +61,143 @@ model Connection {
   createdAt    DateTime @default(now())
 
   @@unique([userId, linkedUserId])
+}
+
+model Configuration {
+  id        String   @id @default("global_settings")
+  feeRate   Float    @default(0.01) // 1% default fee
+  updatedAt DateTime @updatedAt
+}
+
+model FxQuote {
+  id                         String                  @id @default(uuid())
+  sourceCurrency             String
+  targetCurrency             String
+  notional                   Float
+  side                       String                  @default("sell")
+  referenceRate              Float
+  allInRate                  Float
+  spreadBps                  Int
+  feeBps                     Int
+  quoteTtlSeconds            Int
+  expiresAt                  DateTime
+  estimatedSettlementMinutes Int
+  routeId                    String
+  routeProvider              String
+  routeRail                  String
+  sourceAmount               Float
+  targetAmount               Float
+  status                     String                  @default("QUOTED")
+  riskChecks                 String
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+  settlementInstructions     SettlementInstruction[]
+  ledgerEntries              TreasuryLedgerEntry[]
+
+  @@index([status, expiresAt])
+  @@index([sourceCurrency, targetCurrency])
+}
+
+model SettlementInstruction {
+  id             String                @id @default(uuid())
+  quoteId        String
+  quote          FxQuote               @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  reserveId      String                @unique
+  status         String                @default("RESERVED_PENDING_COMPLIANCE")
+  routeId        String
+  provider       String
+  rail           String
+  sourceAmount   Float
+  sourceCurrency String
+  targetAmount   Float
+  targetCurrency String
+  releaseGates   String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  ledgerEntries  TreasuryLedgerEntry[]
+
+  @@index([quoteId])
+  @@index([status])
+}
+
+model TreasuryLedgerEntry {
+  id            String                 @id @default(uuid())
+  quoteId       String?
+  quote         FxQuote?               @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  instructionId String?
+  instruction   SettlementInstruction? @relation(fields: [instructionId], references: [id], onDelete: SetNull)
+  account       String
+  currency      String
+  direction     String
+  amount        Float
+  memo          String
+  createdAt     DateTime               @default(now())
+
+  @@index([quoteId])
+  @@index([instructionId])
+  @@index([account, currency])
+}
+
+model SwapQuote {
+  id                    String               @id @default(uuid())
+  status                String               @default("QUOTED")
+  provider              String
+  fromAsset             String
+  toAsset               String
+  amount                String
+  userAddress           String
+  estimatedOutputAmount String
+  platformFeeBps        Int
+  platformFeeAmount     String
+  priceImpactPct        Float
+  priceImpactLimitPct   Float
+  quoteTtlSeconds       Int
+  expiresAt             DateTime
+  requestPayload        String
+  executionStates       String
+  guardrails            String
+  currentState          String               @default("SOURCING")
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  events                SwapExecutionEvent[]
+  complianceReviews     ComplianceReview[]
+
+  @@index([status, expiresAt])
+  @@index([fromAsset, toAsset])
+}
+
+model SwapExecutionEvent {
+  id        String    @id @default(uuid())
+  quoteId   String
+  quote     SwapQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  state     String
+  status    String
+  message   String
+  createdAt DateTime  @default(now())
+
+  @@index([quoteId, createdAt])
+}
+
+model ComplianceReview {
+  id            String     @id @default(uuid())
+  subjectType   String
+  subjectId     String
+  swapQuoteId   String?
+  swapQuote     SwapQuote? @relation(fields: [swapQuoteId], references: [id], onDelete: Cascade)
+  status        String
+  riskScore     Int
+  riskTier      String
+  walletAddress String?
+  assetContext  String?
+  checks        String
+  flags         String
+  decisionNotes String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([status, riskTier])
+  @@index([subjectType, subjectId])
+  @@index([swapQuoteId])
 }
