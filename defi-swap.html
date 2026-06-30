@@ -335,6 +335,11 @@
       gap: 12px;
     }
 
+    .review-grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 12px;
+    }
+
     .review-item {
       border: 1px solid rgba(128, 200, 235, 0.18);
       border-radius: 6px;
@@ -445,6 +450,25 @@
       font-size: 12px;
     }
 
+    .diagnostics {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid rgba(128, 200, 235, 0.2);
+      border-radius: 8px;
+      background: rgba(4, 13, 22, 0.68);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #c8deef;
+      overflow-wrap: anywhere;
+    }
+
+    .diagnostics span {
+      color: var(--muted);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+    }
+
     .empty {
       color: #87a3ba;
     }
@@ -486,7 +510,7 @@
         position: static;
       }
 
-      .swap-grid, .review-grid {
+      .swap-grid, .review-grid, .review-grid.three {
         grid-template-columns: 1fr;
       }
 
@@ -591,10 +615,16 @@
               <div class="review-item"><span>Platform Fee</span><strong id="reviewFee">-</strong></div>
               <div class="review-item"><span>Price Impact</span><strong id="reviewImpact">-</strong></div>
             </div>
+            <div class="review-grid three">
+              <div class="review-item"><span>Provider Mode</span><strong id="providerMode">-</strong></div>
+              <div class="review-item"><span>Provider Quote</span><strong id="providerQuoteId">-</strong></div>
+              <div class="review-item"><span>Latency</span><strong id="providerLatency">-</strong></div>
+            </div>
             <div class="actions">
               <button class="primary" id="approveBtn" disabled>Approve & Broadcast</button>
               <button class="secondary" id="advanceBtn" disabled>Advance Tracker</button>
             </div>
+            <div class="alert" id="actionHint" style="margin-top: 12px;">Create a quote to unlock the next action.</div>
           </section>
         </div>
 
@@ -609,6 +639,11 @@
             <div class="quote-line"><span>Status</span><strong id="quoteStatus">-</strong></div>
             <div class="quote-line"><span>Current State</span><strong id="currentState">-</strong></div>
             <div class="quote-line"><span>Expires</span><strong id="expiresAt">-</strong></div>
+          </div>
+
+          <div>
+            <h3>Provider Diagnostics</h3>
+            <div class="diagnostics" id="providerDiagnostics"><span>No provider quote yet.</span></div>
           </div>
 
           <div class="timeline" id="timeline"></div>
@@ -682,9 +717,40 @@
       }).join('');
     }
 
+    function setActionHint(kind, text) {
+      el('actionHint').className = `alert ${kind}`;
+      el('actionHint').textContent = text;
+    }
+
+    function renderProviderDiagnostics(quote) {
+      const diagnostics = quote.providerDiagnostics || [];
+      el('providerMode').textContent = quote.providerMode || '-';
+      el('providerQuoteId').textContent = quote.providerQuoteId || '-';
+      el('providerLatency').textContent = `${quote.providerLatencyMs ?? 0} ms`;
+      el('providerDiagnostics').innerHTML = diagnostics.length
+        ? diagnostics.map((item) => `<div>${item}</div>`).join('')
+        : '<span>No provider diagnostics returned.</span>';
+    }
+
+    function explainNextAction(quote, review) {
+      if (quote.status === 'HALTED') return { kind: 'bad', text: 'Quote halted because price impact breached the configured limit.' };
+      if (quote.status === 'BLOCKED') return { kind: 'bad', text: 'Compliance blocked this quote. A new destination or route is required.' };
+      if (review?.status === 'MANUAL_REVIEW') return { kind: 'warn', text: 'Manual AML review is required before wallet authorization.' };
+      if (review?.status === 'REJECTED') return { kind: 'bad', text: 'Compliance rejected this quote.' };
+      if (quote.status === 'QUOTED') return { kind: 'good', text: 'Quote is cleared for wallet authorization before the countdown expires.' };
+      if (quote.status === 'AUTHORIZED') return { kind: 'good', text: 'Wallet authorization captured. Advance tracker as provider confirmations arrive.' };
+      if (quote.status === 'ROUTING') return { kind: 'good', text: 'Swap is routing. Continue advancing as simulated provider events land.' };
+      if (quote.status === 'COMPLETE') return { kind: 'good', text: 'Swap simulation is complete.' };
+      if (quote.status === 'EXPIRED') return { kind: 'bad', text: 'Quote expired. Refresh pricing before authorizing.' };
+      return { kind: '', text: 'Create a quote to unlock the next action.' };
+    }
+
     function renderQuote(result) {
       state.quote = result.quote;
       const quote = result.quote;
+      const review = result.complianceReview || state.lastComplianceReview || null;
+      if (result.complianceReview) state.lastComplianceReview = result.complianceReview;
+
       el('quoteId').textContent = quote.id;
       el('quoteStatus').textContent = quote.status;
       el('currentState').textContent = quote.currentState;
@@ -693,8 +759,8 @@
       el('reviewOutput').textContent = quote.estimatedOutputAmount;
       el('reviewFee').textContent = `${quote.platformFeeAmount} (${quote.platformFeeBps} bps)`;
       el('reviewImpact').textContent = `${quote.priceImpactPct}% / limit ${quote.priceImpactLimitPct}%`;
+      renderProviderDiagnostics(quote);
 
-      const review = result.complianceReview;
       if (review) {
         const className = review.status === 'AUTO_CLEARED' || review.status === 'APPROVED' ? 'good' : review.status === 'BLOCKED' || review.status === 'REJECTED' ? 'bad' : 'warn';
         el('complianceStatus').className = `alert ${className}`;
@@ -704,6 +770,8 @@
       const canApprove = quote.status === 'QUOTED' && (!review || review.status === 'AUTO_CLEARED' || review.status === 'APPROVED');
       el('approveBtn').disabled = !canApprove;
       el('advanceBtn').disabled = !['AUTHORIZED', 'ROUTING'].includes(quote.status);
+      const nextAction = explainNextAction(quote, review);
+      setActionHint(nextAction.kind, nextAction.text);
       renderTimeline();
       startCountdown(quote.expiresAt);
       connectEventStream(quote.id);
@@ -715,6 +783,10 @@
         const remaining = new Date(expiresAt).getTime() - Date.now();
         if (remaining <= 0) {
           el('quoteLock').textContent = 'expired';
+          if (state.quote?.status === 'QUOTED') {
+            el('approveBtn').disabled = true;
+            setActionHint('bad', 'Quote expired. Refresh pricing before authorizing.');
+          }
           clearInterval(state.countdown);
           return;
         }
@@ -751,6 +823,7 @@
       if (data.error) {
         el('complianceStatus').className = 'alert bad';
         el('complianceStatus').textContent = data.error;
+        setActionHint('bad', data.error);
         return;
       }
       renderQuote(data);
@@ -767,6 +840,7 @@
       if (data.error) {
         el('complianceStatus').className = 'alert bad';
         el('complianceStatus').textContent = data.error;
+        setActionHint('bad', data.error);
         return;
       }
       renderQuote(data);
@@ -779,6 +853,7 @@
       if (data.error) {
         el('complianceStatus').className = 'alert bad';
         el('complianceStatus').textContent = data.error;
+        setActionHint('bad', data.error);
         return;
       }
       renderQuote({ quote: data.quote });
