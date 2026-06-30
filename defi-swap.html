@@ -6,17 +6,19 @@
   <title>Atomic DeFi Swap</title>
   <style>
     :root {
-      --ink: #12161f;
-      --muted: #5f6b7a;
-      --line: #dbe3ec;
-      --paper: #f8fafc;
-      --panel: #ffffff;
-      --blue: #0877d8;
-      --cyan: #08a7c5;
-      --green: #138a55;
-      --amber: #b76312;
-      --red: #bd2d3a;
-      --violet: #6f42c1;
+      --ink: #edf7ff;
+      --muted: #8fa8bc;
+      --line: rgba(128, 200, 235, 0.2);
+      --paper: #07111b;
+      --panel: rgba(11, 24, 36, 0.94);
+      --panel-strong: #0e2233;
+      --blue: #0697ff;
+      --cyan: #19d2f2;
+      --green: #39d98a;
+      --amber: #f0a54a;
+      --red: #f05b68;
+      --violet: #9e7bff;
+      --steel: #c9d7e4;
     }
 
     * { box-sizing: border-box; }
@@ -24,7 +26,11 @@
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--paper);
+      background:
+        linear-gradient(rgba(25, 210, 242, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(25, 210, 242, 0.045) 1px, transparent 1px),
+        linear-gradient(135deg, #06101a 0%, #0b1723 45%, #101219 100%);
+      background-size: 34px 34px, 34px 34px, 100% 100%;
       color: var(--ink);
     }
 
@@ -49,13 +55,13 @@
     }
 
     .topbar {
-      height: 72px;
+      height: 78px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 clamp(18px, 4vw, 48px);
-      border-bottom: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid rgba(25, 210, 242, 0.22);
+      background: rgba(5, 13, 22, 0.9);
       position: sticky;
       top: 0;
       z-index: 10;
@@ -70,16 +76,19 @@
     }
 
     .brand img {
-      width: 42px;
-      height: 42px;
-      object-fit: cover;
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
       border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(25, 210, 242, 0.24);
     }
 
     .brand strong {
       display: block;
       font-size: 16px;
       line-height: 1.1;
+      color: #fff;
     }
 
     .brand span {
@@ -97,7 +106,8 @@
       border: 1px solid var(--line);
       border-radius: 999px;
       background: #fff;
-      color: var(--muted);
+      color: var(--steel);
+      background: rgba(14, 34, 51, 0.8);
       font-size: 13px;
       white-space: nowrap;
     }
@@ -129,7 +139,19 @@
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 8px;
-      box-shadow: 0 16px 50px rgba(28, 44, 64, 0.08);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .workspace::before, .side-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(25, 210, 242, 0.12), transparent 22%),
+        linear-gradient(315deg, rgba(57, 217, 138, 0.08), transparent 30%);
     }
 
     .workspace {
@@ -139,6 +161,8 @@
     .section {
       padding: clamp(18px, 3vw, 28px);
       border-bottom: 1px solid var(--line);
+      position: relative;
+      z-index: 1;
     }
 
     .section:last-child {
@@ -161,11 +185,13 @@
       font-size: clamp(24px, 3vw, 38px);
       line-height: 1.08;
       letter-spacing: 0;
+      color: #fff;
     }
 
     h2 {
       font-size: 18px;
       letter-spacing: 0;
+      color: #fff;
     }
 
     .subtle {
@@ -198,16 +224,21 @@
       width: 100%;
       min-height: 46px;
       padding: 0 12px;
-      border: 1px solid var(--line);
+      border: 1px solid rgba(128, 200, 235, 0.22);
       border-radius: 6px;
       color: var(--ink);
-      background: #fff;
+      background: rgba(4, 13, 22, 0.74);
       outline: none;
     }
 
     select:focus, input:focus {
-      border-color: var(--blue);
+      border-color: var(--cyan);
       box-shadow: 0 0 0 3px rgba(8, 119, 216, 0.12);
+    }
+
+    option {
+      color: #12161f;
+      background: #fff;
     }
 
     .amount-input {
@@ -221,9 +252,9 @@
       display: grid;
       place-items: center;
       color: var(--blue);
-      border: 1px solid var(--line);
+      border: 1px solid rgba(25, 210, 242, 0.25);
       border-radius: 6px;
-      background: #f3f8fd;
+      background: rgba(25, 210, 242, 0.08);
     }
 
     .meta-row {
@@ -240,21 +271,21 @@
       gap: 8px;
       padding: 0 10px;
       border-radius: 999px;
-      background: #eef7f9;
-      color: #176676;
+      background: rgba(25, 210, 242, 0.08);
+      color: #c6f6ff;
       font-size: 13px;
-      border: 1px solid #cce7ed;
+      border: 1px solid rgba(25, 210, 242, 0.22);
     }
 
     .metric.warning {
-      background: #fff7ed;
-      border-color: #fed7aa;
+      background: rgba(240, 165, 74, 0.09);
+      border-color: rgba(240, 165, 74, 0.32);
       color: var(--amber);
     }
 
     .metric.good {
-      background: #effaf4;
-      border-color: #c8efd8;
+      background: rgba(57, 217, 138, 0.09);
+      border-color: rgba(57, 217, 138, 0.28);
       color: var(--green);
     }
 
@@ -278,12 +309,13 @@
 
     .primary {
       color: #fff;
-      background: var(--blue);
+      background: linear-gradient(135deg, #0877d8, #19d2f2);
+      box-shadow: 0 10px 26px rgba(6, 151, 255, 0.25);
     }
 
     .secondary {
       color: var(--ink);
-      background: #fff;
+      background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--line);
     }
 
@@ -304,10 +336,10 @@
     }
 
     .review-item {
-      border: 1px solid var(--line);
+      border: 1px solid rgba(128, 200, 235, 0.18);
       border-radius: 6px;
       padding: 12px;
-      background: #fbfdff;
+      background: rgba(5, 16, 27, 0.7);
       min-height: 74px;
     }
 
@@ -329,15 +361,16 @@
       padding: 22px;
       display: grid;
       gap: 18px;
+      z-index: 1;
     }
 
     .quote-box {
       display: grid;
       gap: 10px;
-      border: 1px solid var(--line);
+      border: 1px solid rgba(128, 200, 235, 0.2);
       border-radius: 8px;
       padding: 14px;
-      background: #fbfdff;
+      background: rgba(4, 13, 22, 0.68);
     }
 
     .quote-line {
@@ -373,8 +406,8 @@
       border-radius: 50%;
       display: grid;
       place-items: center;
-      border: 1px solid var(--line);
-      background: #fff;
+      border: 1px solid rgba(128, 200, 235, 0.24);
+      background: rgba(255, 255, 255, 0.04);
       color: var(--muted);
       font-size: 12px;
       font-weight: 800;
@@ -401,9 +434,9 @@
     .event-log {
       max-height: 220px;
       overflow: auto;
-      border: 1px solid var(--line);
+      border: 1px solid rgba(128, 200, 235, 0.2);
       border-radius: 8px;
-      background: #101820;
+      background: #050b12;
       color: #d9e9f6;
       padding: 12px;
       display: grid;
@@ -419,28 +452,28 @@
     .alert {
       border-radius: 8px;
       padding: 12px;
-      border: 1px solid var(--line);
-      background: #fbfdff;
+      border: 1px solid rgba(128, 200, 235, 0.2);
+      background: rgba(5, 16, 27, 0.72);
       color: var(--muted);
       font-size: 14px;
       line-height: 1.4;
     }
 
     .alert.good {
-      background: #effaf4;
-      border-color: #c8efd8;
+      background: rgba(57, 217, 138, 0.09);
+      border-color: rgba(57, 217, 138, 0.28);
       color: var(--green);
     }
 
     .alert.warn {
-      background: #fff7ed;
-      border-color: #fed7aa;
+      background: rgba(240, 165, 74, 0.09);
+      border-color: rgba(240, 165, 74, 0.32);
       color: var(--amber);
     }
 
     .alert.bad {
-      background: #fff1f2;
-      border-color: #fecdd3;
+      background: rgba(240, 91, 104, 0.09);
+      border-color: rgba(240, 91, 104, 0.32);
       color: var(--red);
     }
 
@@ -475,7 +508,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <img src="Atomic Logo.png" alt="Atomic Payments logo">
+        <img src="/assets/atomic-logo.png" alt="Atomic Payments logo">
         <div>
           <strong>Atomic DeFi Swap</strong>
           <span>Any-to-any cross-chain execution</span>

@@ -34,4 +34,10 @@ app.use('/defi-swap', (_req: Request, res: Response) => {
   return res.send(html);
 });
 
+app.use('/assets/atomic-logo.png', (_req: Request, res: Response) => {
+  const logo = readFileSync(join(process.cwd(), 'public', 'atomic-logo.png'));
+  res.header('Content-Type', 'image/png');
+  return res.send(logo);
+});
+
 app.listen(3005, () => console.log('🚀 Atomic Admin Engine Live'));
