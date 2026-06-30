@@ -20,6 +20,21 @@ type StoredComplianceReview = {
   createdAt: Date;
 };
 
+type StoredSwapQuoteSummary = {
+  id: string;
+  status: string;
+  provider: string;
+  fromAsset: string;
+  toAsset: string;
+  amount: string;
+  estimatedOutputAmount: string;
+  providerMode: string;
+  providerQuoteId: string | null;
+  currentState: string;
+  expiresAt: Date;
+  createdAt: Date;
+};
+
 function parseList(value: string): string[] {
   try {
     const parsed = JSON.parse(value);
@@ -29,7 +44,7 @@ function parseList(value: string): string[] {
   }
 }
 
-export function toComplianceReviewView(review: StoredComplianceReview) {
+export function toComplianceReviewView(review: StoredComplianceReview & { swapQuote?: StoredSwapQuoteSummary | null }) {
   return {
     id: review.id,
     subjectType: review.subjectType,
@@ -42,6 +57,20 @@ export function toComplianceReviewView(review: StoredComplianceReview) {
     assetContext: review.assetContext,
     checks: parseList(review.checks),
     flags: parseList(review.flags),
+    swapQuote: review.swapQuote ? {
+      id: review.swapQuote.id,
+      status: review.swapQuote.status,
+      provider: review.swapQuote.provider,
+      fromAsset: review.swapQuote.fromAsset,
+      toAsset: review.swapQuote.toAsset,
+      amount: review.swapQuote.amount,
+      estimatedOutputAmount: review.swapQuote.estimatedOutputAmount,
+      providerMode: review.swapQuote.providerMode,
+      providerQuoteId: review.swapQuote.providerQuoteId,
+      currentState: review.swapQuote.currentState,
+      expiresAt: review.swapQuote.expiresAt.toISOString(),
+      createdAt: review.swapQuote.createdAt.toISOString()
+    } : null,
     decisionNotes: review.decisionNotes,
     reviewedBy: review.reviewedBy,
     reviewedAt: review.reviewedAt?.toISOString() ?? null,
@@ -52,6 +81,24 @@ export function toComplianceReviewView(review: StoredComplianceReview) {
 export async function listComplianceReviews(status?: string) {
   const reviews = await prisma.complianceReview.findMany({
     where: status ? { status } : undefined,
+    include: {
+      swapQuote: {
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          fromAsset: true,
+          toAsset: true,
+          amount: true,
+          estimatedOutputAmount: true,
+          providerMode: true,
+          providerQuoteId: true,
+          currentState: true,
+          expiresAt: true,
+          createdAt: true
+        }
+      }
+    },
     orderBy: { createdAt: 'desc' },
     take: 100
   });
@@ -73,6 +120,24 @@ export async function decideComplianceReview(input: {
       decisionNotes: input.notes ?? null,
       reviewedBy: input.reviewedBy ?? 'ops',
       reviewedAt: new Date()
+    },
+    include: {
+      swapQuote: {
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          fromAsset: true,
+          toAsset: true,
+          amount: true,
+          estimatedOutputAmount: true,
+          providerMode: true,
+          providerQuoteId: true,
+          currentState: true,
+          expiresAt: true,
+          createdAt: true
+        }
+      }
     }
   });
 
