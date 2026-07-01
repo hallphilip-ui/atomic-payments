@@ -21,10 +21,11 @@ Completion: 70-74%
 - Build passes with `npm run build`.
 - Docker image and Compose service for repeatable local app startup.
 - Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
-- Structured request logging emits request ID, method, path, status, duration, user agent, and remote address.
+- Structured request logging emits request ID, method, redacted path, status, duration, user agent, and remote address.
 - `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
 - Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, provider modes, and port settings.
 - Production release runbook documents the hosted-release preflight gates and blockers.
+- Observability contract test verifies sensitive query parameters are redacted before logging or metrics aggregation.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -149,6 +150,13 @@ Run provider adapter contract checks:
 ```bash
 cd /Users/philiphall/atomic-payments
 npm run test:providers
+```
+
+Run observability contract checks:
+
+```bash
+cd /Users/philiphall/atomic-payments
+npm run test:observability
 ```
 
 Run deployment readiness checks:

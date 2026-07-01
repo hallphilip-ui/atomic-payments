@@ -6,6 +6,7 @@
     "start": "ts-node --files src/index.ts",
     "build": "tsc",
     "check:deploy": "node scripts/check-production-readiness.js",
+    "test:observability": "node scripts/observability-contract.js",
     "test:providers": "node scripts/provider-adapter-contract.js",
     "smoke:core": "node scripts/smoke-core.js",
     "smoke:core:isolated": "node scripts/smoke-core-isolated.js",

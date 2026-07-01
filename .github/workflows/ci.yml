@@ -32,6 +32,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Run observability contract tests
+        run: npm run test:observability
+
       - name: Run provider adapter contract tests
         run: npm run test:providers
 

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { recordHttpRequest } from './metricsStore';
+import { sanitizeRequestPath } from './redaction';
 
 function headerValue(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) return value[0];
@@ -16,7 +17,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
   res.on('finish', () => {
     const durationMs = Date.now() - startedAt;
-    const path = req.originalUrl || '';
+    const path = sanitizeRequestPath(req.originalUrl || '');
     const method = req.method || 'UNKNOWN';
     const statusCode = res.statusCode;
     recordHttpRequest({ method, path, statusCode, durationMs });
