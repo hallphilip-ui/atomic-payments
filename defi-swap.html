@@ -765,10 +765,10 @@
                 <span>Build Progress</span>
                 <h2>Atomic Payments</h2>
               </div>
-              <strong>74%</strong>
+              <strong id="buildProgressPct">74%</strong>
             </div>
-            <div class="progress-track" aria-hidden="true"><div class="progress-fill"></div></div>
-            <div class="progress-mini">
+            <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="buildProgressFill"></div></div>
+            <div class="progress-mini" id="buildProgressStreams">
               <div><span>Core API and Docker</span><strong>70-74%</strong></div>
               <div><span>DeFi swap core</span><strong>63-66%</strong></div>
               <div><span>AML and compliance</span><strong>55-58%</strong></div>
@@ -1042,6 +1042,28 @@
       setApiStatus(true, t('defi.apiConnected'), 'defi.apiConnected');
     }
 
+    async function loadBuildProgress() {
+      try {
+        const response = await fetch(`${API_BASE}/v1/project/progress`);
+        if (!response.ok) throw new Error('Progress unavailable');
+        const progress = await response.json();
+        const percent = Math.max(0, Math.min(100, Number(progress.overallCompletionPct) || 0));
+        el('buildProgressPct').textContent = `${percent}%`;
+        el('buildProgressFill').style.width = `${percent}%`;
+        const featured = (progress.workstreams || [])
+          .filter((item) => ['core-api', 'defi-swap', 'compliance'].includes(item.id))
+          .slice(0, 3);
+        if (featured.length) {
+          el('buildProgressStreams').innerHTML = featured
+            .map((item) => `<div><span>${item.label}</span><strong>${item.completionRange}</strong></div>`)
+            .join('');
+        }
+      } catch (_error) {
+        el('buildProgressPct').textContent = '74%';
+        el('buildProgressFill').style.width = '74%';
+      }
+    }
+
     async function getQuote() {
       const payload = {
         fromAsset: el('fromAsset').value,
@@ -1180,6 +1202,7 @@
     });
 
     updateWalletMode();
+    loadBuildProgress();
     loadAssets().catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
   </script>
 </body>
