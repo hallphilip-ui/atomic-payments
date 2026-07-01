@@ -7,10 +7,12 @@ const prisma = new PrismaClient();
 const createdQuoteIds = new Set();
 
 async function request(path, options = {}) {
+  const requestId = `smoke-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'x-atomic-request-id': requestId,
       ...(options.headers || {})
     }
   });
@@ -60,6 +62,7 @@ async function main() {
   assert.equal(health.status, 'ok', 'health endpoint reports ok');
   assert.equal(health.database, 'ready', 'health endpoint reports database readiness');
   assert.equal(health.service, 'atomic-payments', 'health endpoint reports service name');
+  assert.ok(String(health.requestId || '').startsWith('smoke-'), 'health endpoint echoes request id');
   console.log(`OK health: ${health.database}, ${health.providerMode} provider mode`);
 
   assert.ok(Array.isArray(assets.assets), 'assets response includes assets array');
@@ -71,10 +74,11 @@ async function main() {
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
+    assertContains('/project-plan', 'Project Plan Tracker'),
     assertContains('/assets/i18n.js', "'ja'"),
     assertContains('/assets/i18n.js', "'ar'")
   ]);
-  console.log('OK consoles/i18n assets are served');
+  console.log('OK consoles/project widget/i18n assets are served');
 
   const quotePayload = {
     fromAsset: 'BITCOIN.BTC',

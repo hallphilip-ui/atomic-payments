@@ -4,7 +4,7 @@ Last updated: June 30, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 71-73%
+Estimated total completion: 72-74%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -21,6 +21,7 @@ Completion: 68-72%
 - Build passes with `npm run build`.
 - Docker image and Compose service for repeatable local app startup.
 - Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
+- Structured request logging emits request ID, method, path, status, duration, user agent, and remote address.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -81,6 +82,7 @@ Completion: 58-62%
 
 - DeFi swap console at `/defi-swap`.
 - Compliance review console at `/admin-compliance`.
+- Project plan widget at `/project-plan` visualizes overall completion, workstream progress, near-term milestones, risks, and recently finished slices.
 - Transparent Atomic mark asset served from `/assets/atomic-mark.png`.
 - Logo integrated into the top bar without a pasted background box.
 - Provider diagnostics, quote state, action hints, compliance status, and event logs visible.
@@ -114,6 +116,7 @@ Completion: 58-61%
 - Provider adapter contract test runs in CI without network or database dependencies.
 - Docker smoke command builds the container, starts the service, waits for readiness, runs the core smoke, and tears the stack down.
 - Smoke coverage verifies `/v1/health`; Docker healthcheck uses the dedicated readiness endpoint.
+- Smoke coverage verifies request ID propagation through the health endpoint.
 
 Production gaps:
 
@@ -162,6 +165,7 @@ Open the main local consoles:
 
 - Swap console: `http://127.0.0.1:3005/defi-swap`
 - Compliance desk: `http://127.0.0.1:3005/admin-compliance`
+- Project plan widget: `http://127.0.0.1:3005/project-plan`
 
 ## Next Recommended Build Slices
 
@@ -194,7 +198,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
-- Health/readiness exists, but production observability still needs structured logs, metrics, traces, and alerting.
+- Health/readiness and structured request logs exist, but production observability still needs metrics, traces, log shipping, and alerting.
 
 ## Near-Term Completion Target
 

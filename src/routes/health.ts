@@ -19,6 +19,7 @@ router.get('/v1/health', async (_req, res) => {
     return res.json({
       status: 'ok',
       service: 'atomic-payments',
+      requestId: res.locals.requestId,
       database: 'ready',
       providerMode: getProviderModeLabel(),
       complianceProviderMode: complianceProviderMode(),
@@ -29,6 +30,7 @@ router.get('/v1/health', async (_req, res) => {
     return res.status(503).json({
       status: 'degraded',
       service: 'atomic-payments',
+      requestId: res.locals.requestId,
       database: 'unavailable',
       providerMode: getProviderModeLabel(),
       complianceProviderMode: complianceProviderMode(),

@@ -9,16 +9,19 @@ import adminRoutes from './routes/admin';
 import settlementRoutes from './routes/settlement';
 import swapRoutes from './routes/swaps';
 import healthRoutes from './routes/health';
+import { requestLogger } from './observability/requestLogger';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3005);
 app.use(express.json());
+app.use(requestLogger);
 
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
 app.use((req: Request, res: Response, next?: () => void) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-atomic-key');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-atomic-key, x-atomic-request-id');
+  res.header('Access-Control-Expose-Headers', 'x-atomic-request-id');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   return next?.();
@@ -39,6 +42,12 @@ app.use('/defi-swap', (_req: Request, res: Response) => {
 
 app.use('/admin-compliance', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'admin-compliance.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+});
+
+app.use('/project-plan', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'project-plan.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   return res.send(html);
 });

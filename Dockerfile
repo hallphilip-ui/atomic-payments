@@ -13,7 +13,7 @@ COPY tsconfig.json ./
 COPY prisma ./prisma
 COPY src ./src
 COPY public ./public
-COPY admin-compliance.html checkout.html defi-swap.html ./
+COPY admin-compliance.html checkout.html defi-swap.html project-plan.html ./
 
 RUN npx prisma generate \
   && npm run build
