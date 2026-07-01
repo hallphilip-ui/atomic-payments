@@ -47,6 +47,15 @@ async function assertStatus(path, expectedStatus) {
   assert.equal(response.status, expectedStatus, `${path} should return ${expectedStatus}`);
 }
 
+async function assertStatusWithoutOperatorKey(path, expectedStatus) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: {
+      'x-atomic-request-id': `smoke-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    }
+  });
+  assert.equal(response.status, expectedStatus, `${path} should return ${expectedStatus} without operator key`);
+}
+
 function trackQuote(result) {
   if (result?.quote?.id) createdQuoteIds.add(result.quote.id);
   return result;
@@ -149,6 +158,15 @@ async function main() {
   assert.equal(progress.overallCompletionPct, 74, 'progress endpoint reports overall completion');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
+
+  if (OPERATOR_API_KEY) {
+    await Promise.all([
+      assertStatusWithoutOperatorKey('/v1/metrics', 401),
+      assertStatusWithoutOperatorKey('/v1/project/progress', 401),
+      assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401)
+    ]);
+    console.log('OK operator protected routes reject missing operator key');
+  }
 
   const reviewQuote = trackQuote(await request('/v1/swaps/quote', {
     method: 'POST',
