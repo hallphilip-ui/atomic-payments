@@ -24,6 +24,7 @@ ATOMIC_DEPLOY_ENV=production npm run check:deploy
 
 - `DATABASE_URL` must exist.
 - Production mode fails if `DATABASE_URL` is SQLite.
+- Production mode fails if the Prisma datasource provider is still `sqlite`.
 - `ATOMIC_WEBHOOK_SECRET` must be set to a non-placeholder secret before production.
 - Production mode fails if swap provider mode is still `simulation`.
 - Production mode fails if compliance provider mode is still `simulation`.
@@ -32,6 +33,7 @@ ATOMIC_DEPLOY_ENV=production npm run check:deploy
 ## Production Follow-Up
 
 - Move persistence to a managed database.
+- Change the Prisma datasource provider and migration workflow for the managed database target.
 - Store all secrets in the deployment secret store.
 - Run live provider contract tests against the exact Rango/THORChain payloads.
 - Connect KYT/sanctions credentials and record provider request IDs.

@@ -48,6 +48,24 @@ function isPlaceholderSecret(value) {
   return !value || value === 'whsec_prod_secret' || value.length < 24;
 }
 
+function readPrismaDatasourceProvider() {
+  const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
+
+  if (!fs.existsSync(schemaPath)) {
+    return '';
+  }
+
+  const schema = fs.readFileSync(schemaPath, 'utf8');
+  const datasourceMatch = schema.match(/datasource\s+db\s+\{([\s\S]*?)\}/);
+
+  if (!datasourceMatch) {
+    return '';
+  }
+
+  const providerMatch = datasourceMatch[1].match(/provider\s*=\s*"([^"]+)"/);
+  return providerMatch ? providerMatch[1] : '';
+}
+
 loadLocalEnv();
 
 const deployEnv = env('ATOMIC_DEPLOY_ENV', env('NODE_ENV') === 'production' ? 'production' : 'local');
@@ -56,6 +74,7 @@ const databaseUrl = env('DATABASE_URL');
 const swapProviderMode = env('ATOMIC_SWAP_PROVIDER_MODE', 'simulation');
 const complianceProviderMode = env('ATOMIC_COMPLIANCE_PROVIDER_MODE', 'simulation');
 const webhookSecret = env('ATOMIC_WEBHOOK_SECRET');
+const prismaDatasourceProvider = readPrismaDatasourceProvider();
 
 addCheck(
   'DATABASE_URL',
@@ -68,6 +87,17 @@ addCheck(
   strict
     ? 'Use managed production persistence before launch.'
     : 'Set DATABASE_URL in .env or the deployment environment.'
+);
+
+addCheck(
+  'PRISMA_DATASOURCE_PROVIDER',
+  strict && prismaDatasourceProvider === 'sqlite' ? 'fail' : prismaDatasourceProvider ? 'pass' : 'fail',
+  prismaDatasourceProvider
+    ? `Prisma datasource provider is ${prismaDatasourceProvider}.`
+    : 'Prisma datasource provider could not be read.',
+  strict
+    ? 'Move the Prisma datasource to the selected managed database provider before production launch.'
+    : 'Keep SQLite for local development or migrate the schema before production.'
 );
 
 addCheck(

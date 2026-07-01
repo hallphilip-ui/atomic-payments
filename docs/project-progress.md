@@ -23,7 +23,8 @@ Completion: 70-74%
 - Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
 - Structured request logging emits request ID, method, path, status, duration, user agent, and remote address.
 - `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
-- Deploy readiness check validates database config, webhook secret posture, provider modes, and port settings.
+- Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, provider modes, and port settings.
+- Production release runbook documents the hosted-release preflight gates and blockers.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -157,6 +158,13 @@ cd /Users/philiphall/atomic-payments
 npm run check:deploy
 ```
 
+Review the production release runbook:
+
+```bash
+cd /Users/philiphall/atomic-payments
+open docs/production-release-runbook.md
+```
+
 Run the Docker smoke path:
 
 ```bash
@@ -208,7 +216,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
-- Deploy readiness checks exist, but production still needs managed secrets, image publishing, and hosted database migration workflows.
+- Deploy readiness checks now block SQLite schema posture in strict production mode, but production still needs managed secrets, image publishing, and hosted database migration workflows.
 - Health/readiness, structured request logs, and local request metrics exist, but production observability still needs traces, log shipping, dashboards, and alerting.
 
 ## Near-Term Completion Target
