@@ -53,12 +53,6 @@ app.use('/admin-compliance', (_req: Request, res: Response) => {
   return res.send(html);
 });
 
-app.use('/project-plan', (_req: Request, res: Response) => {
-  const html = readFileSync(join(process.cwd(), 'project-plan.html'), 'utf8');
-  res.header('Content-Type', 'text/html; charset=utf-8');
-  return res.send(html);
-});
-
 app.use('/assets/atomic-logo.png', (_req: Request, res: Response) => {
   const logo = readFileSync(join(process.cwd(), 'public', 'atomic-logo.png'));
   res.header('Content-Type', 'image/png');

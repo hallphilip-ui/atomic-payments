@@ -37,6 +37,16 @@ async function assertContains(path, text) {
   assert.ok(body.includes(text), `${path} should include ${text}`);
 }
 
+async function assertStatus(path, expectedStatus) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: {
+      'x-atomic-request-id': `smoke-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      ...(OPERATOR_API_KEY ? { 'x-atomic-operator-key': OPERATOR_API_KEY } : {})
+    }
+  });
+  assert.equal(response.status, expectedStatus, `${path} should return ${expectedStatus}`);
+}
+
 function trackQuote(result) {
   if (result?.quote?.id) createdQuoteIds.add(result.quote.id);
   return result;
@@ -75,15 +85,12 @@ async function main() {
 
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
-    assertContains('/defi-swap', 'Build Progress'),
-    assertContains('/defi-swap', 'Open full tracker'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
-    assertContains('/project-plan', 'Project Plan Tracker'),
-    assertContains('/project-plan', 'Live Runtime'),
+    assertStatus('/project-plan', 404),
     assertContains('/assets/i18n.js', "'ja'"),
     assertContains('/assets/i18n.js', "'ar'")
   ]);
-  console.log('OK consoles/project widget/i18n assets are served');
+  console.log('OK consoles/i18n assets are served');
 
   const quotePayload = {
     fromAsset: 'BITCOIN.BTC',

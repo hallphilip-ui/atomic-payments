@@ -413,89 +413,6 @@
       background: rgba(4, 13, 22, 0.68);
     }
 
-    .build-progress {
-      display: grid;
-      gap: 12px;
-      border: 1px solid rgba(25, 210, 242, 0.24);
-      border-radius: 8px;
-      padding: 14px;
-      background: linear-gradient(135deg, rgba(8, 119, 216, 0.18), rgba(4, 13, 22, 0.74));
-    }
-
-    .build-progress-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: start;
-    }
-
-    .build-progress-head span {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0;
-    }
-
-    .build-progress-head strong {
-      color: #fff;
-      font-size: 26px;
-      line-height: 1;
-      white-space: nowrap;
-    }
-
-    .progress-track {
-      height: 8px;
-      overflow: hidden;
-      border-radius: 999px;
-      background: rgba(128, 200, 235, 0.16);
-    }
-
-    .progress-fill {
-      width: 74%;
-      height: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--green), var(--cyan), var(--blue));
-    }
-
-    .progress-mini {
-      display: grid;
-      gap: 8px;
-    }
-
-    .progress-mini div {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .progress-mini strong {
-      color: var(--steel);
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .progress-link {
-      min-height: 34px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(25, 210, 242, 0.26);
-      border-radius: 6px;
-      color: #dff9ff;
-      background: rgba(25, 210, 242, 0.08);
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 13px;
-    }
-
-    .progress-link:hover {
-      border-color: rgba(25, 210, 242, 0.56);
-      color: #fff;
-    }
-
     .quote-line {
       display: flex;
       justify-content: space-between;
@@ -759,23 +676,6 @@
         </div>
 
         <aside class="side-panel">
-          <section class="build-progress" aria-label="Build Progress">
-            <div class="build-progress-head">
-              <div>
-                <span>Build Progress</span>
-                <h2>Atomic Payments</h2>
-              </div>
-              <strong id="buildProgressPct">74%</strong>
-            </div>
-            <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="buildProgressFill"></div></div>
-            <div class="progress-mini" id="buildProgressStreams">
-              <div><span>Core API and Docker</span><strong>70-74%</strong></div>
-              <div><span>DeFi swap core</span><strong>63-66%</strong></div>
-              <div><span>AML and compliance</span><strong>55-58%</strong></div>
-            </div>
-            <a class="progress-link" href="/project-plan">Open full tracker</a>
-          </section>
-
           <div>
             <h2 data-i18n="defi.quoteState">Quote State</h2>
             <p class="subtle" data-i18n="defi.quoteStateDesc">Live state and compliance trail for the current swap.</p>
@@ -1042,28 +942,6 @@
       setApiStatus(true, t('defi.apiConnected'), 'defi.apiConnected');
     }
 
-    async function loadBuildProgress() {
-      try {
-        const response = await fetch(`${API_BASE}/v1/project/progress`);
-        if (!response.ok) throw new Error('Progress unavailable');
-        const progress = await response.json();
-        const percent = Math.max(0, Math.min(100, Number(progress.overallCompletionPct) || 0));
-        el('buildProgressPct').textContent = `${percent}%`;
-        el('buildProgressFill').style.width = `${percent}%`;
-        const featured = (progress.workstreams || [])
-          .filter((item) => ['core-api', 'defi-swap', 'compliance'].includes(item.id))
-          .slice(0, 3);
-        if (featured.length) {
-          el('buildProgressStreams').innerHTML = featured
-            .map((item) => `<div><span>${item.label}</span><strong>${item.completionRange}</strong></div>`)
-            .join('');
-        }
-      } catch (_error) {
-        el('buildProgressPct').textContent = '74%';
-        el('buildProgressFill').style.width = '74%';
-      }
-    }
-
     async function getQuote() {
       const payload = {
         fromAsset: el('fromAsset').value,
@@ -1202,7 +1080,6 @@
     });
 
     updateWalletMode();
-    loadBuildProgress();
     loadAssets().catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
   </script>
 </body>

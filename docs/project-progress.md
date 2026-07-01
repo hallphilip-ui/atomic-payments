@@ -87,9 +87,8 @@ Completion: 58-62%
 
 - DeFi swap console at `/defi-swap`.
 - Compliance review console at `/admin-compliance`.
-- Project plan widget at `/project-plan` visualizes overall completion, workstream progress, near-term milestones, risks, recently finished slices, and live runtime metrics.
-- Swap console sidebar now shows a compact build-progress module with overall completion, workstream status, and a link to the full tracker.
-- `/v1/project/progress` exposes the build progress as structured data for product widgets and future sidebar surfaces.
+- Product-facing project tracker UI has been removed from the swap console and app routes.
+- `/v1/project/progress` exposes build progress as structured data for internal reporting and future non-product surfaces.
 - Transparent Atomic mark asset served from `/assets/atomic-mark.png`.
 - Logo integrated into the top bar without a pasted background box.
 - Provider diagnostics, quote state, action hints, compliance status, and event logs visible.
@@ -208,7 +207,6 @@ Open the main local consoles:
 
 - Swap console: `http://127.0.0.1:3005/defi-swap`
 - Compliance desk: `http://127.0.0.1:3005/admin-compliance`
-- Project plan widget: `http://127.0.0.1:3005/project-plan`
 
 ## Next Recommended Build Slices
 
