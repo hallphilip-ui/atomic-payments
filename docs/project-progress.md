@@ -83,7 +83,7 @@ Completion: 58-62%
 
 - DeFi swap console at `/defi-swap`.
 - Compliance review console at `/admin-compliance`.
-- Project plan widget at `/project-plan` visualizes overall completion, workstream progress, near-term milestones, risks, and recently finished slices.
+- Project plan widget at `/project-plan` visualizes overall completion, workstream progress, near-term milestones, risks, recently finished slices, and live runtime metrics.
 - Transparent Atomic mark asset served from `/assets/atomic-mark.png`.
 - Logo integrated into the top bar without a pasted background box.
 - Provider diagnostics, quote state, action hints, compliance status, and event logs visible.

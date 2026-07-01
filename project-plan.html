@@ -262,6 +262,7 @@
       line-height: 1.5;
     }
 
+    .runtime-panel,
     .risk-panel {
       padding: 18px;
       display: grid;
@@ -273,6 +274,61 @@
     .risk-list {
       display: grid;
       gap: 10px;
+    }
+
+    .runtime-panel {
+      background: color-mix(in srgb, var(--panel) 92%, black);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+      margin-bottom: 18px;
+    }
+
+    .runtime-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .route-table {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .route-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 70px 88px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .route-row strong {
+      color: var(--text);
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .live-pill::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 14px currentColor;
     }
 
     .risk {
@@ -329,8 +385,13 @@
     @media (max-width: 920px) {
       .summary,
       .risk-panel,
+      .runtime-panel,
       .lanes {
         grid-template-columns: 1fr;
+      }
+
+      .runtime-grid {
+        grid-template-columns: repeat(2, 1fr);
       }
 
       header {
@@ -341,10 +402,11 @@
 
     @media (max-width: 560px) {
       .shell { width: min(100vw - 22px, 1180px); padding-top: 18px; }
-      .meta-grid { grid-template-columns: 1fr; }
+      .meta-grid, .runtime-grid { grid-template-columns: 1fr; }
       .milestone { grid-template-columns: 30px 1fr; }
       .status { grid-column: 2; width: max-content; }
       .dial strong { font-size: 46px; }
+      .route-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -439,6 +501,25 @@
       </article>
     </section>
 
+    <section class="runtime-panel" aria-label="Live runtime status">
+      <div>
+        <h2>Live Runtime</h2>
+        <p class="live-pill" id="runtimeStatus">Checking API</p>
+        <div class="runtime-grid" style="margin-top: 14px;">
+          <div class="metric"><span>Database</span><strong id="runtimeDatabase">-</strong></div>
+          <div class="metric"><span>Requests</span><strong id="runtimeRequests">-</strong></div>
+          <div class="metric"><span>Avg Latency</span><strong id="runtimeAverage">-</strong></div>
+          <div class="metric"><span>Max Latency</span><strong id="runtimeMax">-</strong></div>
+        </div>
+      </div>
+      <div>
+        <h2>Hot Routes</h2>
+        <div class="route-table" id="routeTable">
+          <div class="route-row"><strong>Waiting for metrics</strong><span>-</span><span>-</span></div>
+        </div>
+      </div>
+    </section>
+
     <section class="risk-panel" aria-label="Current project risks">
       <div>
         <h2>Current Risks</h2>
@@ -460,5 +541,49 @@
       </div>
     </section>
   </main>
+  <script>
+    const text = (id, value) => {
+      const node = document.getElementById(id);
+      if (node) node.textContent = value;
+    };
+
+    async function loadRuntime() {
+      try {
+        const [healthResponse, metricsResponse] = await Promise.all([
+          fetch('/v1/health', { headers: { 'x-atomic-request-id': `plan-${Date.now()}` } }),
+          fetch('/v1/metrics', { headers: { 'x-atomic-request-id': `plan-${Date.now()}` } })
+        ]);
+        if (!healthResponse.ok || !metricsResponse.ok) throw new Error('Runtime endpoint unavailable');
+        const health = await healthResponse.json();
+        const metrics = await metricsResponse.json();
+
+        text('runtimeStatus', `${health.status.toUpperCase()} • ${health.providerMode} provider • ${health.complianceProviderMode} KYT`);
+        text('runtimeDatabase', health.database);
+        text('runtimeRequests', String(metrics.requestCount));
+        text('runtimeAverage', `${metrics.avgDurationMs} ms`);
+        text('runtimeMax', `${metrics.maxDurationMs} ms`);
+
+        const routes = (metrics.routes || []).slice(0, 6);
+        document.getElementById('routeTable').innerHTML = routes.length
+          ? routes.map((route) => `
+              <div class="route-row">
+                <strong>${route.route}</strong>
+                <span>${route.count} req</span>
+                <span>${route.avgDurationMs} ms avg</span>
+              </div>
+            `).join('')
+          : '<div class="route-row"><strong>No requests tracked yet</strong><span>-</span><span>-</span></div>';
+      } catch (error) {
+        text('runtimeStatus', 'OFFLINE • waiting for API');
+        text('runtimeDatabase', '-');
+        text('runtimeRequests', '-');
+        text('runtimeAverage', '-');
+        text('runtimeMax', '-');
+      }
+    }
+
+    loadRuntime();
+    setInterval(loadRuntime, 10000);
+  </script>
 </body>
 </html>

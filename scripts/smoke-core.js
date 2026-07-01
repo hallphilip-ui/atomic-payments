@@ -75,6 +75,7 @@ async function main() {
     assertContains('/defi-swap', 'data-atomic-language-select'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
     assertContains('/project-plan', 'Project Plan Tracker'),
+    assertContains('/project-plan', 'Live Runtime'),
     assertContains('/assets/i18n.js', "'ja'"),
     assertContains('/assets/i18n.js', "'ar'")
   ]);
