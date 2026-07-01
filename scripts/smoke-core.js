@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 
 const BASE_URL = process.env.ATOMIC_BASE_URL || 'http://127.0.0.1:3005';
 const KEEP_SMOKE_DATA = process.env.ATOMIC_SMOKE_KEEP_DATA === '1';
+const OPERATOR_API_KEY = process.env.ATOMIC_OPERATOR_API_KEY || '';
 const prisma = new PrismaClient();
 const createdQuoteIds = new Set();
 
@@ -13,6 +14,7 @@ async function request(path, options = {}) {
     headers: {
       'Content-Type': 'application/json',
       'x-atomic-request-id': requestId,
+      ...(OPERATOR_API_KEY ? { 'x-atomic-operator-key': OPERATOR_API_KEY } : {}),
       ...(options.headers || {})
     }
   });

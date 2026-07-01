@@ -11,6 +11,7 @@ import swapRoutes from './routes/swaps';
 import healthRoutes from './routes/health';
 import metricsRoutes from './routes/metrics';
 import { requestLogger } from './observability/requestLogger';
+import { operatorAuth } from './security/operatorAuth';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3005);
@@ -21,12 +22,14 @@ app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
 app.use((req: Request, res: Response, next?: () => void) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-atomic-key, x-atomic-request-id');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-atomic-key, x-atomic-request-id, x-atomic-operator-key');
   res.header('Access-Control-Expose-Headers', 'x-atomic-request-id');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   return next?.();
 });
+
+app.use(operatorAuth);
 
 app.use(intentRoutes);
 app.use(userRoutes);

@@ -74,6 +74,7 @@ const databaseUrl = env('DATABASE_URL');
 const swapProviderMode = env('ATOMIC_SWAP_PROVIDER_MODE', 'simulation');
 const complianceProviderMode = env('ATOMIC_COMPLIANCE_PROVIDER_MODE', 'simulation');
 const webhookSecret = env('ATOMIC_WEBHOOK_SECRET');
+const operatorApiKey = env('ATOMIC_OPERATOR_API_KEY');
 const prismaDatasourceProvider = readPrismaDatasourceProvider();
 
 addCheck(
@@ -107,6 +108,15 @@ addCheck(
     ? 'Webhook secret is missing or looks like a placeholder.'
     : 'Webhook secret is configured.',
   'Set a high-entropy ATOMIC_WEBHOOK_SECRET in the deployment secret store.'
+);
+
+addCheck(
+  'ATOMIC_OPERATOR_API_KEY',
+  isPlaceholderSecret(operatorApiKey) ? (strict ? 'fail' : 'warn') : 'pass',
+  isPlaceholderSecret(operatorApiKey)
+    ? 'Operator API key is missing or looks like a placeholder.'
+    : 'Operator API key is configured.',
+  'Set a high-entropy ATOMIC_OPERATOR_API_KEY before exposing admin, metrics, or treasury routes.'
 );
 
 addCheck(

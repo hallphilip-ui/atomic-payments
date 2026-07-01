@@ -7,6 +7,7 @@
     "build": "tsc",
     "check:deploy": "node scripts/check-production-readiness.js",
     "test:observability": "node scripts/observability-contract.js",
+    "test:operator-auth": "node scripts/operator-auth-contract.js",
     "test:providers": "node scripts/provider-adapter-contract.js",
     "smoke:core": "node scripts/smoke-core.js",
     "smoke:core:isolated": "node scripts/smoke-core-isolated.js",

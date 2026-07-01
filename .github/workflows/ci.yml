@@ -35,6 +35,9 @@ jobs:
       - name: Run observability contract tests
         run: npm run test:observability
 
+      - name: Run operator auth contract tests
+        run: npm run test:operator-auth
+
       - name: Run provider adapter contract tests
         run: npm run test:providers
 
