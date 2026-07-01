@@ -125,6 +125,13 @@ async function main() {
   assert.ok(events.events.length >= 3, 'quote event log contains lifecycle entries');
   console.log(`OK authorize/advance/events: ${events.events.length} events`);
 
+  const metrics = await request('/v1/metrics');
+  assert.equal(metrics.service, 'atomic-payments', 'metrics endpoint reports service name');
+  assert.ok(metrics.requestCount >= 8, 'metrics endpoint tracks request count');
+  assert.ok(metrics.routes.some((route) => route.route === 'GET /v1/health'), 'metrics endpoint tracks health route');
+  assert.ok(metrics.routes.some((route) => route.route.includes('/authorize')), 'metrics endpoint tracks authorization route');
+  console.log(`OK metrics: ${metrics.requestCount} requests tracked`);
+
   const reviewQuote = trackQuote(await request('/v1/swaps/quote', {
     method: 'POST',
     body: JSON.stringify({

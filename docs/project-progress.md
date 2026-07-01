@@ -1,10 +1,10 @@
 # Atomic Payments Project Progress
 
-Last updated: June 30, 2026
+Last updated: July 1, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 72-74%
+Estimated total completion: 73-75%
 
 Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
 
@@ -22,6 +22,7 @@ Completion: 68-72%
 - Docker image and Compose service for repeatable local app startup.
 - Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
 - Structured request logging emits request ID, method, path, status, duration, user agent, and remote address.
+- `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -117,6 +118,7 @@ Completion: 58-61%
 - Docker smoke command builds the container, starts the service, waits for readiness, runs the core smoke, and tears the stack down.
 - Smoke coverage verifies `/v1/health`; Docker healthcheck uses the dedicated readiness endpoint.
 - Smoke coverage verifies request ID propagation through the health endpoint.
+- Smoke coverage verifies `/v1/metrics` request and route tracking.
 
 Production gaps:
 
@@ -198,7 +200,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
-- Health/readiness and structured request logs exist, but production observability still needs metrics, traces, log shipping, and alerting.
+- Health/readiness, structured request logs, and local request metrics exist, but production observability still needs traces, log shipping, dashboards, and alerting.
 
 ## Near-Term Completion Target
 
