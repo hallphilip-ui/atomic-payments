@@ -12,7 +12,7 @@ Atomic Payments now has a working local foundation for merchant payments, off-ex
 
 ### Core App And API
 
-Completion: 68-72%
+Completion: 70-74%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
@@ -23,6 +23,7 @@ Completion: 68-72%
 - Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
 - Structured request logging emits request ID, method, path, status, duration, user agent, and remote address.
 - `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
+- Deploy readiness check validates database config, webhook secret posture, provider modes, and port settings.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -149,6 +150,13 @@ cd /Users/philiphall/atomic-payments
 npm run test:providers
 ```
 
+Run deployment readiness checks:
+
+```bash
+cd /Users/philiphall/atomic-payments
+npm run check:deploy
+```
+
 Run the Docker smoke path:
 
 ```bash
@@ -200,6 +208,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
+- Deploy readiness checks exist, but production still needs managed secrets, image publishing, and hosted database migration workflows.
 - Health/readiness, structured request logs, and local request metrics exist, but production observability still needs traces, log shipping, dashboards, and alerting.
 
 ## Near-Term Completion Target
