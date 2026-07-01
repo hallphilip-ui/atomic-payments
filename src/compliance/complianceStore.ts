@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -125,6 +126,49 @@ export async function listComplianceReviews(status?: string) {
   });
 
   return reviews.map(toComplianceReviewView);
+}
+
+export async function getComplianceEvidence(reviewId: string) {
+  const review = await prisma.complianceReview.findUnique({
+    where: { id: reviewId },
+    include: {
+      swapQuote: {
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          fromAsset: true,
+          toAsset: true,
+          amount: true,
+          estimatedOutputAmount: true,
+          providerMode: true,
+          providerQuoteId: true,
+          currentState: true,
+          expiresAt: true,
+          createdAt: true
+        }
+      }
+    }
+  });
+
+  if (!review) {
+    return null;
+  }
+
+  const evidence = {
+    schemaVersion: 'compliance-evidence.v1',
+    generatedAt: new Date().toISOString(),
+    review: toComplianceReviewView(review)
+  };
+  const evidenceHash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify(evidence.review))
+    .digest('hex');
+
+  return {
+    ...evidence,
+    evidenceHash
+  };
 }
 
 export async function decideComplianceReview(input: {

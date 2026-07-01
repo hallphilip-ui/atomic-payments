@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { decideComplianceReview, listComplianceReviews } from '../compliance/complianceStore';
+import { decideComplianceReview, getComplianceEvidence, listComplianceReviews } from '../compliance/complianceStore';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -19,6 +19,16 @@ router.post('/v1/admin/config/fee', async (req, res) => {
 router.get('/v1/admin/compliance/reviews', async (req, res) => {
   const status = req.query.status ? String(req.query.status) : undefined;
   return res.json({ reviews: await listComplianceReviews(status) });
+});
+
+router.get('/v1/admin/compliance/reviews/:id/evidence', async (req, res) => {
+  const evidence = await getComplianceEvidence(req.params.id);
+
+  if (!evidence) {
+    return res.status(404).json({ error: 'Compliance review not found.' });
+  }
+
+  return res.json({ evidence });
 });
 
 router.post('/v1/admin/compliance/reviews/:id/decision', async (req, res) => {

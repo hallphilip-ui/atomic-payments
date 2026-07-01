@@ -71,6 +71,7 @@ Completion: 55-58%
 - Compliance scoring engine for wallet format, watchlist keywords, enhanced chain review, amount thresholds, and price-impact risk.
 - Auto-clear, manual-review, blocked, approved, and rejected states.
 - Admin compliance API for listing reviews and recording decisions.
+- Compliance evidence export endpoint returns review context, linked quote context, generated timestamp, and SHA-256 evidence hash.
 - Operator review desk at `/admin-compliance`.
 - Compliance review response includes linked swap context.
 - Compliance provider boundary records simulated KYT vendor mode, provider, reference ID, decision, latency, and metadata.

@@ -187,6 +187,12 @@ async function main() {
   assert.equal(review.vendorProvider, 'atomic-simulated-kyt', 'admin review preserves vendor provider');
   assert.equal(review.vendorMetadata.screeningModel, 'deterministic_v1', 'admin review preserves vendor metadata');
 
+  const evidence = await request(`/v1/admin/compliance/reviews/${review.id}/evidence`);
+  assert.equal(evidence.evidence.schemaVersion, 'compliance-evidence.v1', 'evidence export includes schema version');
+  assert.equal(evidence.evidence.review.id, review.id, 'evidence export includes review id');
+  assert.equal(evidence.evidence.review.swapQuote.id, review.swapQuote.id, 'evidence export includes quote context');
+  assert.match(evidence.evidence.evidenceHash, /^[a-f0-9]{64}$/, 'evidence export includes sha256 hash');
+
   const decision = await request(`/v1/admin/compliance/reviews/${review.id}/decision`, {
     method: 'POST',
     body: JSON.stringify({
@@ -197,6 +203,7 @@ async function main() {
   });
   assert.equal(decision.review.status, 'APPROVED', 'admin decision approves review');
   assert.ok(decision.review.swapQuote, 'decision response preserves quote context');
+  console.log(`OK compliance evidence exported: ${evidence.evidence.evidenceHash.slice(0, 12)}`);
   console.log(`OK compliance review approved: ${review.id}`);
 
   console.log('Smoke complete');
