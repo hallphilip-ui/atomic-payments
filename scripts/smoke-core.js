@@ -137,6 +137,12 @@ async function main() {
   assert.ok(metrics.routes.some((route) => route.route.includes('/authorize')), 'metrics endpoint tracks authorization route');
   console.log(`OK metrics: ${metrics.requestCount} requests tracked`);
 
+  const progress = await request('/v1/project/progress');
+  assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
+  assert.equal(progress.overallCompletionPct, 74, 'progress endpoint reports overall completion');
+  assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
+  console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
+
   const reviewQuote = trackQuote(await request('/v1/swaps/quote', {
     method: 'POST',
     body: JSON.stringify({

@@ -89,6 +89,7 @@ Completion: 58-62%
 - Compliance review console at `/admin-compliance`.
 - Project plan widget at `/project-plan` visualizes overall completion, workstream progress, near-term milestones, risks, recently finished slices, and live runtime metrics.
 - Swap console sidebar now shows a compact build-progress module with overall completion, workstream status, and a link to the full tracker.
+- `/v1/project/progress` exposes the build progress as structured data for product widgets and future sidebar surfaces.
 - Transparent Atomic mark asset served from `/assets/atomic-mark.png`.
 - Logo integrated into the top bar without a pasted background box.
 - Provider diagnostics, quote state, action hints, compliance status, and event logs visible.
@@ -166,6 +167,13 @@ Run operator auth contract checks:
 ```bash
 cd /Users/philiphall/atomic-payments
 npm run test:operator-auth
+```
+
+Fetch structured project progress:
+
+```bash
+cd /Users/philiphall/atomic-payments
+curl http://127.0.0.1:3005/v1/project/progress
 ```
 
 Run deployment readiness checks:
