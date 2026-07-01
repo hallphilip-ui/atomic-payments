@@ -240,6 +240,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - Local SQLite is useful for development but not production persistence.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
+- CI now runs isolated smoke both without an operator key and with a test operator key, covering open local mode plus protected-route rejection behavior.
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
 - Deploy readiness checks now block SQLite schema posture in strict production mode, but production still needs managed secrets, image publishing, and hosted database migration workflows.
 - Operator auth now gates sensitive API and internal progress routes when configured, but production still needs full identity, roles, session management, and immutable audit logs.

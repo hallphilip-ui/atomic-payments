@@ -43,3 +43,10 @@ jobs:
 
       - name: Run isolated core smoke test
         run: npm run smoke:core:isolated
+
+      - name: Run isolated operator-protected smoke test
+        run: npm run smoke:core:isolated
+        env:
+          ATOMIC_OPERATOR_API_KEY: ci_operator_secret_1234567890
+          ATOMIC_SMOKE_PORT: 3106
+          ATOMIC_SMOKE_DB_FILE: smoke-operator-ci.db
