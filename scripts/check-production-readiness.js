@@ -116,7 +116,7 @@ addCheck(
   isPlaceholderSecret(operatorApiKey)
     ? 'Operator API key is missing or looks like a placeholder.'
     : 'Operator API key is configured.',
-  'Set a high-entropy ATOMIC_OPERATOR_API_KEY before exposing admin, metrics, or treasury routes.'
+  'Set a high-entropy ATOMIC_OPERATOR_API_KEY before exposing admin, metrics, internal progress, or treasury routes.'
 );
 
 addCheck(

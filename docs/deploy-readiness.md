@@ -35,7 +35,7 @@ ATOMIC_DEPLOY_ENV=production npm run check:deploy
 
 - Move persistence to a managed database.
 - Change the Prisma datasource provider and migration workflow for the managed database target.
-- Store all secrets, including operator/admin keys, in the deployment secret store.
+- Store all secrets, including operator/admin keys used for internal metrics and progress endpoints, in the deployment secret store.
 - Run live provider contract tests against the exact Rango/THORChain payloads.
 - Connect KYT/sanctions credentials and record provider request IDs.
 - Add log shipping, dashboards, alerting, and rollback runbooks.

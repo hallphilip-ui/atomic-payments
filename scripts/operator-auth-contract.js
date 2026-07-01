@@ -25,6 +25,7 @@ function withOperatorKey(value, callback) {
 function main() {
   assert.equal(requiresOperatorAuth('/v1/admin/compliance/reviews'), true);
   assert.equal(requiresOperatorAuth('/v1/metrics?token=abc'), true);
+  assert.equal(requiresOperatorAuth('/v1/project/progress'), true);
   assert.equal(requiresOperatorAuth('/v1/settlement/treasury/ledger'), true);
   assert.equal(requiresOperatorAuth('/v1/settlement/currencies'), false);
   assert.equal(requiresOperatorAuth('/v1/swaps/assets'), false);

@@ -26,7 +26,7 @@ Completion: 70-74%
 - Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, operator API key posture, provider modes, and port settings.
 - Production release runbook documents the hosted-release preflight gates and blockers.
 - Observability contract test verifies sensitive query parameters are redacted before logging or metrics aggregation.
-- Operator API key middleware protects admin, metrics, settlement quote list, settlement instruction, and treasury routes when `ATOMIC_OPERATOR_API_KEY` is configured.
+- Operator API key middleware protects admin, metrics, internal project progress, settlement quote list, settlement instruction, and treasury routes when `ATOMIC_OPERATOR_API_KEY` is configured.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -175,6 +175,8 @@ cd /Users/philiphall/atomic-payments
 curl http://127.0.0.1:3005/v1/project/progress
 ```
 
+When `ATOMIC_OPERATOR_API_KEY` is configured, include `x-atomic-operator-key` on that progress request.
+
 Run deployment readiness checks:
 
 ```bash
@@ -240,7 +242,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
 - Deploy readiness checks now block SQLite schema posture in strict production mode, but production still needs managed secrets, image publishing, and hosted database migration workflows.
-- Operator auth now gates sensitive API routes when configured, but production still needs full identity, roles, session management, and immutable audit logs.
+- Operator auth now gates sensitive API and internal progress routes when configured, but production still needs full identity, roles, session management, and immutable audit logs.
 - Health/readiness, structured request logs, and local request metrics exist, but production observability still needs traces, log shipping, dashboards, and alerting.
 
 ## Near-Term Completion Target
