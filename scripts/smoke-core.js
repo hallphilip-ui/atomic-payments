@@ -75,6 +75,8 @@ async function main() {
 
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
+    assertContains('/defi-swap', 'Build Progress'),
+    assertContains('/defi-swap', 'Open full tracker'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
     assertContains('/project-plan', 'Project Plan Tracker'),
     assertContains('/project-plan', 'Live Runtime'),
