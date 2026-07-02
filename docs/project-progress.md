@@ -47,6 +47,7 @@ Completion: 52-57%
 - Treasury position summaries and settlement API endpoints.
 - Platform transfer connector registry covers 15 broker/exchange/infrastructure APIs for deposits, withdrawals, account status, and balances only.
 - `/v1/settlement/platform-connectors` exposes transfer-only connector candidates with trading disabled.
+- Simulated platform transfer adapter factory defines the safe future-live connector boundary without order/trade methods.
 - `npm run test:platform-connectors` enforces transfer-only connector scope and rejects trading capability drift.
 
 Production gaps:

@@ -44,6 +44,8 @@ Each connector should implement the same transfer-only contract:
 
 No connector should expose a generic `placeOrder`, `trade`, `swap`, `margin`, `derivatives`, or `marketOrder` method.
 
+The current codebase includes a simulated transfer adapter factory for these connectors. It is intentionally limited to account status, balances, deposit instructions, deposit status, withdrawal requests, withdrawal status, and transfer events. `npm run test:platform-connectors` fails if a connector or adapter drifts into trading/order scope.
+
 ## Before Live Connection
 
 1. Verify official API docs and regional availability.
