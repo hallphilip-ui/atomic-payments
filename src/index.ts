@@ -47,6 +47,12 @@ app.use('/defi-swap', (_req: Request, res: Response) => {
   return res.send(html);
 });
 
+app.use('/checkout', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'checkout.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+});
+
 app.use('/admin-compliance', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'admin-compliance.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
@@ -67,6 +73,12 @@ app.use('/assets/atomic-mark.png', (_req: Request, res: Response) => {
 
 app.use('/assets/i18n.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'i18n.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  return res.send(script);
+});
+
+app.use('/assets/widget.js', (_req: Request, res: Response) => {
+  const script = readFileSync(join(process.cwd(), 'public', 'widget.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');
   return res.send(script);
 });

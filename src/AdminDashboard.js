@@ -5,13 +5,13 @@ const AdminDashboard = () => {
   const [newFee, setNewFee] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:3005/v1/admin/dashboard')
+    fetch('/v1/admin/dashboard')
       .then(res => res.json())
       .then(setStats);
   }, []);
 
   const updateFee = async () => {
-    await fetch('http://localhost:3005/v1/admin/config/fee', {
+    await fetch('/v1/admin/config/fee', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ feeRate: parseFloat(newFee) })

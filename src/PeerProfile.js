@@ -5,7 +5,7 @@ const PeerProfile = ({ userId }) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    fetch(`http://localhost:3005/v1/users/${userId}/network_directory`)
+    fetch(`/v1/users/${userId}/network_directory`)
       .then(res => res.json())
       .then(setData);
   }, [userId]);

@@ -39,3 +39,11 @@ ATOMIC_DEPLOY_ENV=production npm run check:deploy
 - Run live provider contract tests against the exact Rango/THORChain payloads.
 - Connect KYT/sanctions credentials and record provider request IDs.
 - Add log shipping, dashboards, alerting, and rollback runbooks.
+
+## Cloudflare Domain Check
+
+- `atomicpay.cloud` is delegated to Cloudflare nameservers.
+- The apex and `www` hostnames resolve to Cloudflare proxy IPs.
+- Public HTTP reaches Cloudflare.
+- Public HTTPS currently returns Cloudflare `525`, which means Cloudflare cannot complete an SSL handshake with the origin. Fix the origin certificate/HTTPS listener or adjust Cloudflare SSL mode before treating the domain as production-ready.
+- Browser pages should use same-origin API paths so Cloudflare-served pages call `atomicpay.cloud` instead of a local development host.
