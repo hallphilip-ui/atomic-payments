@@ -11,6 +11,7 @@ Run these checks before every release candidate:
 ```bash
 cd /Users/philiphall/atomic-payments
 npm run build
+npm run check:prisma
 npm run test:providers
 npm run smoke:core:isolated
 npm run check:deploy
@@ -30,12 +31,19 @@ cd /Users/philiphall/atomic-payments
 ATOMIC_DEPLOY_ENV=production ATOMIC_PUBLIC_BASE_URL=https://atomicpay.cloud npm run check:deploy
 ```
 
+Run the production database schema gate with the managed database URL:
+
+```bash
+cd /Users/philiphall/atomic-payments
+ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.prisma DATABASE_URL=postgresql://... npm run check:deploy
+```
+
 The strict gate must report zero failures before launch.
 
 ## Production Requirements
 
 - Use a managed database instead of local SQLite.
-- Move the Prisma datasource provider and migration process to the selected managed database target.
+- Generate and migrate from `prisma/schema.postgres.prisma` against the managed database target before promotion.
 - Store `DATABASE_URL`, `ATOMIC_WEBHOOK_SECRET`, provider keys, and compliance vendor keys in a deployment secret store.
 - Use `live_with_fallback` only during pre-production verification; use `live` after provider contract tests pass.
 - Connect the compliance provider boundary to a real KYT/sanctions vendor before handling production value.

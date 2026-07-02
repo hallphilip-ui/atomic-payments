@@ -29,6 +29,9 @@ jobs:
         env:
           DATABASE_URL: file:./ci-generate.db
 
+      - name: Check Prisma schema variants
+        run: npm run check:prisma
+
       - name: Build
         run: npm run build
 

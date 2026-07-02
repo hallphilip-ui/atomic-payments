@@ -51,7 +51,11 @@ function isPlaceholderSecret(value) {
 }
 
 function readPrismaDatasourceProvider() {
-  const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
+  const schemaPath = path.join(
+    __dirname,
+    '..',
+    env('ATOMIC_PRISMA_SCHEMA_PATH', 'prisma/schema.prisma')
+  );
 
   if (!fs.existsSync(schemaPath)) {
     return '';

@@ -1,18 +1,18 @@
 # Atomic Payments Project Progress
 
-Last updated: July 1, 2026
+Last updated: July 2, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 73-75%
+Estimated total completion: 76-78%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, security controls, CI/CD, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, security controls, CI/CD, observability, and operational runbooks.
 
 ## Completed Slices
 
 ### Core App And API
 
-Completion: 70-74%
+Completion: 74-78%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
@@ -24,13 +24,15 @@ Completion: 70-74%
 - Structured request logging emits request ID, method, redacted path, status, duration, user agent, and remote address.
 - `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
 - Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, operator API key posture, provider modes, and port settings.
+- Postgres Prisma schema variant and `npm run check:prisma` validate the managed database path without forcing local development off SQLite.
+- Public-domain readiness checks validate HTTPS reachability for Cloudflare-served URLs.
 - Production release runbook documents the hosted-release preflight gates and blockers.
 - Observability contract test verifies sensitive query parameters are redacted before logging or metrics aggregation.
 - Operator API key middleware protects admin, metrics, internal project progress, settlement quote list, settlement instruction, and treasury routes when `ATOMIC_OPERATOR_API_KEY` is configured.
 
 ### Off-Exchange Settlement And Market Making
 
-Completion: 50-55%
+Completion: 52-57%
 
 - Top-20 launch basket for liquid fiat and stablecoin rails.
 - FX quote engine with spreads, route fees, TTLs, and risk checks.
@@ -66,7 +68,7 @@ Production gaps:
 
 ### AML And Compliance
 
-Completion: 55-58%
+Completion: 57-60%
 
 - Compliance scoring engine for wallet format, watchlist keywords, enhanced chain review, amount thresholds, and price-impact risk.
 - Auto-clear, manual-review, blocked, approved, and rejected states.
@@ -239,6 +241,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - AML now has a provider boundary with simulated KYT metadata, but not a production compliance vendor.
 - Wallet signing now records auditable authorization metadata, but production transaction broadcast is still simulated.
 - Local SQLite is useful for development but not production persistence.
+- A Postgres Prisma schema variant now exists for managed-database readiness checks, but production migrations and hosted smoke tests are still required.
 - i18n copy is operational and broad, but should get native-speaker review before customer launch.
 - Core smoke tests now use an isolated database in CI; provider adapter contracts now run without network or database dependencies; future browser suites should follow the same pattern.
 - CI now runs isolated smoke both without an operator key and with a test operator key, covering open local mode plus protected-route rejection behavior.

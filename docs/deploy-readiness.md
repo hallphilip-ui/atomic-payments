@@ -11,6 +11,7 @@ Local/staging review:
 ```bash
 cd /Users/philiphall/atomic-payments
 npm run check:deploy
+npm run check:prisma
 ```
 
 Strict production gate:
@@ -27,6 +28,13 @@ cd /Users/philiphall/atomic-payments
 ATOMIC_DEPLOY_ENV=production ATOMIC_PUBLIC_BASE_URL=https://atomicpay.cloud npm run check:deploy
 ```
 
+Strict production gate using the Postgres schema variant:
+
+```bash
+cd /Users/philiphall/atomic-payments
+ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.prisma ATOMIC_PUBLIC_BASE_URL=https://atomicpay.cloud npm run check:deploy
+```
+
 ## Current Rules
 
 - `DATABASE_URL` must exist.
@@ -39,11 +47,12 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PUBLIC_BASE_URL=https://atomicpay.cloud npm 
 - `PORT` must be a valid integer.
 - Production mode requires `ATOMIC_PUBLIC_BASE_URL` to be a valid HTTPS URL.
 - When `ATOMIC_PUBLIC_BASE_URL` is set, the checker probes public HTTPS reachability unless `ATOMIC_SKIP_PUBLIC_URL_CHECK=1` is set.
+- `ATOMIC_PRISMA_SCHEMA_PATH` can point the gate at `prisma/schema.postgres.prisma` for production database readiness checks.
 
 ## Production Follow-Up
 
 - Move persistence to a managed database.
-- Change the Prisma datasource provider and migration workflow for the managed database target.
+- Use `prisma/schema.postgres.prisma` with the managed Postgres `DATABASE_URL`, then promote it to the primary schema once migrations and hosted smoke tests are complete.
 - Store all secrets, including operator/admin keys used for internal metrics and progress endpoints, in the deployment secret store.
 - Run live provider contract tests against the exact Rango/THORChain payloads.
 - Connect KYT/sanctions credentials and record provider request IDs.
