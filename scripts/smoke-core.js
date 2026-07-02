@@ -94,7 +94,7 @@ async function main() {
 
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
-    assertContains('/checkout', 'Gateway Simulator'),
+    assertContains('/checkout', 'data-theme-option'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
     assertStatus('/project-plan', 404),
     assertContains('/assets/widget.js', 'new URL'),

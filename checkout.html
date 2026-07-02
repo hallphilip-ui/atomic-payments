@@ -7,6 +7,15 @@
   <link rel="icon" href="/assets/atomic-mark.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/atomic-mark.png">
   <title>Atomic Payments Checkout</title>
+  <script>
+    (function() {
+      const storedMode = localStorage.getItem('atomic-theme-mode') || 'system';
+      const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const resolved = storedMode === 'system' ? (systemDark ? 'dark' : 'light') : storedMode;
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.dataset.themeMode = storedMode;
+    })();
+  </script>
   <style>
     :root {
       color-scheme: dark;
@@ -23,6 +32,23 @@
       --amber: #f0a54a;
       --red: #f05b68;
       --shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --ink: #071522;
+      --muted: #5a6f80;
+      --soft: #243b4d;
+      --paper: #f4f8fb;
+      --panel: rgba(255, 255, 255, 0.94);
+      --panel-strong: #f6fbff;
+      --line: rgba(36, 78, 108, 0.18);
+      --blue: #066fd1;
+      --cyan: #00a8d8;
+      --green: #148c5c;
+      --amber: #a76518;
+      --red: #c43649;
+      --shadow: 0 28px 90px rgba(30, 59, 88, 0.18);
     }
 
     * { box-sizing: border-box; }
@@ -43,6 +69,16 @@
         radial-gradient(circle at 15% 12%, rgba(25, 210, 242, 0.16), transparent 30%),
         radial-gradient(circle at 88% 22%, rgba(57, 217, 138, 0.1), transparent 26%),
         linear-gradient(135deg, #06101a 0%, #0b1723 48%, #11141b 100%);
+      background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%, 100% 100%;
+    }
+
+    :root[data-theme="light"] body {
+      background:
+        linear-gradient(rgba(8, 119, 216, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(8, 119, 216, 0.045) 1px, transparent 1px),
+        radial-gradient(circle at 15% 12%, rgba(25, 210, 242, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 22%, rgba(57, 217, 138, 0.12), transparent 26%),
+        linear-gradient(135deg, #f7fbff 0%, #eaf5fb 48%, #f8fbfd 100%);
       background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%, 100% 100%;
     }
 
@@ -81,6 +117,10 @@
       backdrop-filter: blur(18px);
     }
 
+    :root[data-theme="light"] .shell {
+      background: rgba(255, 255, 255, 0.74);
+    }
+
     .brand-pane {
       position: relative;
       display: grid;
@@ -95,12 +135,23 @@
         rgba(5, 16, 27, 0.72);
     }
 
+    :root[data-theme="light"] .brand-pane {
+      background:
+        linear-gradient(145deg, rgba(8, 119, 216, 0.14), transparent 38%),
+        linear-gradient(315deg, rgba(25, 210, 242, 0.16), transparent 36%),
+        rgba(245, 251, 255, 0.86);
+    }
+
     .brand-pane::before {
       content: "";
       position: absolute;
       inset: 0;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 30%);
       pointer-events: none;
+    }
+
+    :root[data-theme="light"] .brand-pane::before {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent 34%);
     }
 
     .brand-lockup {
@@ -132,6 +183,53 @@
       margin-top: 4px;
       color: var(--muted);
       font-size: 13px;
+    }
+
+    .brand-top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .theme-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(4, 13, 22, 0.5);
+      flex: 0 0 auto;
+    }
+
+    :root[data-theme="light"] .theme-control {
+      background: rgba(255, 255, 255, 0.66);
+    }
+
+    .theme-option {
+      min-height: 30px;
+      min-width: 34px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      background: transparent;
+    }
+
+    .theme-option svg {
+      width: 15px;
+      height: 15px;
+      stroke-width: 2.4;
+    }
+
+    .theme-option[aria-pressed="true"] {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      box-shadow: 0 10px 24px rgba(6, 151, 255, 0.2);
     }
 
     .intro {
@@ -187,11 +285,21 @@
       font-size: 14px;
     }
 
+    :root[data-theme="light"] .trust-item {
+      background: rgba(255, 255, 255, 0.68);
+      border-color: rgba(36, 78, 108, 0.16);
+      box-shadow: 0 12px 28px rgba(30, 59, 88, 0.08);
+    }
+
     .checkout-pane {
       display: grid;
       align-content: center;
       padding: clamp(18px, 4vw, 42px);
       background: rgba(7, 17, 27, 0.88);
+    }
+
+    :root[data-theme="light"] .checkout-pane {
+      background: rgba(249, 253, 255, 0.88);
     }
 
     .card {
@@ -202,6 +310,10 @@
       background: var(--panel);
       overflow: hidden;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    :root[data-theme="light"] .card {
+      box-shadow: 0 20px 60px rgba(30, 59, 88, 0.14);
     }
 
     .view {
@@ -263,12 +375,22 @@
       white-space: nowrap;
     }
 
+    :root[data-theme="light"] .pill {
+      color: #075a80;
+      background: rgba(25, 210, 242, 0.12);
+      border-color: rgba(8, 119, 216, 0.18);
+    }
+
     .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       background: var(--green);
       box-shadow: 0 0 16px rgba(57, 217, 138, 0.56);
+    }
+
+    :root[data-theme="light"] .dot {
+      box-shadow: 0 0 16px rgba(20, 140, 92, 0.28);
     }
 
     .field {
@@ -293,6 +415,10 @@
       outline: none;
       background: rgba(4, 13, 22, 0.78);
       color: var(--ink);
+    }
+
+    :root[data-theme="light"] input {
+      background: rgba(255, 255, 255, 0.78);
     }
 
     input:focus {
@@ -330,6 +456,10 @@
       background: rgba(255, 255, 255, 0.06);
     }
 
+    :root[data-theme="light"] .secondary {
+      background: rgba(8, 119, 216, 0.04);
+    }
+
     .amount-line {
       display: flex;
       align-items: flex-start;
@@ -360,9 +490,17 @@
       background: rgba(4, 13, 22, 0.62);
     }
 
+    :root[data-theme="light"] .rail-button {
+      background: rgba(255, 255, 255, 0.68);
+    }
+
     .rail-button:hover {
       border-color: rgba(25, 210, 242, 0.46);
       background: rgba(9, 30, 45, 0.76);
+    }
+
+    :root[data-theme="light"] .rail-button:hover {
+      background: rgba(235, 249, 255, 0.94);
     }
 
     .rail-left {
@@ -384,6 +522,10 @@
       color: #fff;
       background: rgba(25, 210, 242, 0.14);
       border: 1px solid rgba(25, 210, 242, 0.2);
+    }
+
+    :root[data-theme="light"] .asset-badge {
+      color: #071522;
     }
 
     .asset-badge.btc { color: #ffd37d; background: rgba(240, 165, 74, 0.12); border-color: rgba(240, 165, 74, 0.28); }
@@ -464,6 +606,11 @@
       text-align: center;
     }
 
+    :root[data-theme="light"] .address-box,
+    :root[data-theme="light"] .receipt {
+      background: rgba(255, 255, 255, 0.72);
+    }
+
     .timer {
       min-height: 42px;
       display: flex;
@@ -477,6 +624,20 @@
       font-size: 13px;
       font-weight: 800;
       text-align: center;
+    }
+
+    :root[data-theme="light"] .timer {
+      background: rgba(240, 165, 74, 0.12);
+    }
+
+    :root[data-theme="light"] .brand-lockup strong,
+    :root[data-theme="light"] h1,
+    :root[data-theme="light"] h2,
+    :root[data-theme="light"] h3,
+    :root[data-theme="light"] .trust-item strong,
+    :root[data-theme="light"] .amount,
+    :root[data-theme="light"] .rail-button {
+      color: #071522;
     }
 
     .success-mark {
@@ -583,6 +744,15 @@
         height: 46px;
       }
 
+      .brand-top {
+        display: grid;
+      }
+
+      .theme-control {
+        justify-self: start;
+        width: auto;
+      }
+
       .trust-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
@@ -615,11 +785,33 @@
   <main class="page">
     <div class="shell">
       <section class="brand-pane" aria-label="Atomic Payments">
-        <div class="brand-lockup">
-          <img src="/assets/atomic-mark.png" alt="Atomic Payments logo">
-          <div>
-            <strong>Atomic Payments</strong>
-            <span>Cross-rail settlement gateway</span>
+        <div class="brand-top">
+          <div class="brand-lockup">
+            <img src="/assets/atomic-mark.png" alt="Atomic Payments logo">
+            <div>
+              <strong>Atomic Payments</strong>
+              <span>Cross-rail settlement gateway</span>
+            </div>
+          </div>
+
+          <div class="theme-control" aria-label="Theme mode">
+            <button class="theme-option" type="button" data-theme-option="light" aria-label="Light mode" aria-pressed="false" title="Light mode">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41"></path>
+              </svg>
+            </button>
+            <button class="theme-option" type="button" data-theme-option="dark" aria-label="Dark mode" aria-pressed="false" title="Dark mode">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a7 7 0 1 0 11 11Z"></path>
+              </svg>
+            </button>
+            <button class="theme-option" type="button" data-theme-option="system" aria-label="System theme" aria-pressed="false" title="System theme">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                <path d="M8 20h8M12 16v4"></path>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -750,8 +942,42 @@
 
   <script>
     const API_BASE = window.location.origin;
+    const THEME_STORAGE_KEY = 'atomic-theme-mode';
+    const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
     let currentIntentId = '';
     let countdownInterval;
+
+    function resolveTheme(mode) {
+      return mode === 'system' ? (systemThemeQuery.matches ? 'dark' : 'light') : mode;
+    }
+
+    function setThemeMode(mode) {
+      const nextMode = ['light', 'dark', 'system'].includes(mode) ? mode : 'system';
+      const resolvedTheme = resolveTheme(nextMode);
+      localStorage.setItem(THEME_STORAGE_KEY, nextMode);
+      document.documentElement.dataset.themeMode = nextMode;
+      document.documentElement.dataset.theme = resolvedTheme;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#06111d' : '#f4f8fb');
+
+      for (const button of document.querySelectorAll('[data-theme-option]')) {
+        button.setAttribute('aria-pressed', String(button.dataset.themeOption === nextMode));
+      }
+    }
+
+    function initializeThemeControl() {
+      const storedMode = localStorage.getItem(THEME_STORAGE_KEY) || 'system';
+      setThemeMode(storedMode);
+
+      for (const button of document.querySelectorAll('[data-theme-option]')) {
+        button.addEventListener('click', () => setThemeMode(button.dataset.themeOption));
+      }
+
+      systemThemeQuery.addEventListener?.('change', () => {
+        if ((localStorage.getItem(THEME_STORAGE_KEY) || 'system') === 'system') {
+          setThemeMode('system');
+        }
+      });
+    }
 
     function showView(viewId) {
       document.getElementById('setup-view').className = 'hidden';
@@ -839,6 +1065,8 @@
       update();
       countdownInterval = setInterval(update, 1000);
     }
+
+    initializeThemeControl();
   </script>
 </body>
 </html>
