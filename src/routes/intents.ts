@@ -5,8 +5,84 @@ import crypto from 'crypto';
 const prisma = new PrismaClient();
 const router = Router();
 
+const STABLECOIN_RAILS: Record<string, {
+  symbol: string;
+  name: string;
+  network: string;
+  address: string;
+  tokenAddress?: string;
+  decimals: number;
+  uriScheme: 'ethereum' | 'solana' | 'tron';
+}> = {
+  USD_COIN_SOLANA: {
+    symbol: 'USDC',
+    name: 'USD Coin',
+    network: 'Solana',
+    address: 'HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2',
+    tokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    decimals: 6,
+    uriScheme: 'solana'
+  },
+  USD_COIN_ETHEREUM: {
+    symbol: 'USDC',
+    name: 'USD Coin',
+    network: 'Ethereum',
+    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
+    tokenAddress: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    decimals: 6,
+    uriScheme: 'ethereum'
+  },
+  TETHER_ETHEREUM: {
+    symbol: 'USDT',
+    name: 'Tether USD',
+    network: 'Ethereum',
+    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
+    tokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+    decimals: 6,
+    uriScheme: 'ethereum'
+  },
+  TETHER_TRON: {
+    symbol: 'USDT',
+    name: 'Tether USD',
+    network: 'Tron',
+    address: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
+    tokenAddress: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
+    decimals: 6,
+    uriScheme: 'tron'
+  },
+  PYUSD_ETHEREUM: {
+    symbol: 'PYUSD',
+    name: 'PayPal USD',
+    network: 'Ethereum',
+    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
+    tokenAddress: '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8',
+    decimals: 6,
+    uriScheme: 'ethereum'
+  }
+};
+
 function generateSignature(payload: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+}
+
+function amountToBaseUnits(amount: number, decimals: number): string {
+  return Math.round(amount * 10 ** decimals).toString();
+}
+
+function buildStablecoinPaymentUri(chain: string, intent: any, amount: number): string {
+  const rail = STABLECOIN_RAILS[chain];
+  const encodedMemo = encodeURIComponent(`Intent_${intent.id}`);
+  const encodedLabel = encodeURIComponent('AtomicPay');
+
+  if (rail.uriScheme === 'solana') {
+    return `solana:${rail.address}?amount=${amount}&spl-token=${rail.tokenAddress}&label=${encodedLabel}&memo=${encodedMemo}`;
+  }
+
+  if (rail.uriScheme === 'tron') {
+    return `tron:${rail.address}?amount=${amount}&token=${rail.tokenAddress}&memo=${encodedMemo}`;
+  }
+
+  return `ethereum:${rail.tokenAddress}/transfer?address=${rail.address}&uint256=${amountToBaseUnits(amount, rail.decimals)}`;
 }
 
 function toPublicIntent(intent: any) {
@@ -86,27 +162,19 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
     if (!intent) return res.status(404).json({ error: 'Payment intent not found' });
     if (new Date() > intent.expiresAt) return res.status(400).json({ error: 'Payment intent has expired' });
 
-    let currentPrice = 1; 
-    let merchantWalletAddress = ""; 
-    let web3PaymentUri = ""; 
+    let currentPrice = 1;
+    let merchantWalletAddress = "";
+    let web3PaymentUri = "";
+    let assetSymbol = chain.split('_')[0];
+    let railName = chain;
 
-    // Handle Stablecoin Selections at strict 1:1 USD Parity (Matches Slash's Core Feature)
-    if (chain === 'USD_COIN_SOLANA') {
-      merchantWalletAddress = "HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2";
-      currentPrice = 1.00; // Hard pegged
-      
-      // SPL-Token USDC transfer link format
-      const usdcTokenAddress = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-      web3PaymentUri = `solana:${merchantWalletAddress}?amount=${intent.amount}&spl-token=${usdcTokenAddress}&label=AtomicPay&memo=Intent_${intent.id}`;
-    
-    } else if (chain === 'USD_COIN_ETHEREUM') {
-      merchantWalletAddress = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
-      currentPrice = 1.00; // Hard pegged
-      
-      // ERC-20 EIP-681 standard for calling transfer(address,uint256) on USDC Contract
-      const usdcContractAddress = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
-      const rawAmountInSixDecimals = intent.amount * 1_000_000; 
-      web3PaymentUri = `ethereum:${usdcContractAddress}/transfer?address=${merchantWalletAddress}&uint256=${rawAmountInSixDecimals}`;
+    const stablecoinRail = STABLECOIN_RAILS[chain];
+    if (stablecoinRail) {
+      merchantWalletAddress = stablecoinRail.address;
+      currentPrice = 1.00;
+      assetSymbol = stablecoinRail.symbol;
+      railName = `${stablecoinRail.name} on ${stablecoinRail.network}`;
+      web3PaymentUri = buildStablecoinPaymentUri(chain, intent, intent.amount);
 
     } else {
       // Fallback to Volatile Layer-1 Price Oracle Feed
@@ -122,9 +190,11 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
 
       if (chain === 'SOLANA') {
         merchantWalletAddress = "HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2";
+        assetSymbol = 'SOL';
         web3PaymentUri = `solana:${merchantWalletAddress}?amount=${parseFloat((intent.amount / currentPrice).toFixed(6))}`;
       } else {
         merchantWalletAddress = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
+        assetSymbol = chain === 'BITCOIN_ONCHAIN' ? 'BTC' : chain === 'ETHEREUM' ? 'ETH' : assetSymbol;
         web3PaymentUri = `ethereum:${merchantWalletAddress}?value=${parseFloat((intent.amount / currentPrice).toFixed(6))}e18`;
       }
     }
@@ -145,6 +215,8 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
       intentId: intent.id,
       fiatAmount: intent.amount,
       selectedChain: chain,
+      assetSymbol,
+      railName,
       liveMarketRate: `$${currentPrice.toFixed(2)} USD`,
       cryptoAmountRequired,
       depositAddress: merchantWalletAddress,

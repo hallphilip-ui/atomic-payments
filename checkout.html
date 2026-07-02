@@ -848,7 +848,7 @@
         </div>
 
         <div class="trust-grid" aria-label="Checkout guarantees">
-          <div class="trust-item"><span>Rails</span><strong>7 active</strong></div>
+          <div class="trust-item"><span>Rails</span><strong>12 active</strong></div>
           <div class="trust-item"><span>Quote lock</span><strong>Live expiry</strong></div>
           <div class="trust-item"><span>Status</span><strong>Webhook ready</strong></div>
           <div class="trust-item"><span>Mode</span><strong>Gateway Simulator</strong></div>
@@ -883,11 +883,31 @@
                 <span class="eyebrow">Amount Due</span>
                 <div id="fiat-amount" class="amount">$120.00 USD</div>
               </div>
-              <span id="intent-pill" class="pill"><span class="dot"></span>7 Rails Active</span>
+              <span id="intent-pill" class="pill"><span class="dot"></span>12 Rails Active</span>
             </div>
 
             <div id="chain-selector" class="rail-grid">
               <h3>Select payment rail</h3>
+              <button onclick="selectChain('USD_COIN_SOLANA')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge sol">USDC</span><span><span class="rail-name">USD Coin</span><span class="rail-code">Solana stable rail</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('USD_COIN_ETHEREUM')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge eth">USDC</span><span><span class="rail-name">USD Coin</span><span class="rail-code">Ethereum ERC-20</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('TETHER_ETHEREUM')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge eth">USDT</span><span><span class="rail-name">Tether USD</span><span class="rail-code">Ethereum ERC-20</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('TETHER_TRON')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge">USDT</span><span><span class="rail-name">Tether USD</span><span class="rail-code">Tron TRC-20</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('PYUSD_ETHEREUM')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge eth">PYUSD</span><span><span class="rail-name">PayPal USD</span><span class="rail-code">Ethereum ERC-20</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
               <button onclick="selectChain('BITCOIN_ONCHAIN')" class="rail-button">
                 <span class="rail-left"><span class="asset-badge btc">BTC</span><span><span class="rail-name">Bitcoin Layer 1</span><span class="rail-code">BTC</span></span></span>
                 <span aria-hidden="true">›</span>
@@ -1099,8 +1119,8 @@
         const data = await response.json();
         if (data.error) return alert(data.error);
 
-        document.getElementById('crypto-required').innerText = `${data.cryptoAmountRequired} ${blockchainName.split('_')[0]}`;
-        document.getElementById('oracle-rate').innerText = `Live Price: ${data.liveMarketRate}`;
+        document.getElementById('crypto-required').innerText = `${data.cryptoAmountRequired} ${data.assetSymbol || blockchainName.split('_')[0]}`;
+        document.getElementById('oracle-rate').innerText = `${data.railName || 'Payment rail'} · Live Price: ${data.liveMarketRate}`;
         document.getElementById('deposit-address').innerText = data.depositAddress;
         document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=152x152&color=0f172a&data=${encodeURIComponent(data.web3PaymentUri || data.depositAddress)}`;
 

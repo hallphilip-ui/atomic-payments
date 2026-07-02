@@ -157,17 +157,29 @@ async function main() {
   assert.equal(intentFetched.intent.id, intentCreated.intent.id, 'checkout can fetch public payment intent');
   assert.equal(intentFetched.intent.amount, 120.5, 'fetched payment intent includes amount');
 
-  const railSelected = await request(`/v1/payment_intents/${intentCreated.intent.id}/select_chain`, {
-    method: 'POST',
-    body: JSON.stringify({ chain: 'USD_COIN_SOLANA' })
-  });
-  assert.equal(railSelected.selectedChain, 'USD_COIN_SOLANA', 'payment intent selects stablecoin rail');
-  assert.equal(railSelected.cryptoAmountRequired, 120.5, 'stablecoin rail preserves USD parity');
-  assert.ok(railSelected.web3PaymentUri.includes('solana:'), 'stablecoin rail returns wallet payment URI');
+  const tetheredRails = [
+    { chain: 'USD_COIN_SOLANA', symbol: 'USDC', uriPrefix: 'solana:' },
+    { chain: 'USD_COIN_ETHEREUM', symbol: 'USDC', uriPrefix: 'ethereum:' },
+    { chain: 'TETHER_ETHEREUM', symbol: 'USDT', uriPrefix: 'ethereum:' },
+    { chain: 'TETHER_TRON', symbol: 'USDT', uriPrefix: 'tron:' },
+    { chain: 'PYUSD_ETHEREUM', symbol: 'PYUSD', uriPrefix: 'ethereum:' }
+  ];
+
+  let railSelected;
+  for (const rail of tetheredRails) {
+    railSelected = await request(`/v1/payment_intents/${intentCreated.intent.id}/select_chain`, {
+      method: 'POST',
+      body: JSON.stringify({ chain: rail.chain })
+    });
+    assert.equal(railSelected.selectedChain, rail.chain, `${rail.symbol} tethered rail can be selected`);
+    assert.equal(railSelected.assetSymbol, rail.symbol, `${rail.symbol} tethered rail returns asset symbol`);
+    assert.equal(railSelected.cryptoAmountRequired, 120.5, `${rail.symbol} tethered rail preserves USD parity`);
+    assert.ok(railSelected.web3PaymentUri.includes(rail.uriPrefix), `${rail.symbol} tethered rail returns wallet payment URI`);
+  }
 
   const intentAfterRail = await request(`/v1/payment_intents/${intentCreated.intent.id}`);
-  assert.equal(intentAfterRail.intent.selectedChain, 'USD_COIN_SOLANA', 'selected rail is persisted for checkout refresh');
-  assert.equal(intentAfterRail.intent.depositAddress, railSelected.depositAddress, 'deposit address persists for checkout refresh');
+  assert.equal(intentAfterRail.intent.selectedChain, 'PYUSD_ETHEREUM', 'selected tethered rail is persisted for checkout refresh');
+  assert.equal(intentAfterRail.intent.depositAddress, railSelected.depositAddress, 'tethered deposit address persists for checkout refresh');
   console.log(`OK payment intent checkout contract: ${intentCreated.intent.id}`);
 
   const quotePayload = {
@@ -224,7 +236,7 @@ async function main() {
 
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
-  assert.equal(progress.overallCompletionPct, 81, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 82, 'progress endpoint reports overall completion');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
 
