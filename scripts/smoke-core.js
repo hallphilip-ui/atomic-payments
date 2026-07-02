@@ -6,6 +6,8 @@ const KEEP_SMOKE_DATA = process.env.ATOMIC_SMOKE_KEEP_DATA === '1';
 const OPERATOR_API_KEY = process.env.ATOMIC_OPERATOR_API_KEY || '';
 const prisma = new PrismaClient();
 const createdQuoteIds = new Set();
+const createdIntentIds = new Set();
+const createdMerchantIds = new Set();
 
 async function request(path, options = {}) {
   const requestId = `smoke-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -61,14 +63,39 @@ function trackQuote(result) {
   return result;
 }
 
-async function cleanupSmokeData() {
-  if (KEEP_SMOKE_DATA || createdQuoteIds.size === 0) return;
+function trackIntent(result) {
+  if (result?.intent?.id) createdIntentIds.add(result.intent.id);
+  return result;
+}
 
-  const ids = Array.from(createdQuoteIds);
-  await prisma.swapQuote.deleteMany({
-    where: { id: { in: ids } }
-  });
-  console.log(`OK smoke cleanup removed ${ids.length} quote records`);
+async function cleanupSmokeData() {
+  if (KEEP_SMOKE_DATA) return;
+
+  const quoteIds = Array.from(createdQuoteIds);
+  const intentIds = Array.from(createdIntentIds);
+  const merchantIds = Array.from(createdMerchantIds);
+
+  if (quoteIds.length > 0) {
+    await prisma.swapQuote.deleteMany({
+      where: { id: { in: quoteIds } }
+    });
+  }
+
+  if (intentIds.length > 0) {
+    await prisma.paymentIntent.deleteMany({
+      where: { id: { in: intentIds } }
+    });
+  }
+
+  if (merchantIds.length > 0) {
+    await prisma.merchant.deleteMany({
+      where: { id: { in: merchantIds } }
+    });
+  }
+
+  if (quoteIds.length > 0 || intentIds.length > 0 || merchantIds.length > 0) {
+    console.log(`OK smoke cleanup removed ${quoteIds.length} quotes, ${intentIds.length} intents, ${merchantIds.length} merchants`);
+  }
 }
 
 async function main() {
@@ -98,11 +125,50 @@ async function main() {
     assertContains('/admin-compliance', 'data-atomic-language-select'),
     assertStatus('/project-plan', 404),
     assertContains('/assets/widget.js', 'new URL'),
+    assertContains('/assets/widget.js', 'data-intent-id'),
     assertStatus('/favicon.ico', 200),
     assertContains('/assets/i18n.js', "'ja'"),
     assertContains('/assets/i18n.js', "'ar'")
   ]);
   console.log('OK consoles/i18n assets are served');
+
+  const merchant = await prisma.merchant.create({
+    data: {
+      businessName: `Smoke Merchant ${Date.now()}`,
+      apiKey: `smoke_key_${Date.now()}_${Math.random().toString(16).slice(2)}`
+    }
+  });
+  createdMerchantIds.add(merchant.id);
+
+  const intentCreated = trackIntent(await request('/v1/payment_intents', {
+    method: 'POST',
+    headers: { 'x-atomic-key': merchant.apiKey },
+    body: JSON.stringify({
+      amount: 120.5,
+      currency: 'USD',
+      ttlMinutes: 20
+    })
+  }));
+  assert.equal(intentCreated.intent.amount, 120.5, 'created payment intent preserves amount');
+  assert.equal(intentCreated.intent.currency, 'USD', 'created payment intent preserves currency');
+  assert.equal(intentCreated.intent.status, 'PENDING', 'created payment intent starts pending');
+
+  const intentFetched = await request(`/v1/payment_intents/${intentCreated.intent.id}`);
+  assert.equal(intentFetched.intent.id, intentCreated.intent.id, 'checkout can fetch public payment intent');
+  assert.equal(intentFetched.intent.amount, 120.5, 'fetched payment intent includes amount');
+
+  const railSelected = await request(`/v1/payment_intents/${intentCreated.intent.id}/select_chain`, {
+    method: 'POST',
+    body: JSON.stringify({ chain: 'USD_COIN_SOLANA' })
+  });
+  assert.equal(railSelected.selectedChain, 'USD_COIN_SOLANA', 'payment intent selects stablecoin rail');
+  assert.equal(railSelected.cryptoAmountRequired, 120.5, 'stablecoin rail preserves USD parity');
+  assert.ok(railSelected.web3PaymentUri.includes('solana:'), 'stablecoin rail returns wallet payment URI');
+
+  const intentAfterRail = await request(`/v1/payment_intents/${intentCreated.intent.id}`);
+  assert.equal(intentAfterRail.intent.selectedChain, 'USD_COIN_SOLANA', 'selected rail is persisted for checkout refresh');
+  assert.equal(intentAfterRail.intent.depositAddress, railSelected.depositAddress, 'deposit address persists for checkout refresh');
+  console.log(`OK payment intent checkout contract: ${intentCreated.intent.id}`);
 
   const quotePayload = {
     fromAsset: 'BITCOIN.BTC',
@@ -158,7 +224,7 @@ async function main() {
 
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
-  assert.equal(progress.overallCompletionPct, 79, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 81, 'progress endpoint reports overall completion');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
 

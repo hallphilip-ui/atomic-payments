@@ -4,19 +4,22 @@ Last updated: July 2, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 78-80%
+Estimated total completion: 80-82%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, security controls, CI/CD, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, security controls, CI/CD, observability, and operational runbooks.
 
 ## Completed Slices
 
 ### Core App And API
 
-Completion: 74-78%
+Completion: 78-81%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
 - Merchant payment intent endpoints and admin fee configuration.
+- Merchant-authenticated payment intent creation with `x-atomic-key`.
+- Public payment intent lookup returns checkout-safe fields without merchant secrets.
+- Rail selection persists selected chain, quoted crypto amount, live rate, and deposit address for checkout refresh.
 - CORS, JSON handling, and local static console routes.
 - Build passes with `npm run build`.
 - Docker image and Compose service for repeatable local app startup.
@@ -86,11 +89,14 @@ Production gaps:
 
 ### Console UX And Brand
 
-Completion: 66-70%
+Completion: 70-73%
 
 - DeFi swap console at `/defi-swap`.
 - Checkout gateway at `/checkout` now uses a self-contained responsive Atomic UI with no Tailwind CDN dependency.
 - Checkout gateway has safe-area support, mobile/desktop responsive layout, reduced-motion handling, and large touch targets.
+- Checkout gateway supports light, dark, and system theme modes.
+- Checkout gateway loads real payment intents from `?intentId=...`, `?intent=...`, or pasted intent IDs.
+- Checkout gateway displays the real amount, currency, status, selected rail instructions, and payment URI QR.
 - Compliance review console at `/admin-compliance`.
 - Product-facing project tracker UI has been removed from the swap console and app routes.
 - `/v1/project/progress` exposes build progress as structured data for internal reporting and future non-product surfaces.
@@ -103,12 +109,11 @@ Completion: 66-70%
 Production gaps:
 
 - Move from standalone HTML to the final product frontend architecture if needed.
-- End-to-end browser coverage for the production QR and payment-instruction flow with real payment intent fixtures.
 - Accessibility pass for keyboard navigation and screen-reader details.
 
 ### Smoke Coverage
 
-Completion: 58-61%
+Completion: 72-75%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -121,7 +126,9 @@ Completion: 58-61%
   - manual AML review
   - compliance approval
   - simulated KYT vendor metadata
+  - payment intent create/fetch/select-rail checkout contract
 - Smoke-created quotes are cleaned up by default after each run.
+- Smoke-created payment intents and merchants are cleaned up by default after each run.
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
 - Isolated smoke command creates a temporary SQLite database and API port for clean local/CI runs.
 - Provider adapter contract test runs in CI without network or database dependencies.

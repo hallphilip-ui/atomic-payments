@@ -9,6 +9,71 @@ function generateSignature(payload: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 
+function toPublicIntent(intent: any) {
+  return {
+    id: intent.id,
+    amount: intent.amount,
+    currency: intent.currency,
+    status: intent.status,
+    selectedChain: intent.selectedChain,
+    cryptoAmountRequired: intent.cryptoAmountRequired,
+    depositAddress: intent.depositAddress,
+    liveMarketRate: intent.liveMarketRate,
+    txHash: intent.txHash,
+    expiresAt: intent.expiresAt,
+    createdAt: intent.createdAt
+  };
+}
+
+router.post('/v1/payment_intents', async (req, res) => {
+  try {
+    const header = req.headers['x-atomic-key'];
+    const apiKey = Array.isArray(header) ? header[0] : header;
+    if (!apiKey) return res.status(401).json({ error: 'Merchant API key is required' });
+
+    const merchant = await prisma.merchant.findUnique({ where: { apiKey } });
+    if (!merchant) return res.status(401).json({ error: 'Merchant API key is invalid' });
+
+    const amount = Number(req.body.amount);
+    const currency = String(req.body.currency || 'USD').trim().toUpperCase();
+    const ttlMinutes = Number(req.body.ttlMinutes || 15);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be a positive number' });
+    }
+    if (!/^[A-Z]{3,10}$/.test(currency)) {
+      return res.status(400).json({ error: 'Currency must be a valid uppercase code' });
+    }
+    if (!Number.isFinite(ttlMinutes) || ttlMinutes < 1 || ttlMinutes > 120) {
+      return res.status(400).json({ error: 'ttlMinutes must be between 1 and 120' });
+    }
+
+    const intent = await prisma.paymentIntent.create({
+      data: {
+        merchantId: merchant.id,
+        amount,
+        currency,
+        expiresAt: new Date(Date.now() + ttlMinutes * 60 * 1000)
+      }
+    });
+
+    return res.status(201).json({ intent: toPublicIntent(intent) });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/v1/payment_intents/:id', async (req, res) => {
+  try {
+    const intent = await prisma.paymentIntent.findUnique({ where: { id: req.params.id } });
+    if (!intent) return res.status(404).json({ error: 'Payment intent not found' });
+
+    return res.json({ intent: toPublicIntent(intent) });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // ==========================================
 // UPGRADED CHECKOUT: Volatility-Free Stablecoin Option
 // ==========================================
@@ -65,6 +130,16 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
     }
 
     const cryptoAmountRequired = parseFloat((intent.amount / currentPrice).toFixed(6));
+
+    await prisma.paymentIntent.update({
+      where: { id },
+      data: {
+        selectedChain: chain,
+        cryptoAmountRequired: String(cryptoAmountRequired),
+        depositAddress: merchantWalletAddress,
+        liveMarketRate: `$${currentPrice.toFixed(2)} USD`
+      }
+    });
 
     return res.json({
       intentId: intent.id,

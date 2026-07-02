@@ -432,6 +432,33 @@
       line-height: 1.45;
     }
 
+    .status-note {
+      min-height: 38px;
+      display: none;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid rgba(128, 200, 235, 0.18);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .status-note.is-visible {
+      display: flex;
+    }
+
+    .status-note.is-error {
+      border-color: rgba(255, 94, 122, 0.32);
+      background: rgba(255, 94, 122, 0.1);
+      color: #ffd6de;
+    }
+
+    :root[data-theme="light"] .status-note.is-error {
+      color: #8f1f35;
+    }
+
     .primary, .secondary, .rail-button {
       min-height: 48px;
       border-radius: 6px;
@@ -845,7 +872,9 @@
               <input type="text" id="intent-id-input" placeholder="Paste generated intent ID" autocomplete="off" spellcheck="false">
             </div>
 
-            <button onclick="loadIntent()" class="primary">Launch Gateway</button>
+            <div id="intent-status" class="status-note" role="status" aria-live="polite"></div>
+
+            <button onclick="loadIntent()" id="launch-btn" class="primary">Launch Gateway</button>
           </div>
 
           <div id="checkout-view" class="view hidden">
@@ -854,7 +883,7 @@
                 <span class="eyebrow">Amount Due</span>
                 <div id="fiat-amount" class="amount">$120.00 USD</div>
               </div>
-              <span class="pill"><span class="dot"></span>7 Rails Active</span>
+              <span id="intent-pill" class="pill"><span class="dot"></span>7 Rails Active</span>
             </div>
 
             <div id="chain-selector" class="rail-grid">
@@ -946,6 +975,7 @@
     const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
     let currentIntentId = '';
     let countdownInterval;
+    let currentIntent = null;
 
     function resolveTheme(mode) {
       return mode === 'system' ? (systemThemeQuery.matches ? 'dark' : 'light') : mode;
@@ -986,11 +1016,76 @@
       document.getElementById(viewId).className = 'view';
     }
 
-    function loadIntent() {
-      const idInput = document.getElementById('intent-id-input').value.trim();
-      if (!idInput) return alert('Provide an active intent ID context.');
-      currentIntentId = idInput;
+    function formatCurrency(amount, currency) {
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: currency || 'USD',
+          maximumFractionDigits: 2
+        }).format(Number(amount || 0));
+      } catch {
+        return Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+    }
+
+    function setIntentStatus(message, isError = false) {
+      const status = document.getElementById('intent-status');
+      status.textContent = message || '';
+      status.classList.toggle('is-visible', Boolean(message));
+      status.classList.toggle('is-error', isError);
+    }
+
+    function setLaunchLoading(isLoading) {
+      const button = document.getElementById('launch-btn');
+      button.disabled = isLoading;
+      button.textContent = isLoading ? 'Loading Intent...' : 'Launch Gateway';
+    }
+
+    function resetPaymentSelection() {
+      clearInterval(countdownInterval);
+      document.getElementById('chain-selector').classList.remove('hidden');
+      document.getElementById('payment-instructions').classList.add('hidden');
+      document.getElementById('crypto-required').innerText = '0.00';
+      document.getElementById('oracle-rate').innerText = '-';
+      document.getElementById('deposit-address').innerText = '-';
+      document.getElementById('qr-code-img').src = '';
+    }
+
+    function renderIntent(intent) {
+      currentIntent = intent;
+      currentIntentId = intent.id;
+      document.getElementById('intent-id-input').value = intent.id;
+      document.getElementById('fiat-amount').innerText = `${formatCurrency(intent.amount, intent.currency)} ${intent.currency}`;
+      document.getElementById('intent-pill').innerHTML = `<span class="dot"></span>${intent.status || 'PENDING'}`;
+      resetPaymentSelection();
       showView('checkout-view');
+    }
+
+    async function loadIntent() {
+      const idInput = document.getElementById('intent-id-input').value.trim();
+      if (!idInput) {
+        setIntentStatus('Provide an active payment intent ID.', true);
+        return;
+      }
+
+      setLaunchLoading(true);
+      setIntentStatus('Loading payment context...');
+
+      try {
+        const response = await fetch(`${API_BASE}/v1/payment_intents/${encodeURIComponent(idInput)}`);
+        const data = await response.json();
+        if (!response.ok || data.error) {
+          setIntentStatus(data.error || 'Could not load this payment intent.', true);
+          return;
+        }
+
+        setIntentStatus('');
+        renderIntent(data.intent);
+      } catch (err) {
+        setIntentStatus('Payment intent service is not reachable.', true);
+      } finally {
+        setLaunchLoading(false);
+      }
     }
 
     async function selectChain(blockchainName) {
@@ -1007,7 +1102,7 @@
         document.getElementById('crypto-required').innerText = `${data.cryptoAmountRequired} ${blockchainName.split('_')[0]}`;
         document.getElementById('oracle-rate').innerText = `Live Price: ${data.liveMarketRate}`;
         document.getElementById('deposit-address').innerText = data.depositAddress;
-        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=152x152&color=0f172a&data=${data.depositAddress}`;
+        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=152x152&color=0f172a&data=${encodeURIComponent(data.web3PaymentUri || data.depositAddress)}`;
 
         document.getElementById('chain-selector').classList.add('hidden');
         document.getElementById('payment-instructions').classList.remove('hidden');
@@ -1067,6 +1162,17 @@
     }
 
     initializeThemeControl();
+
+    const params = new URLSearchParams(window.location.search);
+    const deepLinkIntentId = params.get('intentId') || params.get('intent') || params.get('payment_intent');
+    const amountPreview = params.get('amount');
+    if (amountPreview && !deepLinkIntentId) {
+      document.getElementById('fiat-amount').innerText = `${formatCurrency(amountPreview, params.get('currency') || 'USD')} ${(params.get('currency') || 'USD').toUpperCase()}`;
+    }
+    if (deepLinkIntentId) {
+      document.getElementById('intent-id-input').value = deepLinkIntentId;
+      loadIntent();
+    }
   </script>
 </body>
 </html>
