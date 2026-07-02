@@ -993,6 +993,20 @@
     const API_BASE = window.location.origin;
     const THEME_STORAGE_KEY = 'atomic-theme-mode';
     const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const FALLBACK_PAYMENT_RAILS = [
+      { id: 'USD_COIN_SOLANA', symbol: 'USDC', name: 'USD Coin', network: 'Solana stable rail', stable: true, badgeClass: 'sol' },
+      { id: 'USD_COIN_ETHEREUM', symbol: 'USDC', name: 'USD Coin', network: 'Ethereum ERC-20', stable: true, badgeClass: 'eth' },
+      { id: 'TETHER_ETHEREUM', symbol: 'USDT', name: 'Tether USD', network: 'Ethereum ERC-20', stable: true, badgeClass: 'eth' },
+      { id: 'TETHER_TRON', symbol: 'USDT', name: 'Tether USD', network: 'Tron TRC-20', stable: true, badgeClass: '' },
+      { id: 'PYUSD_ETHEREUM', symbol: 'PYUSD', name: 'PayPal USD', network: 'Ethereum ERC-20', stable: true, badgeClass: 'eth' },
+      { id: 'BITCOIN_ONCHAIN', symbol: 'BTC', name: 'Bitcoin Layer 1', network: 'BTC', stable: false, badgeClass: 'btc' },
+      { id: 'ETHEREUM', symbol: 'ETH', name: 'Ethereum Network', network: 'ETH', stable: false, badgeClass: 'eth' },
+      { id: 'BNB_CHAIN', symbol: 'BNB', name: 'BNB Smart Chain', network: 'BSC', stable: false, badgeClass: '' },
+      { id: 'SOLANA', symbol: 'SOL', name: 'Solana High-Speed', network: 'SOL', stable: false, badgeClass: 'sol' },
+      { id: 'RIPPLE', symbol: 'XRP', name: 'Ripple Ledger', network: 'XRP', stable: false, badgeClass: 'xrp' },
+      { id: 'CARDANO', symbol: 'ADA', name: 'Cardano Settlement', network: 'ADA', stable: false, badgeClass: 'ada' },
+      { id: 'DOGECOIN', symbol: 'DOGE', name: 'Dogecoin Core', network: 'DOGE', stable: false, badgeClass: 'doge' }
+    ];
     let currentIntentId = '';
     let countdownInterval;
     let currentIntent = null;
@@ -1069,6 +1083,54 @@
       document.getElementById('oracle-rate').innerText = '-';
       document.getElementById('deposit-address').innerText = '-';
       document.getElementById('qr-code-img').src = '';
+    }
+
+    function renderPaymentRails(rails) {
+      const selector = document.getElementById('chain-selector');
+      const heading = selector.querySelector('h3');
+      selector.replaceChildren(heading);
+
+      for (const rail of rails) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'rail-button';
+        button.addEventListener('click', () => selectChain(rail.id));
+
+        const left = document.createElement('span');
+        left.className = 'rail-left';
+
+        const badge = document.createElement('span');
+        badge.className = `asset-badge ${rail.badgeClass || ''}`.trim();
+        badge.textContent = rail.symbol;
+
+        const copy = document.createElement('span');
+        const name = document.createElement('span');
+        name.className = 'rail-name';
+        name.textContent = rail.name;
+        const code = document.createElement('span');
+        code.className = 'rail-code';
+        code.textContent = rail.stable ? rail.network : rail.symbol;
+        copy.append(name, code);
+
+        const chevron = document.createElement('span');
+        chevron.setAttribute('aria-hidden', 'true');
+        chevron.textContent = '›';
+
+        left.append(badge, copy);
+        button.append(left, chevron);
+        selector.append(button);
+      }
+    }
+
+    async function initializePaymentRails() {
+      try {
+        const response = await fetch(`${API_BASE}/v1/payment_rails`);
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.rails)) throw new Error('Payment rail catalog unavailable.');
+        renderPaymentRails(data.rails);
+      } catch {
+        renderPaymentRails(FALLBACK_PAYMENT_RAILS);
+      }
     }
 
     function renderIntent(intent) {
@@ -1182,6 +1244,7 @@
     }
 
     initializeThemeControl();
+    initializePaymentRails();
 
     const params = new URLSearchParams(window.location.search);
     const deepLinkIntentId = params.get('intentId') || params.get('intent') || params.get('payment_intent');

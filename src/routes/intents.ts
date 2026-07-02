@@ -61,6 +61,21 @@ const STABLECOIN_RAILS: Record<string, {
   }
 };
 
+const VOLATILE_RAILS: Record<string, {
+  symbol: string;
+  name: string;
+  network: string;
+  badgeClass: string;
+}> = {
+  BITCOIN_ONCHAIN: { symbol: 'BTC', name: 'Bitcoin Layer 1', network: 'BTC', badgeClass: 'btc' },
+  ETHEREUM: { symbol: 'ETH', name: 'Ethereum Network', network: 'ETH', badgeClass: 'eth' },
+  BNB_CHAIN: { symbol: 'BNB', name: 'BNB Smart Chain', network: 'BSC', badgeClass: '' },
+  SOLANA: { symbol: 'SOL', name: 'Solana High-Speed', network: 'SOL', badgeClass: 'sol' },
+  RIPPLE: { symbol: 'XRP', name: 'Ripple Ledger', network: 'XRP', badgeClass: 'xrp' },
+  CARDANO: { symbol: 'ADA', name: 'Cardano Settlement', network: 'ADA', badgeClass: 'ada' },
+  DOGECOIN: { symbol: 'DOGE', name: 'Dogecoin Core', network: 'DOGE', badgeClass: 'doge' }
+};
+
 function generateSignature(payload: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
@@ -100,6 +115,44 @@ function toPublicIntent(intent: any) {
     createdAt: intent.createdAt
   };
 }
+
+function publicPaymentRails() {
+  const stablecoinRails = Object.entries(STABLECOIN_RAILS).map(([id, rail]) => ({
+    id,
+    symbol: rail.symbol,
+    name: rail.name,
+    network: rail.network,
+    type: 'tethered_asset',
+    stable: true,
+    quoteModel: 'USD parity',
+    badgeClass: rail.uriScheme === 'solana' ? 'sol' : rail.uriScheme === 'ethereum' ? 'eth' : '',
+    settlementAsset: `${rail.symbol}_${rail.network.toUpperCase()}`
+  }));
+
+  const volatileRails = Object.entries(VOLATILE_RAILS).map(([id, rail]) => ({
+    id,
+    symbol: rail.symbol,
+    name: rail.name,
+    network: rail.network,
+    type: 'crypto_asset',
+    stable: false,
+    quoteModel: 'Live oracle',
+    badgeClass: rail.badgeClass,
+    settlementAsset: rail.symbol
+  }));
+
+  return [...stablecoinRails, ...volatileRails];
+}
+
+router.get('/v1/payment_rails', (_req, res) => {
+  const rails = publicPaymentRails();
+  return res.json({
+    rails,
+    defaultRailId: 'USD_COIN_SOLANA',
+    tetheredAssets: Array.from(new Set(rails.filter((rail) => rail.stable).map((rail) => rail.symbol))),
+    railsCount: rails.length
+  });
+});
 
 router.post('/v1/payment_intents', async (req, res) => {
   try {

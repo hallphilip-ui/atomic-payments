@@ -119,6 +119,13 @@ async function main() {
   assert.equal(config.priceImpactLimitPct, 1.5, 'price-impact guardrail is 1.5%');
   console.log(`OK assets/config: ${assets.assets.length} assets, ${config.providerMode} provider mode`);
 
+  const paymentRails = await request('/v1/payment_rails');
+  assert.equal(paymentRails.railsCount, 12, 'payment rail catalog exposes all checkout rails');
+  assert.deepEqual(paymentRails.tetheredAssets, ['USDC', 'USDT', 'PYUSD'], 'payment rail catalog exposes tethered assets');
+  assert.ok(paymentRails.rails.some((rail) => rail.id === 'TETHER_TRON' && rail.stable), 'payment rail catalog includes USDT Tron rail');
+  assert.ok(paymentRails.rails.some((rail) => rail.id === 'USD_COIN_SOLANA' && rail.stable), 'payment rail catalog includes USDC Solana rail');
+  console.log(`OK payment rails: ${paymentRails.railsCount} rails, ${paymentRails.tetheredAssets.join('/')}`);
+
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
     assertContains('/checkout', 'data-theme-option'),

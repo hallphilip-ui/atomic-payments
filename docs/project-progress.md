@@ -21,6 +21,7 @@ Completion: 80-82%
 - Public payment intent lookup returns checkout-safe fields without merchant secrets.
 - Rail selection persists selected chain, quoted crypto amount, live rate, and deposit address for checkout refresh.
 - Stablecoin conversion registry supports checkout settlement into USDC, USDT, and PYUSD at USD parity.
+- Public `/v1/payment_rails` catalog exposes checkout rail metadata for product UI and future widgets.
 - CORS, JSON handling, and local static console routes.
 - Build passes with `npm run build`.
 - Docker image and Compose service for repeatable local app startup.
@@ -99,6 +100,7 @@ Completion: 72-75%
 - Checkout gateway loads real payment intents from `?intentId=...`, `?intent=...`, or pasted intent IDs.
 - Checkout gateway displays the real amount, currency, status, selected rail instructions, and payment URI QR.
 - Checkout gateway exposes tethered-asset payment rails for USDC on Solana/Ethereum, USDT on Ethereum/Tron, and PYUSD on Ethereum.
+- Checkout gateway renders payment rail options from the backend catalog with a local fallback catalog.
 - Compliance review console at `/admin-compliance`.
 - Product-facing project tracker UI has been removed from the swap console and app routes.
 - `/v1/project/progress` exposes build progress as structured data for internal reporting and future non-product surfaces.
@@ -130,6 +132,7 @@ Completion: 74-77%
   - simulated KYT vendor metadata
   - payment intent create/fetch/select-rail checkout contract
   - USDC, USDT, and PYUSD tethered checkout rail conversion
+  - public payment rail catalog metadata
 - Smoke-created quotes are cleaned up by default after each run.
 - Smoke-created payment intents and merchants are cleaned up by default after each run.
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
