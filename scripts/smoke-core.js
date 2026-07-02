@@ -58,6 +58,21 @@ async function assertStatusWithoutOperatorKey(path, expectedStatus) {
   assert.equal(response.status, expectedStatus, `${path} should return ${expectedStatus} without operator key`);
 }
 
+async function assertJsonStatus(path, expectedStatus, options = {}) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-atomic-request-id': `smoke-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      ...(OPERATOR_API_KEY ? { 'x-atomic-operator-key': OPERATOR_API_KEY } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const body = await response.json();
+  assert.equal(response.status, expectedStatus, `${options.method || 'GET'} ${path} should return ${expectedStatus}`);
+  return body;
+}
+
 function trackQuote(result) {
   if (result?.quote?.id) createdQuoteIds.add(result.quote.id);
   return result;
@@ -163,6 +178,13 @@ async function main() {
   const intentFetched = await request(`/v1/payment_intents/${intentCreated.intent.id}`);
   assert.equal(intentFetched.intent.id, intentCreated.intent.id, 'checkout can fetch public payment intent');
   assert.equal(intentFetched.intent.amount, 120.5, 'fetched payment intent includes amount');
+
+  const unsupportedRail = await assertJsonStatus(`/v1/payment_intents/${intentCreated.intent.id}/select_chain`, 400, {
+    method: 'POST',
+    body: JSON.stringify({ chain: 'UNSUPPORTED_RAIL' })
+  });
+  assert.equal(unsupportedRail.error, 'Unsupported payment rail', 'unknown payment rail is rejected');
+  assert.ok(unsupportedRail.supportedRails.includes('TETHER_TRON'), 'unsupported rail response includes supported rails');
 
   const tetheredRails = [
     { chain: 'USD_COIN_SOLANA', symbol: 'USDC', uriPrefix: 'solana:' },

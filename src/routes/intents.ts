@@ -144,6 +144,14 @@ function publicPaymentRails() {
   return [...stablecoinRails, ...volatileRails];
 }
 
+function supportedPaymentRailIds(): string[] {
+  return [...Object.keys(STABLECOIN_RAILS), ...Object.keys(VOLATILE_RAILS)];
+}
+
+function isSupportedPaymentRail(chain: unknown): chain is string {
+  return typeof chain === 'string' && supportedPaymentRailIds().includes(chain);
+}
+
 router.get('/v1/payment_rails', (_req, res) => {
   const rails = publicPaymentRails();
   return res.json({
@@ -214,6 +222,12 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
     const intent = await prisma.paymentIntent.findUnique({ where: { id } });
     if (!intent) return res.status(404).json({ error: 'Payment intent not found' });
     if (new Date() > intent.expiresAt) return res.status(400).json({ error: 'Payment intent has expired' });
+    if (!isSupportedPaymentRail(chain)) {
+      return res.status(400).json({
+        error: 'Unsupported payment rail',
+        supportedRails: supportedPaymentRailIds()
+      });
+    }
 
     let currentPrice = 1;
     let merchantWalletAddress = "";

@@ -22,6 +22,7 @@ Completion: 80-82%
 - Rail selection persists selected chain, quoted crypto amount, live rate, and deposit address for checkout refresh.
 - Stablecoin conversion registry supports checkout settlement into USDC, USDT, and PYUSD at USD parity.
 - Public `/v1/payment_rails` catalog exposes checkout rail metadata for product UI and future widgets.
+- Payment intent rail selection rejects unsupported rail IDs and returns the supported catalog identifiers.
 - CORS, JSON handling, and local static console routes.
 - Build passes with `npm run build`.
 - Docker image and Compose service for repeatable local app startup.
@@ -133,6 +134,7 @@ Completion: 74-77%
   - payment intent create/fetch/select-rail checkout contract
   - USDC, USDT, and PYUSD tethered checkout rail conversion
   - public payment rail catalog metadata
+  - unsupported payment rail rejection
 - Smoke-created quotes are cleaned up by default after each run.
 - Smoke-created payment intents and merchants are cleaned up by default after each run.
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
