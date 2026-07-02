@@ -244,6 +244,65 @@
       letter-spacing: 0;
     }
 
+    .connector-console {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .connector-body {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .connector-list {
+      display: grid;
+      gap: 8px;
+      max-height: 332px;
+      overflow: auto;
+    }
+
+    .connector-row {
+      width: 100%;
+      display: grid;
+      gap: 7px;
+      padding: 12px;
+      border: 1px solid rgba(128, 200, 235, 0.14);
+      border-radius: 8px;
+      color: inherit;
+      background: rgba(3, 10, 17, 0.38);
+      text-align: left;
+    }
+
+    .connector-row:hover,
+    .connector-row.active {
+      border-color: rgba(32, 214, 247, 0.48);
+      background: rgba(32, 214, 247, 0.08);
+    }
+
+    .connector-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .connector-title strong {
+      min-width: 0;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .connector-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
     .toolbar {
       display: grid;
       grid-template-columns: minmax(220px, 1fr) 210px 148px;
@@ -519,6 +578,7 @@
     @media (max-width: 980px) {
       .hero,
       .grid,
+      .connector-console,
       .toolbar {
         grid-template-columns: 1fr;
       }
@@ -592,6 +652,29 @@
         <div class="stat"><span data-i18n="status.AUTO_CLEARED">Auto cleared</span><strong id="clearedCount">0</strong></div>
       </section>
 
+      <section class="connector-console" aria-label="Transfer-only platform connectors">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Funding Connectors</h2>
+            <span class="pill" id="connectorCount">0 candidates</span>
+          </div>
+          <div class="connector-body">
+            <div class="alert">Deposit and transfer rails only. Trading and exchange order placement stay disabled by contract.</div>
+            <div class="connector-list" id="connectorList"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Connector Readiness</h2>
+            <span class="pill" id="connectorStatus">No selection</span>
+          </div>
+          <div class="connector-body" id="connectorDetail">
+            <div class="detail-empty">Select a connector to inspect simulated funding status.</div>
+          </div>
+        </section>
+      </section>
+
       <section class="toolbar" aria-label="Review filters">
         <div class="field">
           <label for="searchInput" data-i18n="admin.search">Search</label>
@@ -646,6 +729,11 @@
       reviews: [],
       filtered: [],
       selectedId: null,
+      connectors: [],
+      selectedConnectorId: null,
+      connectorAccount: null,
+      connectorBalances: [],
+      connectorDeposit: null,
       loading: false,
       lastUpdatedAt: null
     };
@@ -694,6 +782,135 @@
       el('blockedCount').textContent = counts.BLOCKED || 0;
       el('approvedCount').textContent = counts.APPROVED || 0;
       el('clearedCount').textContent = counts.AUTO_CLEARED || 0;
+    }
+
+    function summarizeCapabilities(connector) {
+      const capabilities = connector.capabilities || [];
+      const deposits = capabilities.includes('deposit_address') || capabilities.includes('bank_transfer_in');
+      const withdrawals = capabilities.includes('withdrawal_request') || capabilities.includes('bank_transfer_out');
+      return [
+        deposits ? 'Deposits' : null,
+        withdrawals ? 'Withdrawals' : null,
+        connector.regions?.[0]
+      ].filter(Boolean).join(' / ');
+    }
+
+    function renderConnectorList() {
+      const list = el('connectorList');
+      el('connectorCount').textContent = `${state.connectors.length} candidates`;
+
+      if (!state.connectors.length) {
+        list.innerHTML = '<div class="detail-empty">No connector candidates loaded.</div>';
+        return;
+      }
+
+      list.innerHTML = state.connectors.map((connector) => `
+        <button class="connector-row ${connector.id === state.selectedConnectorId ? 'active' : ''}" data-id="${connector.id}">
+          <div class="connector-title">
+            <strong>${connector.name}</strong>
+            <span class="badge ${connector.tradingEnabled ? 'bad' : 'good'}">${connector.tradingEnabled ? 'Trading enabled' : 'Trading off'}</span>
+          </div>
+          <div class="connector-meta">
+            <span class="badge info">${connector.assetClass}</span>
+            <span class="badge">${connector.liveMode}</span>
+            <span class="badge">${connector.onboardingStatus}</span>
+          </div>
+          <div class="row-meta">${summarizeCapabilities(connector) || connector.apiStyle}</div>
+        </button>
+      `).join('');
+
+      list.querySelectorAll('.connector-row').forEach((button) => {
+        button.addEventListener('click', () => selectConnector(button.dataset.id));
+      });
+    }
+
+    function renderConnectorDetail() {
+      const connector = state.connectors.find((item) => item.id === state.selectedConnectorId);
+      const detail = el('connectorDetail');
+
+      if (!connector) {
+        el('connectorStatus').textContent = 'No selection';
+        detail.innerHTML = '<div class="detail-empty">Select a connector to inspect simulated funding status.</div>';
+        return;
+      }
+
+      const account = state.connectorAccount;
+      const balances = state.connectorBalances || [];
+      const deposit = state.connectorDeposit;
+      el('connectorStatus').textContent = account ? account.status : 'Loading';
+
+      detail.innerHTML = `
+        <div class="alert ${connector.tradingEnabled ? 'bad' : 'good'}">
+          ${connector.name} is configured for deposits and transfers only. Exchange trading is disabled.
+        </div>
+        <div class="detail-grid">
+          <div class="metric"><span>Region</span><strong>${connector.regions.join(', ')}</strong></div>
+          <div class="metric"><span>API</span><strong>${connector.apiStyle}</strong></div>
+          <div class="metric"><span>Live mode</span><strong>${connector.liveMode}</strong></div>
+          <div class="metric"><span>Onboarding</span><strong>${connector.onboardingStatus}</strong></div>
+          <div class="metric"><span>Transfer only</span><strong>${account ? String(account.transferOnly) : 'Loading'}</strong></div>
+          <div class="metric"><span>Trading enabled</span><strong>${account ? String(account.tradingEnabled) : 'Loading'}</strong></div>
+        </div>
+        <div>
+          <label>Supported capabilities</label>
+          <div class="flags">${connector.capabilities.map((capability) => `<span class="badge info">${capability}</span>`).join('')}</div>
+        </div>
+        <div>
+          <label>Simulated balances</label>
+          <div class="flags">${balances.length ? balances.map((balance) => `<span class="badge">${balance.asset}: ${balance.available}</span>`).join('') : '<span class="badge">Loading</span>'}</div>
+        </div>
+        <div class="metric">
+          <span>USDC deposit instructions</span>
+          <strong>${deposit ? `${deposit.network} / ${deposit.address || deposit.instructions}` : 'Not available for this connector'}</strong>
+        </div>
+      `;
+    }
+
+    async function selectConnector(connectorId) {
+      state.selectedConnectorId = connectorId;
+      state.connectorAccount = null;
+      state.connectorBalances = [];
+      state.connectorDeposit = null;
+      renderConnectorList();
+      renderConnectorDetail();
+
+      try {
+        const [accountResponse, balancesResponse, depositResponse] = await Promise.all([
+          fetch(`/v1/settlement/platform-connectors/${connectorId}/account`),
+          fetch(`/v1/settlement/platform-connectors/${connectorId}/balances`),
+          fetch(`/v1/settlement/platform-connectors/${connectorId}/deposit-instructions?asset=USDC&network=base`)
+        ]);
+
+        const accountPayload = await accountResponse.json();
+        const balancesPayload = await balancesResponse.json();
+        const depositPayload = await depositResponse.json();
+
+        if (!accountResponse.ok) throw new Error(accountPayload.error || 'Unable to load connector account');
+        state.connectorAccount = accountPayload.account;
+        state.connectorBalances = balancesResponse.ok ? balancesPayload.balances || [] : [];
+        state.connectorDeposit = depositResponse.ok ? depositPayload.depositInstructions : null;
+      } catch (error) {
+        state.connectorAccount = { status: error.message, transferOnly: true, tradingEnabled: false };
+      }
+
+      renderConnectorDetail();
+    }
+
+    async function loadConnectors() {
+      try {
+        const response = await fetch('/v1/settlement/platform-connectors');
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || 'Unable to load connectors');
+        state.connectors = payload.connectors || [];
+        if (!state.selectedConnectorId && state.connectors.length) {
+          state.selectedConnectorId = state.connectors[0].id;
+        }
+        renderConnectorList();
+        if (state.selectedConnectorId) await selectConnector(state.selectedConnectorId);
+      } catch (error) {
+        el('connectorList').innerHTML = `<div class="detail-empty">${error.message}</div>`;
+        el('connectorDetail').innerHTML = `<div class="detail-empty">${error.message}</div>`;
+      }
     }
 
     function applyFilters() {
@@ -902,6 +1119,7 @@
     });
 
     loadReviews();
+    loadConnectors();
     setInterval(loadReviews, 30000);
   </script>
 </body>

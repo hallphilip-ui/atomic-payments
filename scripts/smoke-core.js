@@ -177,6 +177,7 @@ async function main() {
     assertContains('/defi-swap', 'data-atomic-language-select'),
     assertContains('/checkout', 'data-theme-option'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
+    assertContains('/admin-compliance', 'Funding Connectors'),
     assertStatus('/project-plan', 404),
     assertContains('/assets/widget.js', 'new URL'),
     assertContains('/assets/widget.js', 'data-intent-id'),
