@@ -19,6 +19,7 @@ Completion: 80-82%
 - Merchant payment intent endpoints and admin fee configuration.
 - Merchant-authenticated payment intent creation with `x-atomic-key`.
 - Public payment intent lookup returns checkout-safe fields without merchant secrets.
+- Payment intent responses include checkout path and deployment-aware checkout URL for merchant redirects.
 - Rail selection persists selected chain, quoted crypto amount, live rate, and deposit address for checkout refresh.
 - Stablecoin conversion registry supports checkout settlement into USDC, USDT, and PYUSD at USD parity.
 - Public `/v1/payment_rails` catalog exposes checkout rail metadata for product UI and future widgets.
@@ -132,6 +133,7 @@ Completion: 74-77%
   - compliance approval
   - simulated KYT vendor metadata
   - payment intent create/fetch/select-rail checkout contract
+  - checkout path and forwarded-domain checkout URL generation
   - USDC, USDT, and PYUSD tethered checkout rail conversion
   - public payment rail catalog metadata
   - unsupported payment rail rejection

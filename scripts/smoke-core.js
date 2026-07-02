@@ -174,10 +174,19 @@ async function main() {
   assert.equal(intentCreated.intent.amount, 120.5, 'created payment intent preserves amount');
   assert.equal(intentCreated.intent.currency, 'USD', 'created payment intent preserves currency');
   assert.equal(intentCreated.intent.status, 'PENDING', 'created payment intent starts pending');
+  assert.equal(intentCreated.intent.checkoutPath, `/checkout?intentId=${intentCreated.intent.id}`, 'created payment intent includes checkout path');
+  assert.equal(intentCreated.intent.checkoutUrl, `${BASE_URL}/checkout?intentId=${intentCreated.intent.id}`, 'created payment intent includes checkout URL');
 
-  const intentFetched = await request(`/v1/payment_intents/${intentCreated.intent.id}`);
+  const intentFetched = await request(`/v1/payment_intents/${intentCreated.intent.id}`, {
+    headers: {
+      'x-forwarded-proto': 'https',
+      'x-forwarded-host': 'atomicpay.cloud'
+    }
+  });
   assert.equal(intentFetched.intent.id, intentCreated.intent.id, 'checkout can fetch public payment intent');
   assert.equal(intentFetched.intent.amount, 120.5, 'fetched payment intent includes amount');
+  assert.equal(intentFetched.intent.checkoutPath, `/checkout?intentId=${intentCreated.intent.id}`, 'fetched payment intent includes checkout path');
+  assert.equal(intentFetched.intent.checkoutUrl, `https://atomicpay.cloud/checkout?intentId=${intentCreated.intent.id}`, 'fetched payment intent respects forwarded checkout URL');
 
   const unsupportedRail = await assertJsonStatus(`/v1/payment_intents/${intentCreated.intent.id}/select_chain`, 400, {
     method: 'POST',

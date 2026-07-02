@@ -100,7 +100,27 @@ function buildStablecoinPaymentUri(chain: string, intent: any, amount: number): 
   return `ethereum:${rail.tokenAddress}/transfer?address=${rail.address}&uint256=${amountToBaseUnits(amount, rail.decimals)}`;
 }
 
-function toPublicIntent(intent: any) {
+function requestOrigin(req: any): string {
+  const forwardedProto = Array.isArray(req.headers['x-forwarded-proto'])
+    ? req.headers['x-forwarded-proto'][0]
+    : req.headers['x-forwarded-proto'];
+  const forwardedHost = Array.isArray(req.headers['x-forwarded-host'])
+    ? req.headers['x-forwarded-host'][0]
+    : req.headers['x-forwarded-host'];
+  const proto = String(forwardedProto || req.protocol || 'http').split(',')[0].trim();
+  const host = String(forwardedHost || req.headers.host || '').split(',')[0].trim();
+
+  return host ? `${proto}://${host}` : '';
+}
+
+function checkoutPathForIntent(intentId: string): string {
+  return `/checkout?intentId=${encodeURIComponent(intentId)}`;
+}
+
+function toPublicIntent(intent: any, req?: any) {
+  const checkoutPath = checkoutPathForIntent(intent.id);
+  const origin = req ? requestOrigin(req) : '';
+
   return {
     id: intent.id,
     amount: intent.amount,
@@ -112,7 +132,9 @@ function toPublicIntent(intent: any) {
     liveMarketRate: intent.liveMarketRate,
     txHash: intent.txHash,
     expiresAt: intent.expiresAt,
-    createdAt: intent.createdAt
+    createdAt: intent.createdAt,
+    checkoutPath,
+    checkoutUrl: origin ? `${origin}${checkoutPath}` : checkoutPath
   };
 }
 
@@ -194,7 +216,7 @@ router.post('/v1/payment_intents', async (req, res) => {
       }
     });
 
-    return res.status(201).json({ intent: toPublicIntent(intent) });
+    return res.status(201).json({ intent: toPublicIntent(intent, req) });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
@@ -205,7 +227,7 @@ router.get('/v1/payment_intents/:id', async (req, res) => {
     const intent = await prisma.paymentIntent.findUnique({ where: { id: req.params.id } });
     if (!intent) return res.status(404).json({ error: 'Payment intent not found' });
 
-    return res.json({ intent: toPublicIntent(intent) });
+    return res.json({ intent: toPublicIntent(intent, req) });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
