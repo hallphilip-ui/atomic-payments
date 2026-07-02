@@ -20,6 +20,13 @@ cd /Users/philiphall/atomic-payments
 ATOMIC_DEPLOY_ENV=production npm run check:deploy
 ```
 
+Strict production gate with public-domain reachability:
+
+```bash
+cd /Users/philiphall/atomic-payments
+ATOMIC_DEPLOY_ENV=production ATOMIC_PUBLIC_BASE_URL=https://atomicpay.cloud npm run check:deploy
+```
+
 ## Current Rules
 
 - `DATABASE_URL` must exist.
@@ -30,6 +37,8 @@ ATOMIC_DEPLOY_ENV=production npm run check:deploy
 - Production mode fails if swap provider mode is still `simulation`.
 - Production mode fails if compliance provider mode is still `simulation`.
 - `PORT` must be a valid integer.
+- Production mode requires `ATOMIC_PUBLIC_BASE_URL` to be a valid HTTPS URL.
+- When `ATOMIC_PUBLIC_BASE_URL` is set, the checker probes public HTTPS reachability unless `ATOMIC_SKIP_PUBLIC_URL_CHECK=1` is set.
 
 ## Production Follow-Up
 
@@ -47,3 +56,4 @@ ATOMIC_DEPLOY_ENV=production npm run check:deploy
 - Public HTTP reaches Cloudflare.
 - Public HTTPS currently returns Cloudflare `525`, which means Cloudflare cannot complete an SSL handshake with the origin. Fix the origin certificate/HTTPS listener or adjust Cloudflare SSL mode before treating the domain as production-ready.
 - Browser pages should use same-origin API paths so Cloudflare-served pages call `atomicpay.cloud` instead of a local development host.
+- `npm run check:deploy` now includes a `PUBLIC_HTTPS_REACHABILITY` check when `ATOMIC_PUBLIC_BASE_URL=https://atomicpay.cloud` is provided.

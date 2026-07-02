@@ -1,4 +1,6 @@
 const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const path = require('path');
 
 const checks = [];
@@ -66,6 +68,56 @@ function readPrismaDatasourceProvider() {
   return providerMatch ? providerMatch[1] : '';
 }
 
+function parsePublicUrl(value) {
+  if (!value) return null;
+
+  try {
+    return new URL(value);
+  } catch (_err) {
+    return null;
+  }
+}
+
+function requestPublicUrl(url, timeoutMs = 8000) {
+  const client = url.protocol === 'https:' ? https : http;
+
+  return new Promise((resolve) => {
+    const request = client.request(
+      url,
+      {
+        method: 'HEAD',
+        timeout: timeoutMs,
+        headers: {
+          'user-agent': 'atomic-payments-deploy-check/1.0'
+        }
+      },
+      (response) => {
+        response.resume();
+        resolve({
+          ok: response.statusCode >= 200 && response.statusCode < 400,
+          statusCode: response.statusCode,
+          server: response.headers.server || '',
+          cfRay: response.headers['cf-ray'] || ''
+        });
+      }
+    );
+
+    request.on('timeout', () => {
+      request.destroy(new Error(`Timed out after ${timeoutMs}ms`));
+    });
+
+    request.on('error', (error) => {
+      resolve({
+        ok: false,
+        error: error.message
+      });
+    });
+
+    request.end();
+  });
+}
+
+async function main() {
 loadLocalEnv();
 
 const deployEnv = env('ATOMIC_DEPLOY_ENV', env('NODE_ENV') === 'production' ? 'production' : 'local');
@@ -76,6 +128,9 @@ const complianceProviderMode = env('ATOMIC_COMPLIANCE_PROVIDER_MODE', 'simulatio
 const webhookSecret = env('ATOMIC_WEBHOOK_SECRET');
 const operatorApiKey = env('ATOMIC_OPERATOR_API_KEY');
 const prismaDatasourceProvider = readPrismaDatasourceProvider();
+const publicBaseUrl = env('ATOMIC_PUBLIC_BASE_URL');
+const parsedPublicUrl = parsePublicUrl(publicBaseUrl);
+const skipPublicUrlCheck = env('ATOMIC_SKIP_PUBLIC_URL_CHECK') === '1';
 
 addCheck(
   'DATABASE_URL',
@@ -140,6 +195,41 @@ addCheck(
   'Set PORT to a valid integer.'
 );
 
+addCheck(
+  'ATOMIC_PUBLIC_BASE_URL',
+  parsedPublicUrl && parsedPublicUrl.protocol === 'https:' ? 'pass' : strict ? 'fail' : 'warn',
+  publicBaseUrl
+    ? parsedPublicUrl
+      ? `Public base URL is ${publicBaseUrl}.`
+      : `Public base URL is invalid: ${publicBaseUrl}.`
+    : 'Public base URL is not configured.',
+  'Set ATOMIC_PUBLIC_BASE_URL to the HTTPS customer-facing origin, such as https://atomicpay.cloud.'
+);
+
+if (parsedPublicUrl && parsedPublicUrl.protocol === 'https:') {
+  if (skipPublicUrlCheck) {
+    addCheck(
+      'PUBLIC_HTTPS_REACHABILITY',
+      strict ? 'warn' : 'pass',
+      'Skipped public HTTPS reachability probe because ATOMIC_SKIP_PUBLIC_URL_CHECK=1.',
+      'Remove ATOMIC_SKIP_PUBLIC_URL_CHECK before final production promotion.'
+    );
+  } else {
+    const publicProbe = await requestPublicUrl(parsedPublicUrl);
+    const cloudflareDetail = publicProbe.cfRay ? ` Cloudflare ray ${publicProbe.cfRay}.` : '';
+    const serverDetail = publicProbe.server ? ` Server header: ${publicProbe.server}.` : '';
+
+    addCheck(
+      'PUBLIC_HTTPS_REACHABILITY',
+      publicProbe.ok ? 'pass' : strict ? 'fail' : 'warn',
+      publicProbe.statusCode
+        ? `Public HTTPS returned ${publicProbe.statusCode}.${serverDetail}${cloudflareDetail}`
+        : `Public HTTPS probe failed: ${publicProbe.error || 'unknown error'}.`,
+      'Confirm the origin has a valid HTTPS listener/certificate and Cloudflare SSL mode matches the origin.'
+    );
+  }
+}
+
 const failures = checks.filter((check) => check.status === 'fail');
 const warnings = checks.filter((check) => check.status === 'warn');
 
@@ -158,3 +248,9 @@ console.log(JSON.stringify({
 if (failures.length > 0) {
   process.exitCode = 1;
 }
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

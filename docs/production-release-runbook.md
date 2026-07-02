@@ -23,6 +23,13 @@ cd /Users/philiphall/atomic-payments
 ATOMIC_DEPLOY_ENV=production npm run check:deploy
 ```
 
+Run the public-domain gate before promoting Cloudflare traffic:
+
+```bash
+cd /Users/philiphall/atomic-payments
+ATOMIC_DEPLOY_ENV=production ATOMIC_PUBLIC_BASE_URL=https://atomicpay.cloud npm run check:deploy
+```
+
 The strict gate must report zero failures before launch.
 
 ## Production Requirements
@@ -32,6 +39,7 @@ The strict gate must report zero failures before launch.
 - Store `DATABASE_URL`, `ATOMIC_WEBHOOK_SECRET`, provider keys, and compliance vendor keys in a deployment secret store.
 - Use `live_with_fallback` only during pre-production verification; use `live` after provider contract tests pass.
 - Connect the compliance provider boundary to a real KYT/sanctions vendor before handling production value.
+- Configure the public domain with HTTPS end to end. Cloudflare `525` means the DNS proxy is active but the origin SSL handshake is failing.
 - Keep `/v1/health` wired to the platform health check.
 - Ship structured request logs to the platform log store.
 - Add release rollback instructions for the hosting target.
@@ -44,6 +52,7 @@ Do not promote to production if any of these are true:
 - Prisma is still configured for SQLite.
 - Swap or compliance provider mode is still `simulation`.
 - Webhook secret is unset, short, or placeholder-like.
+- `ATOMIC_PUBLIC_BASE_URL` is missing, non-HTTPS, or fails public HTTPS reachability.
 - Docker smoke or isolated core smoke fails.
 - No rollback plan exists for the release target.
 
