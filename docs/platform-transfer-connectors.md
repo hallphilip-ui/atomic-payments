@@ -46,6 +46,16 @@ No connector should expose a generic `placeOrder`, `trade`, `swap`, `margin`, `d
 
 The current codebase includes a simulated transfer adapter factory for these connectors. It is intentionally limited to account status, balances, deposit instructions, deposit status, withdrawal requests, withdrawal status, and transfer events. `npm run test:platform-connectors` fails if a connector or adapter drifts into trading/order scope.
 
+The simulated adapter is exposed through operator-protected settlement routes:
+
+- `GET /v1/settlement/platform-connectors/:connectorId/account`
+- `GET /v1/settlement/platform-connectors/:connectorId/balances`
+- `GET /v1/settlement/platform-connectors/:connectorId/deposit-instructions`
+- `GET /v1/settlement/platform-connectors/:connectorId/deposits/:transferId`
+- `POST /v1/settlement/platform-connectors/:connectorId/withdrawals`
+- `GET /v1/settlement/platform-connectors/:connectorId/withdrawals/:transferId`
+- `GET /v1/settlement/platform-connectors/:connectorId/events`
+
 ## Before Live Connection
 
 1. Verify official API docs and regional availability.

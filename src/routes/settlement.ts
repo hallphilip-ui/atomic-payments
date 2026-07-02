@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { findSettlementRoutes, listEnabledCurrencies, launchSettlementRoutes } from '../settlement/currencyBasket';
+import { createSimulatedTransferAdapter } from '../settlement/platformTransferAdapters';
 import { listPlatformTransferConnectors } from '../settlement/platformTransferConnectors';
 import {
   acceptStoredQuote,
@@ -11,6 +12,15 @@ import {
 } from '../settlement/settlementStore';
 
 const router = Router();
+
+async function withTransferAdapter(req: any, res: any, handler: (adapter: ReturnType<typeof createSimulatedTransferAdapter>) => Promise<any>) {
+  try {
+    const adapter = createSimulatedTransferAdapter(String(req.params.connectorId));
+    return res.json(await handler(adapter));
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message });
+  }
+}
 
 router.get('/v1/settlement/currencies', (_req, res) => {
   return res.json({
@@ -48,6 +58,57 @@ router.get('/v1/settlement/platform-connectors', (_req, res) => {
     connectorCount: connectors.length,
     tradingEnabledCount: connectors.filter((connector) => connector.tradingEnabled).length
   });
+});
+
+router.get('/v1/settlement/platform-connectors/:connectorId/account', (req, res) => {
+  return withTransferAdapter(req, res, async (adapter) => ({
+    account: await adapter.getAccountStatus()
+  }));
+});
+
+router.get('/v1/settlement/platform-connectors/:connectorId/balances', (req, res) => {
+  return withTransferAdapter(req, res, async (adapter) => ({
+    balances: await adapter.listBalances()
+  }));
+});
+
+router.get('/v1/settlement/platform-connectors/:connectorId/deposit-instructions', (req, res) => {
+  const asset = String(req.query.asset ?? 'USDC');
+  const network = req.query.network ? String(req.query.network) : undefined;
+
+  return withTransferAdapter(req, res, async (adapter) => ({
+    instructions: await adapter.getDepositInstructions(asset, network)
+  }));
+});
+
+router.get('/v1/settlement/platform-connectors/:connectorId/deposits/:transferId', (req, res) => {
+  return withTransferAdapter(req, res, async (adapter) => ({
+    transfer: await adapter.getDepositStatus(String(req.params.transferId))
+  }));
+});
+
+router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', (req, res) => {
+  return withTransferAdapter(req, res, async (adapter) => ({
+    transfer: await adapter.requestWithdrawal({
+      asset: String(req.body.asset ?? 'USDC'),
+      amount: String(req.body.amount ?? '0.00'),
+      destinationAddress: String(req.body.destinationAddress ?? ''),
+      network: req.body.network ? String(req.body.network) : undefined,
+      memo: req.body.memo ? String(req.body.memo) : undefined
+    })
+  }));
+});
+
+router.get('/v1/settlement/platform-connectors/:connectorId/withdrawals/:transferId', (req, res) => {
+  return withTransferAdapter(req, res, async (adapter) => ({
+    transfer: await adapter.getWithdrawalStatus(String(req.params.transferId))
+  }));
+});
+
+router.get('/v1/settlement/platform-connectors/:connectorId/events', (req, res) => {
+  return withTransferAdapter(req, res, async (adapter) => ({
+    events: await adapter.listTransferEvents()
+  }));
 });
 
 router.post('/v1/settlement/quotes', async (req, res) => {

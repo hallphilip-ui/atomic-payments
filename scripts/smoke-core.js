@@ -149,6 +149,30 @@ async function main() {
   assert.ok(platformConnectors.connectors.every((connector) => connector.tradingEnabled === false), 'all connector candidates disable trading');
   console.log(`OK platform connectors: ${platformConnectors.connectorCount} transfer-only candidates`);
 
+  const connectorAccount = await request('/v1/settlement/platform-connectors/coinbase-advanced/account');
+  assert.equal(connectorAccount.account.transferOnly, true, 'connector account endpoint is transfer-only');
+  assert.equal(connectorAccount.account.tradingEnabled, false, 'connector account endpoint disables trading');
+
+  const connectorBalances = await request('/v1/settlement/platform-connectors/coinbase-advanced/balances');
+  assert.ok(connectorBalances.balances.some((balance) => balance.asset === 'USDC'), 'connector balances include simulated USDC');
+
+  const depositInstructions = await request('/v1/settlement/platform-connectors/coinbase-advanced/deposit-instructions?asset=USDC&network=base');
+  assert.equal(depositInstructions.instructions.asset, 'USDC', 'connector deposit instructions normalize asset');
+  assert.equal(depositInstructions.instructions.network, 'base', 'connector deposit instructions preserve requested network');
+
+  const withdrawal = await request('/v1/settlement/platform-connectors/coinbase-advanced/withdrawals', {
+    method: 'POST',
+    body: JSON.stringify({
+      asset: 'USDC',
+      amount: '10.00',
+      destinationAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+      network: 'base'
+    })
+  });
+  assert.equal(withdrawal.transfer.direction, 'withdrawal', 'connector withdrawal request stays transfer-scoped');
+  assert.equal(withdrawal.transfer.status, 'simulated_pending', 'connector withdrawal remains simulated');
+  console.log('OK connector adapter endpoints: account/balances/deposit/withdrawal simulation');
+
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
     assertContains('/checkout', 'data-theme-option'),
@@ -290,7 +314,8 @@ async function main() {
     await Promise.all([
       assertStatusWithoutOperatorKey('/v1/metrics', 401),
       assertStatusWithoutOperatorKey('/v1/project/progress', 401),
-      assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401)
+      assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401),
+      assertStatusWithoutOperatorKey('/v1/settlement/platform-connectors', 401)
     ]);
     console.log('OK operator protected routes reject missing operator key');
   }
