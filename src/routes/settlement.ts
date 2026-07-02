@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { findSettlementRoutes, listEnabledCurrencies, launchSettlementRoutes } from '../settlement/currencyBasket';
+import { listPlatformTransferConnectors } from '../settlement/platformTransferConnectors';
 import {
   acceptStoredQuote,
   createStoredQuote,
@@ -32,6 +33,21 @@ router.get('/v1/settlement/routes', (req, res) => {
   }
 
   return res.json({ routes: launchSettlementRoutes.filter((route) => route.enabled) });
+});
+
+router.get('/v1/settlement/platform-connectors', (_req, res) => {
+  const connectors = listPlatformTransferConnectors();
+  return res.json({
+    policy: {
+      intendedUse: 'deposits_and_transfers_only',
+      exchangeTrading: 'disabled',
+      liveMode: 'not_connected',
+      note: 'These platform connectors are onboarding candidates for deposits, withdrawals, transfers, balances, and account status only.'
+    },
+    connectors,
+    connectorCount: connectors.length,
+    tradingEnabledCount: connectors.filter((connector) => connector.tradingEnabled).length
+  });
 });
 
 router.post('/v1/settlement/quotes', async (req, res) => {

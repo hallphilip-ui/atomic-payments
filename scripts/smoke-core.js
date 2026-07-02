@@ -141,6 +141,14 @@ async function main() {
   assert.ok(paymentRails.rails.some((rail) => rail.id === 'USD_COIN_SOLANA' && rail.stable), 'payment rail catalog includes USDC Solana rail');
   console.log(`OK payment rails: ${paymentRails.railsCount} rails, ${paymentRails.tetheredAssets.join('/')}`);
 
+  const platformConnectors = await request('/v1/settlement/platform-connectors');
+  assert.equal(platformConnectors.connectorCount, 15, 'platform transfer connector registry includes launch candidates');
+  assert.equal(platformConnectors.tradingEnabledCount, 0, 'platform transfer connectors do not enable trading');
+  assert.equal(platformConnectors.policy.intendedUse, 'deposits_and_transfers_only', 'platform connector policy is transfer-only');
+  assert.ok(platformConnectors.connectors.some((connector) => connector.id === 'coinbase-advanced'), 'connector registry includes Coinbase Advanced');
+  assert.ok(platformConnectors.connectors.every((connector) => connector.tradingEnabled === false), 'all connector candidates disable trading');
+  console.log(`OK platform connectors: ${platformConnectors.connectorCount} transfer-only candidates`);
+
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
     assertContains('/checkout', 'data-theme-option'),
