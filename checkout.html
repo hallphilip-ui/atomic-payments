@@ -2,171 +2,751 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atomic Payments UI Gateway</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06111d">
+  <link rel="icon" href="/assets/atomic-mark.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/atomic-mark.png">
+  <title>Atomic Payments Checkout</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #edf7ff;
+      --muted: #8da8ba;
+      --soft: #c6d8e8;
+      --paper: #06111d;
+      --panel: rgba(10, 24, 36, 0.92);
+      --panel-strong: #0f2435;
+      --line: rgba(128, 200, 235, 0.22);
+      --blue: #0877d8;
+      --cyan: #19d2f2;
+      --green: #39d98a;
+      --amber: #f0a54a;
+      --red: #f05b68;
+      --shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-height: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(25, 210, 242, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(25, 210, 242, 0.045) 1px, transparent 1px),
+        radial-gradient(circle at 15% 12%, rgba(25, 210, 242, 0.16), transparent 30%),
+        radial-gradient(circle at 88% 22%, rgba(57, 217, 138, 0.1), transparent 26%),
+        linear-gradient(135deg, #06101a 0%, #0b1723 48%, #11141b 100%);
+      background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%, 100% 100%;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.58;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
+
+    .shell {
+      width: min(100%, 1080px);
+      display: grid;
+      grid-template-columns: minmax(280px, 0.86fr) minmax(320px, 1fr);
+      min-height: min(760px, calc(100vh - 36px));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(4, 13, 22, 0.78);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand-pane {
+      position: relative;
+      display: grid;
+      align-content: space-between;
+      gap: 36px;
+      padding: clamp(22px, 4vw, 44px);
+      overflow: hidden;
+      border-right: 1px solid var(--line);
+      background:
+        linear-gradient(145deg, rgba(8, 119, 216, 0.24), transparent 38%),
+        linear-gradient(315deg, rgba(25, 210, 242, 0.18), transparent 36%),
+        rgba(5, 16, 27, 0.72);
+    }
+
+    .brand-pane::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 30%);
+      pointer-events: none;
+    }
+
+    .brand-lockup {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-lockup img {
+      width: 74px;
+      height: 58px;
+      object-fit: contain;
+      filter: drop-shadow(0 12px 28px rgba(25, 210, 242, 0.28));
+      flex: 0 0 auto;
+    }
+
+    .brand-lockup strong {
+      display: block;
+      font-size: 17px;
+      line-height: 1.1;
+      color: #fff;
+    }
+
+    .brand-lockup span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .intro {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 14px;
+      max-width: 440px;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      color: #fff;
+      font-size: clamp(32px, 6vw, 58px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .intro p {
+      color: var(--soft);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .trust-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .trust-item {
+      min-height: 76px;
+      padding: 12px;
+      border: 1px solid rgba(128, 200, 235, 0.18);
+      border-radius: 8px;
+      background: rgba(4, 13, 22, 0.58);
+    }
+
+    .trust-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .trust-item strong {
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .checkout-pane {
+      display: grid;
+      align-content: center;
+      padding: clamp(18px, 4vw, 42px);
+      background: rgba(7, 17, 27, 0.88);
+    }
+
+    .card {
+      width: min(100%, 480px);
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .view {
+      display: grid;
+      gap: 20px;
+      padding: clamp(18px, 5vw, 28px);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .view-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .view-title {
+      display: grid;
+      gap: 6px;
+    }
+
+    .eyebrow {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      color: #fff;
+      font-size: clamp(24px, 6vw, 34px);
+      line-height: 1.05;
+    }
+
+    h3 {
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .pill {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 10px;
+      border: 1px solid rgba(25, 210, 242, 0.22);
+      border-radius: 999px;
+      background: rgba(25, 210, 242, 0.08);
+      color: #c6f6ff;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 16px rgba(57, 217, 138, 0.56);
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    input {
+      width: 100%;
+      min-height: 48px;
+      padding: 0 14px;
+      border: 1px solid rgba(128, 200, 235, 0.22);
+      border-radius: 6px;
+      outline: none;
+      background: rgba(4, 13, 22, 0.78);
+      color: var(--ink);
+    }
+
+    input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(25, 210, 242, 0.12);
+    }
+
+    .helper {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .primary, .secondary, .rail-button {
+      min-height: 48px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-weight: 800;
+    }
+
+    .primary {
+      width: 100%;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      box-shadow: 0 14px 32px rgba(6, 151, 255, 0.24);
+    }
+
+    .secondary {
+      width: 100%;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .amount-line {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .amount {
+      font-size: clamp(30px, 8vw, 42px);
+      line-height: 1;
+      color: #fff;
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .rail-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .rail-button {
+      width: 100%;
+      justify-content: space-between;
+      padding: 12px;
+      text-align: left;
+      color: #fff;
+      border: 1px solid rgba(128, 200, 235, 0.18);
+      background: rgba(4, 13, 22, 0.62);
+    }
+
+    .rail-button:hover {
+      border-color: rgba(25, 210, 242, 0.46);
+      background: rgba(9, 30, 45, 0.76);
+    }
+
+    .rail-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .asset-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-size: 12px;
+      font-weight: 900;
+      color: #fff;
+      background: rgba(25, 210, 242, 0.14);
+      border: 1px solid rgba(25, 210, 242, 0.2);
+    }
+
+    .asset-badge.btc { color: #ffd37d; background: rgba(240, 165, 74, 0.12); border-color: rgba(240, 165, 74, 0.28); }
+    .asset-badge.eth { color: #9fc8ff; background: rgba(8, 119, 216, 0.14); }
+    .asset-badge.sol { color: #d6b8ff; background: rgba(158, 123, 255, 0.14); border-color: rgba(158, 123, 255, 0.28); }
+    .asset-badge.xrp { color: #9ee7ff; }
+    .asset-badge.ada { color: #9ef5ff; }
+    .asset-badge.doge { color: #ffc38f; background: rgba(240, 165, 74, 0.1); }
+
+    .rail-name {
+      display: block;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .rail-code {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .quote-box {
+      display: grid;
+      gap: 8px;
+      border: 1px solid rgba(57, 217, 138, 0.24);
+      border-radius: 8px;
+      padding: 16px;
+      background: rgba(57, 217, 138, 0.08);
+      text-align: center;
+    }
+
+    .quote-box span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .quote-box strong {
+      color: var(--green);
+      font-size: clamp(24px, 7vw, 32px);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .qr-wrap {
+      display: grid;
+      place-items: center;
+    }
+
+    .qr-card {
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
+    }
+
+    .qr-card img {
+      display: block;
+      width: 152px;
+      height: 152px;
+    }
+
+    .address-box {
+      width: 100%;
+      min-height: 58px;
+      padding: 12px;
+      border: 1px solid rgba(128, 200, 235, 0.18);
+      border-radius: 8px;
+      background: rgba(4, 13, 22, 0.78);
+      color: #c6f6ff;
+      font-size: 12px;
+      line-height: 1.45;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-wrap: anywhere;
+      text-align: center;
+    }
+
+    .timer {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid rgba(240, 165, 74, 0.28);
+      border-radius: 8px;
+      background: rgba(240, 165, 74, 0.09);
+      color: var(--amber);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .success-mark {
+      width: 68px;
+      height: 68px;
+      margin: 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--green);
+      background: rgba(57, 217, 138, 0.1);
+      border: 1px solid rgba(57, 217, 138, 0.32);
+    }
+
+    .success-mark svg {
+      width: 34px;
+      height: 34px;
+    }
+
+    .receipt {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(128, 200, 235, 0.18);
+      background: rgba(4, 13, 22, 0.78);
+    }
+
+    .receipt span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .receipt strong {
+      color: #c6f6ff;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .receipt-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(128, 200, 235, 0.14);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .receipt-row strong {
+      color: var(--green);
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    @media (max-width: 860px) {
+      .page {
+        display: block;
+        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      }
+
+      .shell {
+        min-height: calc(100vh - 24px);
+        grid-template-columns: 1fr;
+      }
+
+      .brand-pane {
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        gap: 18px;
+      }
+
+      .intro {
+        max-width: none;
+      }
+
+      .intro p {
+        max-width: 620px;
+      }
+
+      .trust-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .checkout-pane {
+        align-content: start;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .brand-lockup img {
+        width: 58px;
+        height: 46px;
+      }
+
+      .trust-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .view-head, .amount-line, .receipt-row {
+        display: grid;
+      }
+
+      .pill {
+        justify-self: start;
+      }
+
+      .card {
+        border-left: 0;
+        border-right: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center font-sans p-4">
+<body>
+  <main class="page">
+    <div class="shell">
+      <section class="brand-pane" aria-label="Atomic Payments">
+        <div class="brand-lockup">
+          <img src="/assets/atomic-mark.png" alt="Atomic Payments logo">
+          <div>
+            <strong>Atomic Payments</strong>
+            <span>Cross-rail settlement gateway</span>
+          </div>
+        </div>
 
-  <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[95vh] overflow-y-auto transition-all duration-300">
-    
-    <!-- View 1: Initial System Handshake -->
-    <div id="setup-view" class="space-y-4">
-      <div class="text-center">
-        <h2 class="text-2xl font-bold tracking-tight text-indigo-400">Atomic Gateway</h2>
-        <p class="text-slate-400 text-sm mt-1">Provide a dynamic Payment Intent ID</p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Intent ID</label>
-        <input type="text" id="intent-id-input" placeholder="Paste your generated intent ID here..." 
-               class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 font-mono text-indigo-300">
-      </div>
-      <button onclick="loadIntent()" class="w-full bg-indigo-600 hover:bg-indigo-500 font-medium py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-600/20">
-        Launch Multi-Chain UI
-      </button>
+        <div class="intro">
+          <h1>Checkout built for every screen.</h1>
+          <p>Fast crypto rail selection, clear quote locks, and settlement confirmation in a UI that behaves cleanly across mobile, tablet, desktop, and kiosk surfaces.</p>
+        </div>
+
+        <div class="trust-grid" aria-label="Checkout guarantees">
+          <div class="trust-item"><span>Rails</span><strong>7 active</strong></div>
+          <div class="trust-item"><span>Quote lock</span><strong>Live expiry</strong></div>
+          <div class="trust-item"><span>Status</span><strong>Webhook ready</strong></div>
+          <div class="trust-item"><span>Mode</span><strong>Gateway Simulator</strong></div>
+        </div>
+      </section>
+
+      <section class="checkout-pane" aria-label="Checkout flow">
+        <div class="card">
+          <div id="setup-view" class="view">
+            <div class="view-head">
+              <div class="view-title">
+                <span class="eyebrow">Gateway Simulator</span>
+                <h2>Start payment</h2>
+                <p class="helper">Provide a dynamic Payment Intent ID to launch the checkout context.</p>
+              </div>
+              <span class="pill"><span class="dot"></span>Ready</span>
+            </div>
+
+            <div class="field">
+              <label for="intent-id-input">Intent ID</label>
+              <input type="text" id="intent-id-input" placeholder="Paste generated intent ID" autocomplete="off" spellcheck="false">
+            </div>
+
+            <button onclick="loadIntent()" class="primary">Launch Gateway</button>
+          </div>
+
+          <div id="checkout-view" class="view hidden">
+            <div class="amount-line">
+              <div>
+                <span class="eyebrow">Amount Due</span>
+                <div id="fiat-amount" class="amount">$120.00 USD</div>
+              </div>
+              <span class="pill"><span class="dot"></span>7 Rails Active</span>
+            </div>
+
+            <div id="chain-selector" class="rail-grid">
+              <h3>Select payment rail</h3>
+              <button onclick="selectChain('BITCOIN_ONCHAIN')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge btc">BTC</span><span><span class="rail-name">Bitcoin Layer 1</span><span class="rail-code">BTC</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('ETHEREUM')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge eth">ETH</span><span><span class="rail-name">Ethereum Network</span><span class="rail-code">ETH</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('BNB_CHAIN')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge">BNB</span><span><span class="rail-name">BNB Smart Chain</span><span class="rail-code">BSC</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('SOLANA')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge sol">SOL</span><span><span class="rail-name">Solana High-Speed</span><span class="rail-code">SOL</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('RIPPLE')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge xrp">XRP</span><span><span class="rail-name">Ripple Ledger</span><span class="rail-code">XRP</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('CARDANO')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge ada">ADA</span><span><span class="rail-name">Cardano Settlement</span><span class="rail-code">ADA</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+              <button onclick="selectChain('DOGECOIN')" class="rail-button">
+                <span class="rail-left"><span class="asset-badge doge">DOGE</span><span><span class="rail-name">Dogecoin Core</span><span class="rail-code">DOGE</span></span></span>
+                <span aria-hidden="true">›</span>
+              </button>
+            </div>
+
+            <div id="payment-instructions" class="hidden view" style="padding:0;">
+              <div class="quote-box">
+                <span>Total Required Remittance</span>
+                <strong id="crypto-required">0.00</strong>
+                <p id="oracle-rate" class="helper">-</p>
+              </div>
+
+              <div class="qr-wrap">
+                <div class="qr-card">
+                  <img id="qr-code-img" src="" alt="Payment address QR code">
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="deposit-address">Target Address</label>
+                <div class="address-box" id="deposit-address">-</div>
+              </div>
+
+              <div class="timer">Rate lock expires in <strong id="countdown-timer">15:00</strong></div>
+              <button onclick="triggerSimulatePayment()" id="sim-btn" class="primary">Simulate Network Settlement</button>
+            </div>
+          </div>
+
+          <div id="success-view" class="view hidden center">
+            <div class="success-mark" aria-hidden="true">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <div>
+              <span class="eyebrow">Settlement confirmed</span>
+              <h2>Invoice cleared</h2>
+              <p class="helper">Payment successfully cleared on-chain and the merchant webhook was delivered.</p>
+            </div>
+            <div class="receipt">
+              <div>
+                <span>Transaction Signature</span>
+                <strong id="res-hash">0x_</strong>
+              </div>
+              <div class="receipt-row">
+                <span>Webhook Dispatch</span>
+                <strong>Delivered 200</strong>
+              </div>
+            </div>
+            <button onclick="window.location.reload()" class="secondary">Reset Gateway Simulator</button>
+          </div>
+        </div>
+      </section>
     </div>
-
-    <!-- View 2: Main Context Router -->
-    <div id="checkout-view" class="hidden space-y-6">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-4">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Amount Due</p>
-          <h3 id="fiat-amount" class="text-3xl font-extrabold text-white mt-1">$120.00 USD</h3>
-        </div>
-        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-          ⚙️ 7 Rails Active
-        </span>
-      </div>
-
-      <!-- Chain Grid Selector -->
-      <div id="chain-selector" class="space-y-2.5">
-        <h4 class="text-sm font-semibold text-slate-300">Select asset payment method:</h4>
-        
-        <!-- BTC -->
-        <button onclick="selectChain('BITCOIN_ONCHAIN')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-amber-500/50 transition text-left group">
-          <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center font-bold text-amber-500 text-sm">BTC</div>
-            <span class="font-medium text-sm text-white group-hover:text-amber-400 transition">Bitcoin Layer 1</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500">BTC</span>
-        </button>
-
-        <!-- ETH -->
-        <button onclick="selectChain('ETHEREUM')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-blue-400/50 transition text-left group">
-          <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center font-bold text-blue-400 text-sm">ETH</div>
-            <span class="font-medium text-sm text-white group-hover:text-blue-400 transition">Ethereum Network</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500">ETH</span>
-        </button>
-
-        <!-- BNB -->
-        <button onclick="selectChain('BNB_CHAIN')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-yellow-500/50 transition text-left group">
-          <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-yellow-500/10 flex items-center justify-center font-bold text-yellow-500 text-sm">BNB</div>
-            <span class="font-medium text-sm text-white group-hover:text-yellow-400 transition">BNB Smart Chain</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500">BSC</span>
-        </button>
-
-        <!-- SOL -->
-        <button onclick="selectChain('SOLANA')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-purple-500/50 transition text-left group">
-          <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center font-bold text-purple-400 text-sm">SOL</div>
-            <span class="font-medium text-sm text-white group-hover:text-purple-400 transition">Solana High-Speed</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500">SOL</span>
-        </button>
-
-        <!-- XRP -->
-        <button onclick="selectChain('RIPPLE')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-sky-400/50 transition text-left group">
-          <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center font-bold text-sky-400 text-sm">XRP</div>
-            <span class="font-medium text-sm text-white group-hover:text-sky-400 transition">Ripple Ledger</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500">XRP</span>
-        </button>
-
-        <!-- ADA -->
-        <button onclick="selectChain('CARDANO')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-cyan-500/50 transition text-left group">
-          <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-cyan-500/10 flex items-center justify-center font-bold text-cyan-400 text-sm">ADA</div>
-            <span class="font-medium text-sm text-white group-hover:text-cyan-400 transition">Cardano Settlement</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500">ADA</span>
-        </button>
-
-        <!-- DOGE -->
-        <button onclick="selectChain('DOGECOIN')" class="w-full flex items-center justify-between p-3.5 bg-slate-950/40 border border-slate-700/60 rounded-xl hover:border-orange-400/50 transition text-left group">
-          <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center font-bold text-orange-400 text-sm">DOGE</div>
-            <span class="font-medium text-sm text-white group-hover:text-orange-400 transition">Dogecoin Core</span>
-          </div>
-          <span class="text-xs font-mono text-slate-500">DOGE</span>
-        </button>
-      </div>
-
-      <!-- View 3: Instructions & Simulator Controls -->
-      <div id="payment-instructions" class="hidden space-y-5">
-        <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 text-center space-y-2">
-          <p class="text-xs font-medium text-slate-400">Total Required Remittance:</p>
-          <h4 id="crypto-required" class="text-2xl font-mono font-bold text-emerald-400 tracking-tight">0.00</h4>
-          <p id="oracle-rate" class="text-xs text-slate-500 font-medium">-</p>
-        </div>
-
-        <div class="flex justify-center">
-          <div class="bg-white p-2.5 rounded-xl">
-            <img id="qr-code-img" src="" alt="QR" class="w-36 h-36">
-          </div>
-        </div>
-
-        <div class="space-y-1">
-          <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Target Address</label>
-          <div class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-indigo-300 break-all text-center" id="deposit-address">
-            -
-          </div>
-        </div>
-
-        <div class="flex items-center justify-center space-x-2 text-xs font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 py-2 rounded-xl">
-          <span>Rate Lock Expiry Countdown: <strong id="countdown-timer" class="font-mono">15:00</strong></span>
-        </div>
-
-        <!-- 🧪 Simulation Testing Interface Row -->
-        <button onclick="triggerSimulatePayment()" id="sim-btn" class="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold tracking-wider uppercase py-3 rounded-xl transition shadow-lg shadow-emerald-600/10 flex items-center justify-center space-x-2">
-          <span>🚀 Simulate Network Settlement</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- View 4: Elegant Success State Screen -->
-    <div id="success-view" class="hidden text-center space-y-6 py-4 animate-fadeIn">
-      <div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto text-emerald-400">
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-        </svg>
-      </div>
-      <div>
-        <h2 class="text-2xl font-extrabold text-white tracking-tight">Invoice Confirmed!</h2>
-        <p class="text-slate-400 text-sm mt-1">Payment has successfully cleared on-chain</p>
-      </div>
-      
-      <div class="bg-slate-950 rounded-xl p-4 border border-slate-850 space-y-3 text-left">
-        <div>
-          <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Transaction Signature</span>
-          <span id="res-hash" class="text-xs font-mono text-indigo-300 break-all">0x_</span>
-        </div>
-        <div class="border-t border-slate-800/60 pt-2.5 flex justify-between text-xs">
-          <span class="text-slate-400">Webhook Dispatch:</span>
-          <span class="text-emerald-400 font-bold flex items-center">● Delivered (200)</span>
-        </div>
-      </div>
-
-      <button onclick="window.location.reload()" class="w-full bg-slate-700 hover:bg-slate-600 font-medium py-2.5 text-xs rounded-xl transition">
-        Reset Gateway Simulator
-      </button>
-    </div>
-
-  </div>
+  </main>
 
   <script>
     const API_BASE = window.location.origin;
@@ -177,7 +757,7 @@
       document.getElementById('setup-view').className = 'hidden';
       document.getElementById('checkout-view').className = 'hidden';
       document.getElementById('success-view').className = 'hidden';
-      document.getElementById(viewId).className = 'space-y-6';
+      document.getElementById(viewId).className = 'view';
     }
 
     function loadIntent() {
@@ -194,14 +774,14 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ chain: blockchainName })
         });
-        
+
         const data = await response.json();
         if (data.error) return alert(data.error);
 
         document.getElementById('crypto-required').innerText = `${data.cryptoAmountRequired} ${blockchainName.split('_')[0]}`;
         document.getElementById('oracle-rate').innerText = `Live Price: ${data.liveMarketRate}`;
         document.getElementById('deposit-address').innerText = data.depositAddress;
-        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=0f172a&data=${data.depositAddress}`;
+        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=152x152&color=0f172a&data=${data.depositAddress}`;
 
         document.getElementById('chain-selector').classList.add('hidden');
         document.getElementById('payment-instructions').classList.remove('hidden');
@@ -213,34 +793,31 @@
 
     async function triggerSimulatePayment() {
       const btn = document.getElementById('sim-btn');
-      btn.innerText = "Processing On-Chain Block...";
+      btn.innerText = 'Processing On-Chain Block...';
       btn.disabled = true;
 
       try {
         const response = await fetch(`${API_BASE}/v1/payment_intents/${currentIntentId}/simulate_payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ txHash: "0x" + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('') })
+          body: JSON.stringify({ txHash: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('') })
         });
 
         const data = await response.json();
         if (data.error) {
           alert(data.error);
-          btn.innerText = "🚀 Simulate Network Settlement";
+          btn.innerText = 'Simulate Network Settlement';
           btn.disabled = false;
           return;
         }
 
         clearInterval(countdownInterval);
         document.getElementById('res-hash').innerText = data.txHash;
-        
-        // Push view instantly to structural success block
         document.getElementById('checkout-view').classList.add('hidden');
         document.getElementById('success-view').classList.remove('hidden');
-
       } catch (err) {
         alert('Could not deliver transactional block to settlement layer.');
-        btn.innerText = "🚀 Simulate Network Settlement";
+        btn.innerText = 'Simulate Network Settlement';
         btn.disabled = false;
       }
     }
@@ -251,7 +828,7 @@
         const now = new Date().getTime();
         const distance = expiryDate.getTime() - now;
         if (distance < 0) {
-          document.getElementById('countdown-timer').innerText = "EXPIRED";
+          document.getElementById('countdown-timer').innerText = 'EXPIRED';
           clearInterval(countdownInterval);
           return;
         }

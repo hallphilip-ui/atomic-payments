@@ -98,6 +98,7 @@ async function main() {
     assertContains('/admin-compliance', 'data-atomic-language-select'),
     assertStatus('/project-plan', 404),
     assertContains('/assets/widget.js', 'new URL'),
+    assertStatus('/favicon.ico', 200),
     assertContains('/assets/i18n.js', "'ja'"),
     assertContains('/assets/i18n.js', "'ar'")
   ]);
@@ -157,7 +158,7 @@ async function main() {
 
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
-  assert.equal(progress.overallCompletionPct, 78, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 79, 'progress endpoint reports overall completion');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
 

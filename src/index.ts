@@ -71,6 +71,12 @@ app.use('/assets/atomic-mark.png', (_req: Request, res: Response) => {
   return res.send(logo);
 });
 
+app.use('/favicon.ico', (_req: Request, res: Response) => {
+  const logo = readFileSync(join(process.cwd(), 'public', 'atomic-mark.png'));
+  res.header('Content-Type', 'image/png');
+  return res.send(logo);
+});
+
 app.use('/assets/i18n.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'i18n.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');

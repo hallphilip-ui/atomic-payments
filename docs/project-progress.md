@@ -4,9 +4,9 @@ Last updated: July 2, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 76-78%
+Estimated total completion: 78-80%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, security controls, CI/CD, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, security controls, CI/CD, observability, and operational runbooks.
 
 ## Completed Slices
 
@@ -86,9 +86,11 @@ Production gaps:
 
 ### Console UX And Brand
 
-Completion: 58-62%
+Completion: 66-70%
 
 - DeFi swap console at `/defi-swap`.
+- Checkout gateway at `/checkout` now uses a self-contained responsive Atomic UI with no Tailwind CDN dependency.
+- Checkout gateway has safe-area support, mobile/desktop responsive layout, reduced-motion handling, and large touch targets.
 - Compliance review console at `/admin-compliance`.
 - Product-facing project tracker UI has been removed from the swap console and app routes.
 - `/v1/project/progress` exposes build progress as structured data for internal reporting and future non-product surfaces.
@@ -101,7 +103,7 @@ Completion: 58-62%
 Production gaps:
 
 - Move from standalone HTML to the final product frontend architecture if needed.
-- More polished mobile QA across small devices.
+- End-to-end browser coverage for the production QR and payment-instruction flow with real payment intent fixtures.
 - Accessibility pass for keyboard navigation and screen-reader details.
 
 ### Smoke Coverage
