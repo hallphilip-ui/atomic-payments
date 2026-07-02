@@ -48,20 +48,20 @@ Production gaps:
 
 ### DeFi Atomic Swap Core
 
-Completion: 63-66%
+Completion: 66-69%
 
 - Target top-25 crypto asset registry.
 - Quote path with platform fee guardrails.
 - Rango/THORChain adapter boundary with simulation default.
 - Provider diagnostics surfaced in API and UI.
-- Provider adapter contract coverage for simulation and live-with-fallback behavior.
+- Provider adapter contract coverage for simulation, live-with-fallback behavior, mocked live Rango response parsing, and mocked live THORChain response parsing.
 - Swap lifecycle states, authorization, advance flow, event log, and SSE stream.
 - Browser wallet boundary for EVM and Solana detection, connection, destination fill, and signature capture with simulation fallback.
 - Wallet authorization audit trail records wallet type, wallet address, signature kind, signature hash, signed message hash, chain intent, and timestamp.
 
 Production gaps:
 
-- Verify live Rango and THORChain request/response formats against current official docs.
+- Verify live Rango and THORChain request/response formats against current official docs and sandbox/live responses.
 - Real provider execution, not just quote simulation.
 - Production wallet transaction submission and chain-specific broadcast flows.
 - Chain-specific gas, slippage, failure, and refund handling.
@@ -131,7 +131,7 @@ Completion: 58-61%
 Production gaps:
 
 - Add broader test isolation for future browser suites.
-- Expand provider-adapter contract tests after live Rango/THORChain schemas are verified.
+- Expand provider-adapter contract tests again after official live Rango/THORChain schemas are verified.
 - Add browser-level UI regression tests.
 
 ## Current Run Commands

@@ -8,7 +8,7 @@ function runChild(mode) {
     env: {
       ...process.env,
       ATOMIC_PROVIDER_CONTRACT_CHILD: mode,
-      ATOMIC_SWAP_PROVIDER_MODE: mode === 'fallback' ? 'live_with_fallback' : ''
+      ATOMIC_SWAP_PROVIDER_MODE: mode === 'fallback' ? 'live_with_fallback' : mode.startsWith('live_') ? 'live' : ''
     },
     encoding: 'utf8'
   });
@@ -45,6 +45,83 @@ async function runContract() {
     amount: '100000000',
     userAddress: 'bc1qatomiccontractdestination000000000000000000'
   };
+
+  if (childMode === 'live_rango' || childMode === 'live_thorchain') {
+    const expectedProvider = childMode === 'live_rango' ? 'RANGO' : 'THORCHAIN';
+    const expectedRequest = childMode === 'live_rango' ? evmRequest : nativeRequest;
+    const expectedEndpoint = expectedProvider === 'RANGO'
+      ? 'https://api.rango.exchange/v1/quote'
+      : 'https://thornode.ninerealms.com/thorchain/quote/swap';
+    let fetchCalls = 0;
+
+    globalThis.fetch = async (url, options) => {
+      fetchCalls += 1;
+      const parsed = new URL(String(url));
+      assert.equal(`${parsed.origin}${parsed.pathname}`, expectedEndpoint);
+      assert.equal(options.headers.accept, 'application/json');
+
+      if (expectedProvider === 'RANGO') {
+        assert.equal(parsed.searchParams.get('from'), evmRequest.fromAsset);
+        assert.equal(parsed.searchParams.get('to'), evmRequest.toAsset);
+        assert.equal(parsed.searchParams.get('amount'), evmRequest.amount);
+        assert.equal(parsed.searchParams.get('referrerFee'), '0.5');
+        assert.ok(parsed.searchParams.get('referrerAddress').startsWith('0x'));
+
+        return {
+          ok: true,
+          json: async () => ({
+            requestId: 'rango_contract_request',
+            route: {
+              outputAmount: '123456789',
+              priceImpact: '0.42'
+            }
+          })
+        };
+      }
+
+      assert.equal(parsed.searchParams.get('from_asset'), nativeRequest.fromAsset);
+      assert.equal(parsed.searchParams.get('to_asset'), nativeRequest.toAsset);
+      assert.equal(parsed.searchParams.get('amount'), nativeRequest.amount);
+      assert.equal(parsed.searchParams.get('destination'), nativeRequest.userAddress);
+      assert.equal(parsed.searchParams.get('affiliate_bps'), '50');
+
+      return {
+        ok: true,
+        json: async () => ({
+          quoteId: 'thorchain_contract_quote',
+          expected_amount_out: '987654321',
+          priceImpactPct: 0.61
+        })
+      };
+    };
+
+    const liveQuote = await getProviderQuote({
+      request: expectedRequest,
+      provider: expectedProvider,
+      amount: BigInt(expectedRequest.amount)
+    });
+
+    assert.equal(fetchCalls, 1, 'live contract should call provider once');
+    assert.equal(getProviderModeLabel(), 'live');
+    assert.equal(liveQuote.mode, 'live');
+    assert.equal(
+      liveQuote.providerQuoteId,
+      expectedProvider === 'RANGO' ? 'rango_contract_request' : 'thorchain_contract_quote'
+    );
+    assert.equal(
+      liveQuote.estimatedOutputAmount,
+      expectedProvider === 'RANGO' ? '122839506' : '982716050'
+    );
+    assert.equal(
+      liveQuote.platformFeeAmount,
+      expectedProvider === 'RANGO' ? '617283' : '4938271'
+    );
+    assert.equal(liveQuote.priceImpactPct, expectedProvider === 'RANGO' ? 0.42 : 0.61);
+    assert.deepEqual(liveQuote.diagnostics, ['live_provider_quote_received']);
+
+    console.log(`OK provider adapter contract: ${childMode}`);
+    return;
+  }
 
   const rangoPayload = buildProviderPayload(evmRequest, 'RANGO');
   assert.equal(rangoPayload.endpoint, 'https://api.rango.exchange/v1/quote');
@@ -91,6 +168,8 @@ async function runContract() {
 if (!childMode) {
   runChild('simulation');
   runChild('fallback');
+  runChild('live_rango');
+  runChild('live_thorchain');
   console.log('Provider adapter contracts complete');
 } else {
   runContract().catch((error) => {
