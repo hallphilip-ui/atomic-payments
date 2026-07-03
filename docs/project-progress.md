@@ -4,15 +4,15 @@ Last updated: July 3, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 84-86%
+Estimated total completion: 87-89%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, role controls, reconciliation, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
 
 ## Completed Slices
 
 ### Core App And API
 
-Completion: 82-84%
+Completion: 84-86%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
@@ -41,7 +41,7 @@ Completion: 82-84%
 
 ### Off-Exchange Settlement And Market Making
 
-Completion: 61-65%
+Completion: 67-71%
 
 - Top-20 launch basket for liquid fiat and stablecoin rails.
 - FX quote engine with spreads, route fees, TTLs, and risk checks.
@@ -86,7 +86,7 @@ Production gaps:
 
 ### AML And Compliance
 
-Completion: 64-68%
+Completion: 69-72%
 
 - Compliance scoring engine for wallet format, watchlist keywords, enhanced chain review, amount thresholds, and price-impact risk.
 - Auto-clear, manual-review, blocked, approved, and rejected states.
@@ -132,7 +132,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 79-82%
+Completion: 82-85%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:

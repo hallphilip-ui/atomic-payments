@@ -22,16 +22,16 @@ export function getProjectProgress(): ProjectProgress {
   return {
     service: 'atomic-payments',
     updatedAt: UPDATED_AT,
-    overallCompletionRange: '84-86%',
-    overallCompletionPct: 85,
-    summary: 'Working local foundation is in place with Cloudflare readiness checks, a Postgres schema path, mocked live-provider contract coverage, a cross-platform checkout UI, real local payment-intent checkout contracts, tethered-asset checkout rails, transfer-only platform connector boundaries, simulated withdrawal compliance gates, and CI-backed contract coverage; remaining work is official live provider certification, wallet broadcast, production KYT vendors, hosted migration, role controls, reconciliation, and operations.',
+    overallCompletionRange: '87-89%',
+    overallCompletionPct: 88,
+    summary: 'Working local foundation is in place with Cloudflare readiness checks, a Postgres schema path, mocked live-provider contract coverage, a cross-platform checkout UI, real local payment-intent checkout contracts, tethered-asset checkout rails, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation, and CI-backed contract coverage; remaining work is official live provider certification, wallet broadcast, production KYT vendors, hosted migration, live reconciliation ingestion, and operations.',
     workstreams: [
-      { id: 'core-api', label: 'Core API and Docker', completionRange: '82-84%', completionPct: 83, status: 'in_progress' },
-      { id: 'settlement', label: 'Off-exchange settlement', completionRange: '61-65%', completionPct: 63, status: 'in_progress' },
+      { id: 'core-api', label: 'Core API and Docker', completionRange: '84-86%', completionPct: 85, status: 'in_progress' },
+      { id: 'settlement', label: 'Off-exchange settlement', completionRange: '67-71%', completionPct: 69, status: 'in_progress' },
       { id: 'defi-swap', label: 'DeFi swap core', completionRange: '66-69%', completionPct: 68, status: 'in_progress' },
-      { id: 'compliance', label: 'AML and compliance', completionRange: '64-68%', completionPct: 66, status: 'in_progress' },
+      { id: 'compliance', label: 'AML and compliance', completionRange: '69-72%', completionPct: 71, status: 'in_progress' },
       { id: 'console-ux', label: 'Console UX and brand', completionRange: '75-78%', completionPct: 77, status: 'in_progress' },
-      { id: 'smoke-coverage', label: 'Smoke coverage', completionRange: '79-82%', completionPct: 81, status: 'in_progress' }
+      { id: 'smoke-coverage', label: 'Smoke coverage', completionRange: '82-85%', completionPct: 84, status: 'in_progress' }
     ],
     nextSlices: [
       'Hosted Postgres migration and smoke test',
