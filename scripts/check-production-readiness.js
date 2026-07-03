@@ -146,8 +146,10 @@ const complianceProviderMode = env('ATOMIC_COMPLIANCE_PROVIDER_MODE', 'simulatio
 const webhookSecret = env('ATOMIC_WEBHOOK_SECRET');
 const operatorApiKey = env('ATOMIC_OPERATOR_API_KEY');
 const operatorReadOnlyApiKey = env('ATOMIC_OPERATOR_READONLY_API_KEY');
+const evidenceArchiveUrl = env('ATOMIC_EVIDENCE_ARCHIVE_URL');
 const prismaDatasourceProvider = readPrismaDatasourceProvider();
 const publicBaseUrl = env('ATOMIC_PUBLIC_BASE_URL');
+const parsedEvidenceArchiveUrl = parsePublicUrl(evidenceArchiveUrl);
 const parsedPublicUrl = parsePublicUrl(publicBaseUrl);
 const skipPublicUrlCheck = env('ATOMIC_SKIP_PUBLIC_URL_CHECK') === '1';
 const packageScripts = readPackageScripts();
@@ -204,6 +206,17 @@ addCheck(
 );
 
 addCheck(
+  'ATOMIC_EVIDENCE_ARCHIVE_URL',
+  parsedEvidenceArchiveUrl && ['https:', 's3:', 'gs:'].includes(parsedEvidenceArchiveUrl.protocol) ? 'pass' : strict ? 'fail' : 'warn',
+  evidenceArchiveUrl
+    ? parsedEvidenceArchiveUrl
+      ? `Evidence archive destination is ${parsedEvidenceArchiveUrl.protocol}//${parsedEvidenceArchiveUrl.host}.`
+      : `Evidence archive destination is invalid: ${evidenceArchiveUrl}.`
+    : 'Evidence archive destination is not configured.',
+  'Set ATOMIC_EVIDENCE_ARCHIVE_URL to the immutable archive destination for operator audit and settlement reconciliation exports.'
+);
+
+addCheck(
   'ATOMIC_SWAP_PROVIDER_MODE',
   swapProviderMode === 'simulation' ? (strict ? 'fail' : 'warn') : 'pass',
   `Swap provider mode is ${swapProviderMode}.`,
@@ -229,7 +242,8 @@ const requiredContractScripts = [
   'test:operator-auth',
   'test:providers',
   'test:platform-connectors',
-  'test:transfer-compliance'
+  'test:transfer-compliance',
+  'smoke:core:isolated'
 ];
 const missingContractScripts = requiredContractScripts.filter((scriptName) => !packageScripts[scriptName]);
 

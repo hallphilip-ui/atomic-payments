@@ -4,15 +4,15 @@ Last updated: July 3, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 89%
+Estimated total completion: 90%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation exports, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation exports, evidence-archive readiness checks, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
 
 ## Completed Slices
 
 ### Core App And API
 
-Completion: 84-86%
+Completion: 85-87%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
@@ -30,7 +30,7 @@ Completion: 84-86%
 - Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
 - Structured request logging emits request ID, method, redacted path, status, duration, user agent, and remote address.
 - `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
-- Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, operator API key posture, provider modes, and port settings.
+- Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, operator API key posture, evidence archive posture, provider modes, and port settings.
 - Postgres Prisma schema variant and `npm run check:prisma` validate the managed database path without forcing local development off SQLite.
 - Public-domain readiness checks validate HTTPS reachability for Cloudflare-served URLs.
 - Production release runbook documents the hosted-release preflight gates and blockers.
@@ -134,7 +134,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 82-85%
+Completion: 84-87%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:

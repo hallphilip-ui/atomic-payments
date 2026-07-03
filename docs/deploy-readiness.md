@@ -50,6 +50,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Production mode requires `ATOMIC_PUBLIC_BASE_URL` to be a valid HTTPS URL.
 - When `ATOMIC_PUBLIC_BASE_URL` is set, the checker probes public HTTPS reachability unless `ATOMIC_SKIP_PUBLIC_URL_CHECK=1` is set.
 - `ATOMIC_PRISMA_SCHEMA_PATH` can point the gate at `prisma/schema.postgres.prisma` for production database readiness checks.
+- `ATOMIC_EVIDENCE_ARCHIVE_URL` should point at the immutable archive destination for operator audit exports and settlement reconciliation exports.
 
 ## Production Follow-Up
 
