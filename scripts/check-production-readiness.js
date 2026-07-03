@@ -242,6 +242,7 @@ const requiredContractScripts = [
   'test:operator-auth',
   'test:providers',
   'test:platform-connectors',
+  'test:test-accounts',
   'test:transfer-compliance',
   'smoke:core:isolated'
 ];
