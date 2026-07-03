@@ -31,7 +31,7 @@ export function requiresOperatorAuth(path: string): boolean {
   return (
     cleanPath.startsWith('/v1/admin') ||
     cleanPath === '/v1/metrics' ||
-    cleanPath === '/v1/project/progress' ||
+    cleanPath.startsWith('/v1/project/') ||
     cleanPath.startsWith('/v1/settlement/platform-connectors') ||
     cleanPath === '/v1/settlement/quotes' ||
     cleanPath === '/v1/settlement/instructions' ||

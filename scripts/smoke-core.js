@@ -390,7 +390,8 @@ async function main() {
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
   assert.equal(progress.build.version, '1.1.0', 'progress endpoint reports build version');
-  assert.equal(progress.overallCompletionPct, 91, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 92, 'progress endpoint reports overall completion');
+  assert.equal(progress.launchReadinessPath, '/v1/project/launch-readiness', 'progress endpoint links launch readiness');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
 
@@ -400,10 +401,18 @@ async function main() {
   assert.ok(build.build.buildSha, 'build endpoint reports build SHA or local fallback');
   console.log(`OK build version: ${build.build.version} (${build.build.buildChannel})`);
 
+  const launchReadiness = await request('/v1/project/launch-readiness');
+  assert.equal(launchReadiness.service, 'atomic-payments', 'launch readiness endpoint reports service name');
+  assert.equal(launchReadiness.status, 'blocked', 'launch readiness reports remaining blockers');
+  assert.ok(launchReadiness.blockerCount >= 1, 'launch readiness includes blockers');
+  assert.ok(launchReadiness.finishLine.requiresExternalSignoff.includes('kyt-sanctions-vendor'), 'launch readiness identifies external compliance signoff');
+  console.log(`OK launch readiness: ${launchReadiness.blockerCount} blockers tracked`);
+
   if (OPERATOR_API_KEY) {
     await Promise.all([
       assertStatusWithoutOperatorKey('/v1/metrics', 401),
       assertStatusWithoutOperatorKey('/v1/project/progress', 401),
+      assertStatusWithoutOperatorKey('/v1/project/launch-readiness', 401),
       assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401),
       assertStatusWithoutOperatorKey('/v1/settlement/platform-connectors', 401),
       assertStatusWithoutOperatorKey('/v1/settlement/reconciliation', 401),
