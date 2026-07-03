@@ -60,7 +60,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Run live provider contract tests against the exact Rango/THORChain payloads.
 - Connect KYT/sanctions credentials and record provider request IDs.
 - Keep platform connector and transfer compliance contract tests in CI before enabling live transfer credentials.
-- Verify operator audit-log retention/export requirements before live operations.
+- Verify operator audit-log retention/export requirements before live operations; local audit exports include a SHA-256 digest, but production still needs external immutable archive storage.
 - Add log shipping, dashboards, alerting, and rollback runbooks.
 
 ## Cloudflare Domain Check

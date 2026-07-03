@@ -460,9 +460,14 @@ async function main() {
   assert.ok(auditLog.entries.some((entry) => entry.action === 'platform_withdrawal_request' && entry.outcome === 'AUTO_CLEARED'), 'audit log captures cleared platform withdrawal');
   assert.ok(auditLog.entries.some((entry) => entry.action === 'platform_withdrawal_request' && entry.outcome === 'BLOCKED'), 'audit log captures blocked platform withdrawal');
   assert.ok(auditLog.entries.some((entry) => entry.action === 'compliance_review_decision' && entry.subjectId === review.id), 'audit log captures compliance decision');
+  const auditExport = await request('/v1/admin/audit-log/export?limit=25');
+  assert.equal(auditExport.export.schemaVersion, 'operator-audit-export.v1', 'audit export includes schema version');
+  assert.equal(auditExport.export.entryCount, auditExport.export.entries.length, 'audit export entry count matches entries');
+  assert.match(auditExport.export.exportHash, /^[a-f0-9]{64}$/, 'audit export includes sha256 hash');
   console.log(`OK compliance evidence exported: ${evidence.evidence.evidenceHash.slice(0, 12)}`);
   console.log(`OK compliance review approved: ${review.id}`);
   console.log(`OK operator audit log: ${auditLog.entries.length} recent entries`);
+  console.log(`OK operator audit export: ${auditExport.export.exportHash.slice(0, 12)}`);
 
   console.log('Smoke complete');
 }

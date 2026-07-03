@@ -93,6 +93,7 @@ Completion: 69-72%
 - Admin compliance API for listing reviews and recording decisions.
 - Compliance evidence export endpoint returns review context, linked quote context, generated timestamp, and SHA-256 evidence hash.
 - Operator audit log endpoint exposes recent privileged actions for internal review.
+- Operator audit export endpoint returns recent privileged actions with schema version, generated timestamp, entry count, and SHA-256 export hash.
 - Operator review desk at `/admin-compliance`.
 - Compliance review response includes linked swap context.
 - Compliance provider boundary records simulated KYT vendor mode, provider, reference ID, decision, latency, and metadata.
@@ -102,7 +103,7 @@ Production gaps:
 
 - Real KYT/sanctions provider credentials and live request/response mapping.
 - Case management, audit export, user/KYC identity links, Travel Rule vendor flow.
-- Immutable audit export and broader multi-user role management beyond API-key scoped operator access.
+- External immutable archive storage and broader multi-user role management beyond API-key scoped operator access.
 
 ### Console UX And Brand
 

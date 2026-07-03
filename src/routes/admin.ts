@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { decideComplianceReview, getComplianceEvidence, listComplianceReviews } from '../compliance/complianceStore';
-import { listOperatorAuditLogs, recordOperatorAudit } from '../security/operatorAudit';
+import { getOperatorAuditExport, listOperatorAuditLogs, recordOperatorAudit } from '../security/operatorAudit';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -25,6 +25,11 @@ router.get('/v1/admin/compliance/reviews', async (req, res) => {
 router.get('/v1/admin/audit-log', async (req, res) => {
   const limit = req.query.limit ? Number(req.query.limit) : 100;
   return res.json({ entries: await listOperatorAuditLogs(limit) });
+});
+
+router.get('/v1/admin/audit-log/export', async (req, res) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 100;
+  return res.json({ export: await getOperatorAuditExport(limit) });
 });
 
 router.get('/v1/admin/compliance/reviews/:id/evidence', async (req, res) => {

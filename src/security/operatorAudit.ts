@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import { OperatorRole } from './operatorRules';
 
 const prisma = new PrismaClient();
@@ -79,4 +80,23 @@ export async function listOperatorAuditLogs(limit = 100) {
   });
 
   return entries.map(toAuditLogView);
+}
+
+export async function getOperatorAuditExport(limit = 100) {
+  const entries = await listOperatorAuditLogs(limit);
+  const exportPayload = {
+    schemaVersion: 'operator-audit-export.v1',
+    generatedAt: new Date().toISOString(),
+    entryCount: entries.length,
+    entries
+  };
+  const exportHash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify(exportPayload))
+    .digest('hex');
+
+  return {
+    ...exportPayload,
+    exportHash
+  };
 }
