@@ -73,6 +73,10 @@ function readPrismaDatasourceProvider() {
 }
 
 function readPackageScripts() {
+  return readPackageJson().scripts || {};
+}
+
+function readPackageJson() {
   const packagePath = path.join(__dirname, '..', 'package.json');
 
   if (!fs.existsSync(packagePath)) {
@@ -80,7 +84,7 @@ function readPackageScripts() {
   }
 
   try {
-    return JSON.parse(fs.readFileSync(packagePath, 'utf8')).scripts || {};
+    return JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   } catch (_err) {
     return {};
   }
@@ -152,7 +156,11 @@ const publicBaseUrl = env('ATOMIC_PUBLIC_BASE_URL');
 const parsedEvidenceArchiveUrl = parsePublicUrl(evidenceArchiveUrl);
 const parsedPublicUrl = parsePublicUrl(publicBaseUrl);
 const skipPublicUrlCheck = env('ATOMIC_SKIP_PUBLIC_URL_CHECK') === '1';
+const packageJson = readPackageJson();
 const packageScripts = readPackageScripts();
+const packageVersion = packageJson.version || '';
+const buildSha = env('ATOMIC_BUILD_SHA', env('GIT_SHA', env('VERCEL_GIT_COMMIT_SHA')));
+const buildTimestamp = env('ATOMIC_BUILD_TIMESTAMP');
 
 addCheck(
   'DATABASE_URL',
@@ -235,6 +243,27 @@ addCheck(
   Number.isInteger(Number(env('PORT', '3005'))) ? 'pass' : 'fail',
   `PORT is ${env('PORT', '3005')}.`,
   'Set PORT to a valid integer.'
+);
+
+addCheck(
+  'PACKAGE_VERSION',
+  /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(packageVersion) ? 'pass' : 'fail',
+  packageVersion ? `Package version is ${packageVersion}.` : 'Package version is missing.',
+  'Set package.json version using semantic versioning before release.'
+);
+
+addCheck(
+  'ATOMIC_BUILD_SHA',
+  buildSha ? 'pass' : strict ? 'fail' : 'warn',
+  buildSha ? `Build SHA is ${buildSha.slice(0, 12)}.` : 'Build SHA is not configured.',
+  'Set ATOMIC_BUILD_SHA from the commit SHA in CI/CD.'
+);
+
+addCheck(
+  'ATOMIC_BUILD_TIMESTAMP',
+  buildTimestamp ? 'pass' : strict ? 'fail' : 'warn',
+  buildTimestamp ? `Build timestamp is ${buildTimestamp}.` : 'Build timestamp is not configured.',
+  'Set ATOMIC_BUILD_TIMESTAMP during CI/CD packaging.'
 );
 
 const requiredContractScripts = [

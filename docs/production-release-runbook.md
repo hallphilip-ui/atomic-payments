@@ -46,6 +46,7 @@ The strict gate must report zero failures before launch.
 - Generate and migrate from `prisma/schema.postgres.prisma` against the managed database target before promotion.
 - Store `DATABASE_URL`, `ATOMIC_WEBHOOK_SECRET`, provider keys, and compliance vendor keys in a deployment secret store.
 - Set `ATOMIC_EVIDENCE_ARCHIVE_URL` to the immutable destination for operator audit and settlement reconciliation exports.
+- Set `ATOMIC_BUILD_SHA`, `ATOMIC_BUILD_TIMESTAMP`, and `ATOMIC_BUILD_CHANNEL` during release packaging.
 - Use `live_with_fallback` only during pre-production verification; use `live` after provider contract tests pass.
 - Connect the compliance provider boundary to a real KYT/sanctions vendor before handling production value.
 - Configure the public domain with HTTPS end to end. Cloudflare `525` means the DNS proxy is active but the origin SSL handshake is failing.

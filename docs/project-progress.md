@@ -4,15 +4,15 @@ Last updated: July 3, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 90%
+Estimated total completion: 91%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation exports, evidence-archive readiness checks, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation exports, evidence-archive readiness checks, build version metadata, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
 
 ## Completed Slices
 
 ### Core App And API
 
-Completion: 85-87%
+Completion: 86-88%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
@@ -28,6 +28,7 @@ Completion: 85-87%
 - Build passes with `npm run build`.
 - Docker image and Compose service for repeatable local app startup.
 - Dedicated `/v1/health` readiness endpoint reports service, database, provider, and compliance mode.
+- `/v1/build`, `/v1/health`, and `/v1/project/progress` expose build version metadata for release tracking.
 - Structured request logging emits request ID, method, redacted path, status, duration, user agent, and remote address.
 - `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
 - Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, operator API key posture, evidence archive posture, provider modes, and port settings.
@@ -134,7 +135,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 84-87%
+Completion: 85-88%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -162,6 +163,7 @@ Completion: 84-87%
 - Smoke coverage verifies `/v1/health`; Docker healthcheck uses the dedicated readiness endpoint.
 - Smoke coverage verifies request ID propagation through the health endpoint.
 - Smoke coverage verifies `/v1/metrics` request and route tracking.
+- Smoke coverage verifies build version metadata on health, progress, and build endpoints.
 - Deploy readiness check reports whether required local contract test scripts are present.
 - Smoke coverage verifies read-only operator access can inspect connector state and preview withdrawals but cannot create withdrawals.
 

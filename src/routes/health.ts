@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { getProviderModeLabel } from '../cryptoCore/providerAdapters';
+import { getBuildInfo } from '../project/buildInfo';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -19,6 +20,7 @@ router.get('/v1/health', async (_req, res) => {
     return res.json({
       status: 'ok',
       service: 'atomic-payments',
+      build: getBuildInfo(),
       requestId: res.locals.requestId,
       database: 'ready',
       providerMode: getProviderModeLabel(),
@@ -30,6 +32,7 @@ router.get('/v1/health', async (_req, res) => {
     return res.status(503).json({
       status: 'degraded',
       service: 'atomic-payments',
+      build: getBuildInfo(),
       requestId: res.locals.requestId,
       database: 'unavailable',
       providerMode: getProviderModeLabel(),

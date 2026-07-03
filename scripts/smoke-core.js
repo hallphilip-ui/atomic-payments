@@ -139,6 +139,7 @@ async function main() {
   assert.equal(health.status, 'ok', 'health endpoint reports ok');
   assert.equal(health.database, 'ready', 'health endpoint reports database readiness');
   assert.equal(health.service, 'atomic-payments', 'health endpoint reports service name');
+  assert.equal(health.build.version, '1.1.0', 'health endpoint reports build version');
   assert.ok(String(health.requestId || '').startsWith('smoke-'), 'health endpoint echoes request id');
   console.log(`OK health: ${health.database}, ${health.providerMode} provider mode`);
 
@@ -388,9 +389,16 @@ async function main() {
 
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
-  assert.equal(progress.overallCompletionPct, 90, 'progress endpoint reports overall completion');
+  assert.equal(progress.build.version, '1.1.0', 'progress endpoint reports build version');
+  assert.equal(progress.overallCompletionPct, 91, 'progress endpoint reports overall completion');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
+
+  const build = await request('/v1/build');
+  assert.equal(build.build.service, 'atomic-payments', 'build endpoint reports service name');
+  assert.equal(build.build.version, '1.1.0', 'build endpoint reports package version');
+  assert.ok(build.build.buildSha, 'build endpoint reports build SHA or local fallback');
+  console.log(`OK build version: ${build.build.version} (${build.build.buildChannel})`);
 
   if (OPERATOR_API_KEY) {
     await Promise.all([

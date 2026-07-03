@@ -51,6 +51,8 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - When `ATOMIC_PUBLIC_BASE_URL` is set, the checker probes public HTTPS reachability unless `ATOMIC_SKIP_PUBLIC_URL_CHECK=1` is set.
 - `ATOMIC_PRISMA_SCHEMA_PATH` can point the gate at `prisma/schema.postgres.prisma` for production database readiness checks.
 - `ATOMIC_EVIDENCE_ARCHIVE_URL` should point at the immutable archive destination for operator audit exports and settlement reconciliation exports.
+- Package versions must use semantic versioning.
+- Production mode requires `ATOMIC_BUILD_SHA` and `ATOMIC_BUILD_TIMESTAMP` so `/v1/build`, `/v1/health`, and `/v1/project/progress` can identify the release.
 
 ## Production Follow-Up
 
