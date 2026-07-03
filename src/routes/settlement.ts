@@ -88,14 +88,18 @@ router.get('/v1/settlement/platform-connectors/:connectorId/deposits/:transferId
   }));
 });
 
-router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', (req, res) => {
-  const withdrawalRequest = {
+function buildWithdrawalRequest(req: any) {
+  return {
     asset: String(req.body.asset ?? 'USDC'),
     amount: String(req.body.amount ?? '0.00'),
     destinationAddress: String(req.body.destinationAddress ?? ''),
     network: req.body.network ? String(req.body.network) : undefined,
     memo: req.body.memo ? String(req.body.memo) : undefined
   };
+}
+
+function assessWithdrawalRequest(req: any) {
+  const withdrawalRequest = buildWithdrawalRequest(req);
   const compliance = assessTransferCompliance({
     connectorId: String(req.params.connectorId),
     asset: withdrawalRequest.asset,
@@ -103,6 +107,24 @@ router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', (req,
     destinationAddress: withdrawalRequest.destinationAddress,
     network: withdrawalRequest.network
   });
+
+  return { withdrawalRequest, compliance };
+}
+
+router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals/preview', (req, res) => {
+  const { withdrawalRequest, compliance } = assessWithdrawalRequest(req);
+  return res.json({
+    preview: {
+      connectorId: String(req.params.connectorId),
+      request: withdrawalRequest,
+      releaseDecision: compliance.status === 'AUTO_CLEARED' ? 'ready' : 'hold'
+    },
+    compliance
+  });
+});
+
+router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', (req, res) => {
+  const { withdrawalRequest, compliance } = assessWithdrawalRequest(req);
 
   if (compliance.status !== 'AUTO_CLEARED') {
     return res.status(compliance.status === 'BLOCKED' ? 403 : 409).json({

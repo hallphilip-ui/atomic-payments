@@ -49,6 +49,7 @@ Completion: 52-57%
 - `/v1/settlement/platform-connectors` exposes transfer-only connector candidates with trading disabled.
 - Simulated platform transfer adapter factory defines the safe future-live connector boundary without order/trade methods.
 - Outgoing platform withdrawal simulation now passes through a compliance release gate before transfer creation.
+- Admin funding connector panel previews clean and blocked withdrawal release-gate decisions without creating transfers.
 - Operator-protected simulated connector endpoints cover account status, balances, deposit instructions/status, withdrawal request/status, and transfer events.
 - `npm run test:platform-connectors` enforces transfer-only connector scope and rejects trading capability drift.
 

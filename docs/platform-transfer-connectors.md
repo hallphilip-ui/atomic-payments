@@ -52,11 +52,12 @@ The simulated adapter is exposed through operator-protected settlement routes:
 - `GET /v1/settlement/platform-connectors/:connectorId/balances`
 - `GET /v1/settlement/platform-connectors/:connectorId/deposit-instructions`
 - `GET /v1/settlement/platform-connectors/:connectorId/deposits/:transferId`
+- `POST /v1/settlement/platform-connectors/:connectorId/withdrawals/preview`
 - `POST /v1/settlement/platform-connectors/:connectorId/withdrawals`
 - `GET /v1/settlement/platform-connectors/:connectorId/withdrawals/:transferId`
 - `GET /v1/settlement/platform-connectors/:connectorId/events`
 
-Outgoing withdrawal requests pass through the simulation compliance release gate before the adapter creates a transfer. Low-risk destinations return the simulated withdrawal plus the compliance assessment. Manual-review or blocked outcomes return a non-success response with the compliance flags, so unsafe destinations cannot move into connector execution.
+Outgoing withdrawal requests pass through the simulation compliance release gate before the adapter creates a transfer. Low-risk destinations return the simulated withdrawal plus the compliance assessment. Manual-review or blocked outcomes return a non-success response with the compliance flags, so unsafe destinations cannot move into connector execution. Operators can also call the withdrawal preview route to inspect the release decision without creating a simulated transfer.
 
 ## Before Live Connection
 

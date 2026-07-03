@@ -734,6 +734,7 @@
       connectorAccount: null,
       connectorBalances: [],
       connectorDeposit: null,
+      connectorReleaseGate: null,
       loading: false,
       lastUpdatedAt: null
     };
@@ -837,6 +838,7 @@
       const account = state.connectorAccount;
       const balances = state.connectorBalances || [];
       const deposit = state.connectorDeposit;
+      const releaseGate = state.connectorReleaseGate;
       el('connectorStatus').textContent = account ? account.status : 'Loading';
 
       detail.innerHTML = `
@@ -863,6 +865,15 @@
           <span>USDC deposit instructions</span>
           <strong>${deposit ? `${deposit.network} / ${deposit.address || deposit.instructions}` : 'Not available for this connector'}</strong>
         </div>
+        <div>
+          <label>Withdrawal release gate preview</label>
+          <div class="flags">
+            ${releaseGate ? `
+              <span class="badge ${releaseGate.cleared.compliance.status === 'AUTO_CLEARED' ? 'good' : 'warn'}">Clean sample: ${releaseGate.cleared.compliance.status}</span>
+              <span class="badge ${releaseGate.blocked.compliance.status === 'BLOCKED' ? 'bad' : 'warn'}">Blocked sample: ${releaseGate.blocked.compliance.status}</span>
+            ` : '<span class="badge">Loading</span>'}
+          </div>
+        </div>
       `;
     }
 
@@ -871,24 +882,51 @@
       state.connectorAccount = null;
       state.connectorBalances = [];
       state.connectorDeposit = null;
+      state.connectorReleaseGate = null;
       renderConnectorList();
       renderConnectorDetail();
 
       try {
-        const [accountResponse, balancesResponse, depositResponse] = await Promise.all([
+        const [accountResponse, balancesResponse, depositResponse, clearedPreviewResponse, blockedPreviewResponse] = await Promise.all([
           fetch(`/v1/settlement/platform-connectors/${connectorId}/account`),
           fetch(`/v1/settlement/platform-connectors/${connectorId}/balances`),
-          fetch(`/v1/settlement/platform-connectors/${connectorId}/deposit-instructions?asset=USDC&network=base`)
+          fetch(`/v1/settlement/platform-connectors/${connectorId}/deposit-instructions?asset=USDC&network=base`),
+          fetch(`/v1/settlement/platform-connectors/${connectorId}/withdrawals/preview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              asset: 'USDC',
+              amount: '10.00',
+              destinationAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+              network: 'base'
+            })
+          }),
+          fetch(`/v1/settlement/platform-connectors/${connectorId}/withdrawals/preview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              asset: 'USDC',
+              amount: '10.00',
+              destinationAddress: '0xsanction00000000000000000000000000000000',
+              network: 'base'
+            })
+          })
         ]);
 
         const accountPayload = await accountResponse.json();
         const balancesPayload = await balancesResponse.json();
         const depositPayload = await depositResponse.json();
+        const clearedPreviewPayload = await clearedPreviewResponse.json();
+        const blockedPreviewPayload = await blockedPreviewResponse.json();
 
         if (!accountResponse.ok) throw new Error(accountPayload.error || 'Unable to load connector account');
         state.connectorAccount = accountPayload.account;
         state.connectorBalances = balancesResponse.ok ? balancesPayload.balances || [] : [];
         state.connectorDeposit = depositResponse.ok ? depositPayload.instructions : null;
+        state.connectorReleaseGate = clearedPreviewResponse.ok && blockedPreviewResponse.ok ? {
+          cleared: clearedPreviewPayload,
+          blocked: blockedPreviewPayload
+        } : null;
       } catch (error) {
         state.connectorAccount = { status: error.message, transferOnly: true, tradingEnabled: false };
       }

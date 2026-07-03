@@ -160,6 +160,30 @@ async function main() {
   assert.equal(depositInstructions.instructions.asset, 'USDC', 'connector deposit instructions normalize asset');
   assert.equal(depositInstructions.instructions.network, 'base', 'connector deposit instructions preserve requested network');
 
+  const withdrawalPreview = await request('/v1/settlement/platform-connectors/coinbase-advanced/withdrawals/preview', {
+    method: 'POST',
+    body: JSON.stringify({
+      asset: 'USDC',
+      amount: '10.00',
+      destinationAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+      network: 'base'
+    })
+  });
+  assert.equal(withdrawalPreview.preview.releaseDecision, 'ready', 'clean connector withdrawal preview is release-ready');
+  assert.equal(withdrawalPreview.compliance.status, 'AUTO_CLEARED', 'clean connector withdrawal preview auto-clears');
+
+  const blockedWithdrawalPreview = await request('/v1/settlement/platform-connectors/coinbase-advanced/withdrawals/preview', {
+    method: 'POST',
+    body: JSON.stringify({
+      asset: 'USDC',
+      amount: '10.00',
+      destinationAddress: '0xsanction00000000000000000000000000000000',
+      network: 'base'
+    })
+  });
+  assert.equal(blockedWithdrawalPreview.preview.releaseDecision, 'hold', 'blocked connector withdrawal preview is held');
+  assert.equal(blockedWithdrawalPreview.compliance.status, 'BLOCKED', 'blocked connector withdrawal preview returns blocked compliance');
+
   const withdrawal = await request('/v1/settlement/platform-connectors/coinbase-advanced/withdrawals', {
     method: 'POST',
     body: JSON.stringify({
@@ -193,6 +217,8 @@ async function main() {
     assertContains('/admin-compliance', 'Funding Connectors'),
     assertContains('/admin-compliance', 'transferCapabilities'),
     assertContains('/admin-compliance', 'depositPayload.instructions'),
+    assertContains('/admin-compliance', 'Withdrawal release gate preview'),
+    assertContains('/admin-compliance', 'withdrawals/preview'),
     assertStatus('/project-plan', 404),
     assertContains('/assets/widget.js', 'new URL'),
     assertContains('/assets/widget.js', 'data-intent-id'),
