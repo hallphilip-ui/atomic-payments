@@ -158,12 +158,12 @@ export function assessTransferCompliance(input: {
 
   const amount = Number(input.amount);
   if (Number.isFinite(amount) && amount >= 10000) {
-    riskScore += 25;
+    riskScore += 35;
     flags.push('large_transfer_threshold');
   }
 
   if (['tron', 'trx'].includes(network.trim().toLowerCase())) {
-    riskScore += 15;
+    riskScore += 30;
     flags.push('enhanced_review_network');
   }
 

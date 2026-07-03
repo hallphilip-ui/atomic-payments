@@ -92,6 +92,7 @@ Completion: 57-60%
 - Operator review desk at `/admin-compliance`.
 - Compliance review response includes linked swap context.
 - Compliance provider boundary records simulated KYT vendor mode, provider, reference ID, decision, latency, and metadata.
+- Transfer compliance contract test covers clean, invalid, sanctioned, high-value, and enhanced-network withdrawal release outcomes.
 
 Production gaps:
 
