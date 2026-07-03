@@ -276,3 +276,66 @@ export async function getTreasuryPositions() {
     };
   });
 }
+
+export async function getSettlementReconciliationReport() {
+  const instructions = await prisma.settlementInstruction.findMany({
+    include: {
+      ledgerEntries: true
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100
+  });
+  const breaks = [];
+  let balancedInstructionCount = 0;
+
+  for (const instruction of instructions) {
+    const gates = parseList(instruction.releaseGates);
+    const ledgerCount = instruction.ledgerEntries.length;
+    const hasSourceReserve = instruction.ledgerEntries.some((entry) => entry.account === 'client_source_reserve' && entry.direction === 'DEBIT');
+    const hasTargetObligation = instruction.ledgerEntries.some((entry) => entry.account === 'treasury_target_obligation' && entry.direction === 'CREDIT');
+    const expectedSource = instruction.sourceAmount;
+    const expectedTarget = instruction.targetAmount;
+    const sourceReserved = instruction.ledgerEntries
+      .filter((entry) => entry.account === 'client_source_reserve' && entry.currency === instruction.sourceCurrency)
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    const targetObligation = instruction.ledgerEntries
+      .filter((entry) => entry.account === 'treasury_target_obligation' && entry.currency === instruction.targetCurrency)
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    const missingGates = releaseGates.filter((gate) => !gates.includes(gate));
+    const balanced = ledgerCount >= 2 &&
+      hasSourceReserve &&
+      hasTargetObligation &&
+      Math.abs(sourceReserved - expectedSource) < 0.000001 &&
+      Math.abs(targetObligation - expectedTarget) < 0.000001 &&
+      missingGates.length === 0;
+
+    if (balanced) {
+      balancedInstructionCount += 1;
+    } else {
+      breaks.push({
+        instructionId: instruction.id,
+        reserveId: instruction.reserveId,
+        status: instruction.status,
+        ledgerCount,
+        missingGates,
+        sourceDelta: Number((sourceReserved - expectedSource).toFixed(6)),
+        targetDelta: Number((targetObligation - expectedTarget).toFixed(6))
+      });
+    }
+  }
+
+  return {
+    mode: 'simulation',
+    checkedInstructionCount: instructions.length,
+    balancedInstructionCount,
+    breakCount: breaks.length,
+    status: breaks.length === 0 ? 'balanced' : 'breaks_detected',
+    controls: [
+      'instruction_has_source_reserve_debit',
+      'instruction_has_target_obligation_credit',
+      'instruction_release_gates_present',
+      'instruction_amounts_match_ledger'
+    ],
+    breaks
+  };
+}

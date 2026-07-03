@@ -224,6 +224,27 @@ async function main() {
   assert.ok(blockedWithdrawal.compliance.flags.includes('sanctions_watchlist_keyword_match'), 'blocked withdrawal includes sanctions flag');
   console.log('OK connector adapter endpoints: account/balances/deposit/withdrawal compliance simulation');
 
+  const fxQuote = await request('/v1/settlement/quotes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sourceCurrency: 'USD',
+      targetCurrency: 'EUR',
+      notional: 1000,
+      side: 'sell'
+    })
+  });
+  assert.equal(fxQuote.quote.status, 'QUOTED', 'settlement quote starts quoted');
+
+  const acceptedFxQuote = await request(`/v1/settlement/quotes/${fxQuote.quote.id}/accept`, { method: 'POST' });
+  assert.equal(acceptedFxQuote.quote.status, 'ACCEPTED', 'settlement quote accepts');
+  assert.ok(acceptedFxQuote.settlementInstruction.releaseGates.includes('sanctions_screen'), 'settlement instruction includes release gates');
+
+  const reconciliation = await request('/v1/settlement/reconciliation');
+  assert.equal(reconciliation.report.status, 'balanced', 'settlement reconciliation is balanced');
+  assert.equal(reconciliation.report.breakCount, 0, 'settlement reconciliation has no breaks');
+  assert.ok(reconciliation.report.checkedInstructionCount >= 1, 'settlement reconciliation checks instructions');
+  console.log(`OK settlement reconciliation: ${reconciliation.report.checkedInstructionCount} instructions checked`);
+
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
     assertContains('/checkout', 'data-theme-option'),
@@ -371,7 +392,8 @@ async function main() {
       assertStatusWithoutOperatorKey('/v1/metrics', 401),
       assertStatusWithoutOperatorKey('/v1/project/progress', 401),
       assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401),
-      assertStatusWithoutOperatorKey('/v1/settlement/platform-connectors', 401)
+      assertStatusWithoutOperatorKey('/v1/settlement/platform-connectors', 401),
+      assertStatusWithoutOperatorKey('/v1/settlement/reconciliation', 401)
     ]);
     console.log('OK operator protected routes reject missing operator key');
 

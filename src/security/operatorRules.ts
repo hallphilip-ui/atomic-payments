@@ -35,6 +35,7 @@ export function requiresOperatorAuth(path: string): boolean {
     cleanPath.startsWith('/v1/settlement/platform-connectors') ||
     cleanPath === '/v1/settlement/quotes' ||
     cleanPath === '/v1/settlement/instructions' ||
+    cleanPath === '/v1/settlement/reconciliation' ||
     cleanPath.startsWith('/v1/settlement/treasury')
   );
 }

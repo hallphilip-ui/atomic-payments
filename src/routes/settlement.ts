@@ -7,6 +7,7 @@ import { listPlatformTransferConnectors } from '../settlement/platformTransferCo
 import {
   acceptStoredQuote,
   createStoredQuote,
+  getSettlementReconciliationReport,
   getTreasuryLedger,
   getTreasuryPositions,
   listSettlementInstructions,
@@ -228,6 +229,10 @@ router.get('/v1/settlement/treasury', async (_req, res) => {
 
 router.get('/v1/settlement/treasury/ledger', async (_req, res) => {
   return res.json({ entries: await getTreasuryLedger() });
+});
+
+router.get('/v1/settlement/reconciliation', async (_req, res) => {
+  return res.json({ report: await getSettlementReconciliationReport() });
 });
 
 export default router;

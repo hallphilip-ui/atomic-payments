@@ -46,6 +46,7 @@ Completion: 61-65%
 - Top-20 launch basket for liquid fiat and stablecoin rails.
 - FX quote engine with spreads, route fees, TTLs, and risk checks.
 - Settlement instruction creation and treasury ledger entries.
+- Operator-protected settlement reconciliation report checks release gates and ledger/instruction amount matching.
 - Treasury position summaries and settlement API endpoints.
 - Platform transfer connector registry covers 15 broker/exchange/infrastructure APIs for deposits, withdrawals, account status, and balances only.
 - `/v1/settlement/platform-connectors` exposes transfer-only connector candidates with trading disabled.
@@ -60,7 +61,7 @@ Production gaps:
 - Real bank/PSP rails.
 - Liquidity provider connectivity.
 - Official platform API verification and transfer-only credential onboarding.
-- Treasury controls, reconciliation, limits, and approvals.
+- Treasury limits, approvals, and live provider reconciliation ingestion.
 - Production settlement accounting.
 
 ### DeFi Atomic Swap Core

@@ -48,6 +48,6 @@ Live pricing should replace the static reference table with a provider-aggregate
 - Manual treasury override for quotes above currency limits.
 - Reconciliation state machine for pending, reserved, released, settled, failed, and reversed states.
 
-## Next Build Slice
+## Current Reconciliation Slice
 
-Persist RFQs and settlement instructions in the database, then connect accepted quotes to a double-entry treasury ledger. That will turn the current in-memory simulation into an auditable workflow that can later support live providers.
+Accepted RFQs now create settlement instructions and double-entry treasury ledger records in the database. The operator-protected reconciliation report checks recent settlement instructions for source reserve debits, target obligation credits, required release gates, and ledger amount matches. This remains simulation-safe, but it establishes the control surface needed before live provider reconciliation.
