@@ -785,13 +785,13 @@
     }
 
     function summarizeCapabilities(connector) {
-      const capabilities = connector.capabilities || [];
+      const capabilities = connector.transferCapabilities || [];
       const deposits = capabilities.includes('deposit_address') || capabilities.includes('bank_transfer_in');
       const withdrawals = capabilities.includes('withdrawal_request') || capabilities.includes('bank_transfer_out');
       return [
         deposits ? 'Deposits' : null,
         withdrawals ? 'Withdrawals' : null,
-        connector.regions?.[0]
+        connector.region?.[0]
       ].filter(Boolean).join(' / ');
     }
 
@@ -815,7 +815,7 @@
             <span class="badge">${connector.liveMode}</span>
             <span class="badge">${connector.onboardingStatus}</span>
           </div>
-          <div class="row-meta">${summarizeCapabilities(connector) || connector.apiStyle}</div>
+          <div class="row-meta">${summarizeCapabilities(connector) || connector.apiSurface.join(', ')}</div>
         </button>
       `).join('');
 
@@ -844,8 +844,8 @@
           ${connector.name} is configured for deposits and transfers only. Exchange trading is disabled.
         </div>
         <div class="detail-grid">
-          <div class="metric"><span>Region</span><strong>${connector.regions.join(', ')}</strong></div>
-          <div class="metric"><span>API</span><strong>${connector.apiStyle}</strong></div>
+          <div class="metric"><span>Region</span><strong>${connector.region.join(', ')}</strong></div>
+          <div class="metric"><span>API</span><strong>${connector.apiSurface.join(', ')}</strong></div>
           <div class="metric"><span>Live mode</span><strong>${connector.liveMode}</strong></div>
           <div class="metric"><span>Onboarding</span><strong>${connector.onboardingStatus}</strong></div>
           <div class="metric"><span>Transfer only</span><strong>${account ? String(account.transferOnly) : 'Loading'}</strong></div>
@@ -853,7 +853,7 @@
         </div>
         <div>
           <label>Supported capabilities</label>
-          <div class="flags">${connector.capabilities.map((capability) => `<span class="badge info">${capability}</span>`).join('')}</div>
+          <div class="flags">${connector.transferCapabilities.map((capability) => `<span class="badge info">${capability}</span>`).join('')}</div>
         </div>
         <div>
           <label>Simulated balances</label>
@@ -888,7 +888,7 @@
         if (!accountResponse.ok) throw new Error(accountPayload.error || 'Unable to load connector account');
         state.connectorAccount = accountPayload.account;
         state.connectorBalances = balancesResponse.ok ? balancesPayload.balances || [] : [];
-        state.connectorDeposit = depositResponse.ok ? depositPayload.depositInstructions : null;
+        state.connectorDeposit = depositResponse.ok ? depositPayload.instructions : null;
       } catch (error) {
         state.connectorAccount = { status: error.message, transferOnly: true, tradingEnabled: false };
       }

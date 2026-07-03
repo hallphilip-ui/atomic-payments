@@ -178,6 +178,8 @@ async function main() {
     assertContains('/checkout', 'data-theme-option'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
     assertContains('/admin-compliance', 'Funding Connectors'),
+    assertContains('/admin-compliance', 'transferCapabilities'),
+    assertContains('/admin-compliance', 'depositPayload.instructions'),
     assertStatus('/project-plan', 404),
     assertContains('/assets/widget.js', 'new URL'),
     assertContains('/assets/widget.js', 'data-intent-id'),
