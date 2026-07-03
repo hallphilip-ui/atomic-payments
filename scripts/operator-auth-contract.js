@@ -37,6 +37,7 @@ function main() {
   assert.equal(requiresOperatorAuth('/v1/metrics?token=abc'), true);
   assert.equal(requiresOperatorAuth('/v1/project/progress'), true);
   assert.equal(requiresOperatorAuth('/v1/settlement/treasury/ledger'), true);
+  assert.equal(requiresOperatorAuth('/v1/settlement/reconciliation/export'), true);
   assert.equal(requiresOperatorAuth('/v1/settlement/currencies'), false);
   assert.equal(requiresOperatorAuth('/v1/swaps/assets'), false);
   assert.equal(requiresOperatorWriteAccess('/v1/admin/compliance/reviews/abc/decision', 'POST'), true);

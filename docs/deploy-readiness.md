@@ -61,6 +61,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Connect KYT/sanctions credentials and record provider request IDs.
 - Keep platform connector and transfer compliance contract tests in CI before enabling live transfer credentials.
 - Verify operator audit-log retention/export requirements before live operations; local audit exports include a SHA-256 digest, but production still needs external immutable archive storage.
+- Wire settlement reconciliation exports into the production archive and compare them against live provider transfer events.
 - Add log shipping, dashboards, alerting, and rollback runbooks.
 
 ## Cloudflare Domain Check

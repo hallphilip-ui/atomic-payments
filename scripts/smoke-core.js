@@ -243,7 +243,12 @@ async function main() {
   assert.equal(reconciliation.report.status, 'balanced', 'settlement reconciliation is balanced');
   assert.equal(reconciliation.report.breakCount, 0, 'settlement reconciliation has no breaks');
   assert.ok(reconciliation.report.checkedInstructionCount >= 1, 'settlement reconciliation checks instructions');
+  const reconciliationExport = await request('/v1/settlement/reconciliation/export');
+  assert.equal(reconciliationExport.export.schemaVersion, 'settlement-reconciliation-export.v1', 'settlement reconciliation export includes schema version');
+  assert.equal(reconciliationExport.export.report.status, 'balanced', 'settlement reconciliation export carries report');
+  assert.match(reconciliationExport.export.exportHash, /^[a-f0-9]{64}$/, 'settlement reconciliation export includes sha256 hash');
   console.log(`OK settlement reconciliation: ${reconciliation.report.checkedInstructionCount} instructions checked`);
+  console.log(`OK settlement reconciliation export: ${reconciliationExport.export.exportHash.slice(0, 12)}`);
 
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
@@ -383,7 +388,7 @@ async function main() {
 
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
-  assert.equal(progress.overallCompletionPct, 88, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 89, 'progress endpoint reports overall completion');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
 
@@ -393,7 +398,8 @@ async function main() {
       assertStatusWithoutOperatorKey('/v1/project/progress', 401),
       assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401),
       assertStatusWithoutOperatorKey('/v1/settlement/platform-connectors', 401),
-      assertStatusWithoutOperatorKey('/v1/settlement/reconciliation', 401)
+      assertStatusWithoutOperatorKey('/v1/settlement/reconciliation', 401),
+      assertStatusWithoutOperatorKey('/v1/settlement/reconciliation/export', 401)
     ]);
     console.log('OK operator protected routes reject missing operator key');
 

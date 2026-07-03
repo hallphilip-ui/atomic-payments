@@ -50,4 +50,4 @@ Live pricing should replace the static reference table with a provider-aggregate
 
 ## Current Reconciliation Slice
 
-Accepted RFQs now create settlement instructions and double-entry treasury ledger records in the database. The operator-protected reconciliation report checks recent settlement instructions for source reserve debits, target obligation credits, required release gates, and ledger amount matches. This remains simulation-safe, but it establishes the control surface needed before live provider reconciliation.
+Accepted RFQs now create settlement instructions and double-entry treasury ledger records in the database. The operator-protected reconciliation report checks recent settlement instructions for source reserve debits, target obligation credits, required release gates, and ledger amount matches. The reconciliation export endpoint wraps that report with a schema version, generated timestamp, and SHA-256 digest for audit evidence. This remains simulation-safe, but it establishes the control surface needed before live provider reconciliation.

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import { SettlementRoute, listEnabledCurrencies } from './currencyBasket';
 import { FxQuote, buildQuote } from './quoteEngine';
 
@@ -337,5 +338,23 @@ export async function getSettlementReconciliationReport() {
       'instruction_amounts_match_ledger'
     ],
     breaks
+  };
+}
+
+export async function getSettlementReconciliationExport() {
+  const report = await getSettlementReconciliationReport();
+  const exportPayload = {
+    schemaVersion: 'settlement-reconciliation-export.v1',
+    generatedAt: new Date().toISOString(),
+    report
+  };
+  const exportHash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify(exportPayload))
+    .digest('hex');
+
+  return {
+    ...exportPayload,
+    exportHash
   };
 }

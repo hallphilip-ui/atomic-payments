@@ -4,9 +4,9 @@ Last updated: July 3, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 87-89%
+Estimated total completion: 89%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation exports, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
 
 ## Completed Slices
 
@@ -41,12 +41,13 @@ Completion: 84-86%
 
 ### Off-Exchange Settlement And Market Making
 
-Completion: 67-71%
+Completion: 68-72%
 
 - Top-20 launch basket for liquid fiat and stablecoin rails.
 - FX quote engine with spreads, route fees, TTLs, and risk checks.
 - Settlement instruction creation and treasury ledger entries.
 - Operator-protected settlement reconciliation report checks release gates and ledger/instruction amount matching.
+- Operator-protected settlement reconciliation export returns schema version, generated timestamp, balanced/break report, and SHA-256 export hash.
 - Treasury position summaries and settlement API endpoints.
 - Platform transfer connector registry covers 15 broker/exchange/infrastructure APIs for deposits, withdrawals, account status, and balances only.
 - `/v1/settlement/platform-connectors` exposes transfer-only connector candidates with trading disabled.
@@ -86,7 +87,7 @@ Production gaps:
 
 ### AML And Compliance
 
-Completion: 69-72%
+Completion: 70-73%
 
 - Compliance scoring engine for wallet format, watchlist keywords, enhanced chain review, amount thresholds, and price-impact risk.
 - Auto-clear, manual-review, blocked, approved, and rejected states.
