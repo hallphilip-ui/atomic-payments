@@ -36,6 +36,7 @@ Completion: 82-84%
 - Production release runbook documents the hosted-release preflight gates and blockers.
 - Observability contract test verifies sensitive query parameters are redacted before logging or metrics aggregation.
 - Operator API key middleware protects admin, metrics, internal project progress, settlement quote list, settlement instruction, and treasury routes when `ATOMIC_OPERATOR_API_KEY` is configured.
+- Optional read-only operator key allows inspection and withdrawal previews while write actions require the full operator key.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -98,7 +99,7 @@ Production gaps:
 
 - Real KYT/sanctions provider credentials and live request/response mapping.
 - Case management, audit export, user/KYC identity links, Travel Rule vendor flow.
-- Role-based access control and immutable audit logs.
+- Immutable audit logs and broader multi-user role management beyond API-key scoped operator access.
 
 ### Console UX And Brand
 
@@ -157,6 +158,7 @@ Completion: 79-82%
 - Smoke coverage verifies request ID propagation through the health endpoint.
 - Smoke coverage verifies `/v1/metrics` request and route tracking.
 - Deploy readiness check reports whether required local contract test scripts are present.
+- Smoke coverage verifies read-only operator access can inspect connector state and preview withdrawals but cannot create withdrawals.
 
 Production gaps:
 

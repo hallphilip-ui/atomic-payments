@@ -42,6 +42,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Production mode fails if the Prisma datasource provider is still `sqlite`.
 - `ATOMIC_WEBHOOK_SECRET` must be set to a non-placeholder secret before production.
 - `ATOMIC_OPERATOR_API_KEY` must be set to a non-placeholder secret before production.
+- `ATOMIC_OPERATOR_READONLY_API_KEY` must be set to a separate non-placeholder secret before production for inspection-only workflows.
 - Production mode fails if swap provider mode is still `simulation`.
 - Production mode fails if compliance provider mode is still `simulation`.
 - `PORT` must be a valid integer.
@@ -55,6 +56,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Move persistence to a managed database.
 - Use `prisma/schema.postgres.prisma` with the managed Postgres `DATABASE_URL`, then promote it to the primary schema once migrations and hosted smoke tests are complete.
 - Store all secrets, including operator/admin keys used for internal metrics and progress endpoints, in the deployment secret store.
+- Use the read-only operator key for dashboards and previews; reserve the full operator key for decisions, withdrawals, settlement accepts, and other write actions.
 - Run live provider contract tests against the exact Rango/THORChain payloads.
 - Connect KYT/sanctions credentials and record provider request IDs.
 - Keep platform connector and transfer compliance contract tests in CI before enabling live transfer credentials.

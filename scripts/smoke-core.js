@@ -4,6 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const BASE_URL = process.env.ATOMIC_BASE_URL || 'http://127.0.0.1:3005';
 const KEEP_SMOKE_DATA = process.env.ATOMIC_SMOKE_KEEP_DATA === '1';
 const OPERATOR_API_KEY = process.env.ATOMIC_OPERATOR_API_KEY || '';
+const OPERATOR_READONLY_API_KEY = process.env.ATOMIC_OPERATOR_READONLY_API_KEY || '';
 const prisma = new PrismaClient();
 const createdQuoteIds = new Set();
 const createdIntentIds = new Set();
@@ -56,6 +57,19 @@ async function assertStatusWithoutOperatorKey(path, expectedStatus) {
     }
   });
   assert.equal(response.status, expectedStatus, `${path} should return ${expectedStatus} without operator key`);
+}
+
+async function assertStatusWithReadOnlyOperatorKey(path, expectedStatus, options = {}) {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-atomic-request-id': `smoke-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      'x-atomic-operator-key': OPERATOR_READONLY_API_KEY,
+      ...(options.headers || {})
+    }
+  });
+  assert.equal(response.status, expectedStatus, `${options.method || 'GET'} ${path} should return ${expectedStatus} with read-only operator key`);
 }
 
 async function assertJsonStatus(path, expectedStatus, options = {}) {
@@ -360,6 +374,29 @@ async function main() {
       assertStatusWithoutOperatorKey('/v1/settlement/platform-connectors', 401)
     ]);
     console.log('OK operator protected routes reject missing operator key');
+
+    if (OPERATOR_READONLY_API_KEY) {
+      await assertStatusWithReadOnlyOperatorKey('/v1/settlement/platform-connectors', 200);
+      await assertStatusWithReadOnlyOperatorKey('/v1/settlement/platform-connectors/coinbase-advanced/withdrawals/preview', 200, {
+        method: 'POST',
+        body: JSON.stringify({
+          asset: 'USDC',
+          amount: '10.00',
+          destinationAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+          network: 'base'
+        })
+      });
+      await assertStatusWithReadOnlyOperatorKey('/v1/settlement/platform-connectors/coinbase-advanced/withdrawals', 403, {
+        method: 'POST',
+        body: JSON.stringify({
+          asset: 'USDC',
+          amount: '10.00',
+          destinationAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+          network: 'base'
+        })
+      });
+      console.log('OK read-only operator key can inspect but cannot create withdrawals');
+    }
   }
 
   const reviewQuote = trackQuote(await request('/v1/swaps/quote', {

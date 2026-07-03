@@ -145,6 +145,7 @@ const swapProviderMode = env('ATOMIC_SWAP_PROVIDER_MODE', 'simulation');
 const complianceProviderMode = env('ATOMIC_COMPLIANCE_PROVIDER_MODE', 'simulation');
 const webhookSecret = env('ATOMIC_WEBHOOK_SECRET');
 const operatorApiKey = env('ATOMIC_OPERATOR_API_KEY');
+const operatorReadOnlyApiKey = env('ATOMIC_OPERATOR_READONLY_API_KEY');
 const prismaDatasourceProvider = readPrismaDatasourceProvider();
 const publicBaseUrl = env('ATOMIC_PUBLIC_BASE_URL');
 const parsedPublicUrl = parsePublicUrl(publicBaseUrl);
@@ -191,6 +192,15 @@ addCheck(
     ? 'Operator API key is missing or looks like a placeholder.'
     : 'Operator API key is configured.',
   'Set a high-entropy ATOMIC_OPERATOR_API_KEY before exposing admin, metrics, internal progress, or treasury routes.'
+);
+
+addCheck(
+  'ATOMIC_OPERATOR_READONLY_API_KEY',
+  isPlaceholderSecret(operatorReadOnlyApiKey) ? (strict ? 'fail' : 'warn') : 'pass',
+  isPlaceholderSecret(operatorReadOnlyApiKey)
+    ? 'Read-only operator API key is missing or looks like a placeholder.'
+    : 'Read-only operator API key is configured.',
+  'Set a separate high-entropy ATOMIC_OPERATOR_READONLY_API_KEY for dashboards and inspection-only workflows.'
 );
 
 addCheck(
