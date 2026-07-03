@@ -4,9 +4,9 @@ Last updated: July 3, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 92%
+Estimated total completion: 93%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, operator audit logs, settlement reconciliation exports, evidence-archive readiness checks, build version metadata, launch-readiness blocker tracking, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, wallet broadcast adapters, operator audit logs, settlement reconciliation exports, evidence-archive readiness checks, build version metadata, launch-readiness blocker tracking, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, live wallet/RPC proof, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
 
 ## Completed Slices
 
@@ -69,7 +69,7 @@ Production gaps:
 
 ### DeFi Atomic Swap Core
 
-Completion: 66-69%
+Completion: 69-72%
 
 - Target top-25 crypto asset registry.
 - Quote path with platform fee guardrails.
@@ -79,12 +79,14 @@ Completion: 66-69%
 - Swap lifecycle states, authorization, advance flow, event log, and SSE stream.
 - Browser wallet boundary for EVM and Solana detection, connection, destination fill, and signature capture with simulation fallback.
 - Wallet authorization audit trail records wallet type, wallet address, signature kind, signature hash, signed message hash, chain intent, and timestamp.
+- Wallet broadcast adapter supports simulation, live JSON-RPC, and live-with-fallback modes for EVM and Solana signed transactions.
+- Swap broadcast route records transaction hash/signature proof without storing raw signed transactions.
 
 Production gaps:
 
 - Verify live Rango and THORChain request/response formats against current official docs and sandbox/live responses.
 - Real provider execution, not just quote simulation.
-- Production wallet transaction submission and chain-specific broadcast flows.
+- Live wallet/RPC credentials, chain receipts, and production broadcast smoke proof.
 - Chain-specific gas, slippage, failure, and refund handling.
 
 ### AML And Compliance
@@ -136,7 +138,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 86-89%
+Completion: 87-90%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -166,6 +168,7 @@ Completion: 86-89%
 - Smoke coverage verifies `/v1/metrics` request and route tracking.
 - Smoke coverage verifies build version metadata on health, progress, and build endpoints.
 - Smoke coverage verifies launch-readiness blocker tracking and operator protection.
+- Smoke coverage verifies wallet broadcast state transition, event capture, and raw transaction redaction.
 - Deploy readiness check reports whether required local contract test scripts are present.
 - Smoke coverage verifies read-only operator access can inspect connector state and preview withdrawals but cannot create withdrawals.
 

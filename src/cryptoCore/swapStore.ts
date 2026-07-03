@@ -4,6 +4,7 @@ import { UnifiedSwapQuote, UnifiedSwapQuoteRequest, getEnforcedPlatformQuote } f
 import { getSwapAsset } from './tokens';
 import { screenSwapCompliance } from '../compliance/complianceProvider';
 import { toComplianceReviewView } from '../compliance/complianceStore';
+import { broadcastSignedTransaction } from './walletBroadcastAdapters';
 
 const prisma = new PrismaClient();
 
@@ -365,6 +366,69 @@ export async function authorizeStoredSwapQuote(quoteId: string, authorization: {
   });
 
   return toSwapQuoteView(updatedQuote);
+}
+
+export async function broadcastStoredSwapQuote(quoteId: string, broadcast: {
+  chain: string;
+  signedTransaction: string;
+  walletAddress?: string;
+}) {
+  const quote = await prisma.swapQuote.findUnique({ where: { id: quoteId } });
+  if (!quote) {
+    throw new Error('Swap quote not found.');
+  }
+
+  if (!['AUTHORIZED', 'ROUTING'].includes(quote.status)) {
+    throw new Error(`Swap quote must be AUTHORIZED or ROUTING before broadcast; current status is ${quote.status}.`);
+  }
+
+  const walletAddress = broadcast.walletAddress?.trim() || quote.walletAddress || quote.userAddress;
+  const result = await broadcastSignedTransaction({
+    chain: broadcast.chain,
+    signedTransaction: broadcast.signedTransaction,
+    quoteId: quote.id,
+    walletAddress
+  });
+  const existingMetadata = parseJson<Record<string, unknown>>(quote.authorizationMetadata, {});
+  const authorizationMetadata = {
+    ...existingMetadata,
+    walletBroadcast: {
+      mode: result.mode,
+      chain: result.chain,
+      txHash: result.txHash,
+      provider: result.provider,
+      diagnostics: result.diagnostics,
+      broadcastedAt: result.broadcastedAt,
+      rawSignedTransactionStored: false
+    }
+  };
+
+  const updatedQuote = await prisma.$transaction(async (tx) => {
+    const updated = await tx.swapQuote.update({
+      where: { id: quote.id },
+      data: {
+        status: 'ROUTING',
+        currentState: 'MULTI_BRIDGE_ROUTING',
+        authorizationMetadata: JSON.stringify(authorizationMetadata)
+      }
+    });
+
+    await tx.swapExecutionEvent.create({
+      data: {
+        quoteId: quote.id,
+        state: 'MULTI_BRIDGE_ROUTING',
+        status: 'ROUTING',
+        message: `Wallet broadcast ${result.mode} submission recorded for ${result.chain} transaction ${result.txHash.slice(0, 18)}.`
+      }
+    });
+
+    return updated;
+  });
+
+  return {
+    quote: toSwapQuoteView(updatedQuote),
+    broadcast: result
+  };
 }
 
 export async function advanceStoredSwapQuote(quoteId: string) {

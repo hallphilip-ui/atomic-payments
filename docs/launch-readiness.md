@@ -14,7 +14,7 @@ When `ATOMIC_OPERATOR_API_KEY` is configured, include `x-atomic-operator-key`.
 
 - Hosted Postgres migration and hosted smoke proof.
 - Live Rango/THORChain provider certification.
-- Production wallet broadcast for EVM and Solana transactions.
+- Live wallet broadcast proof for EVM and Solana transactions.
 - Production KYT/sanctions vendor bridge.
 - Immutable evidence archive writes.
 - Live reconciliation ingestion from provider/platform transfer events.
@@ -22,13 +22,13 @@ When `ATOMIC_OPERATOR_API_KEY` is configured, include `x-atomic-operator-key`.
 
 ## Can Finish Locally
 
-- Production wallet broadcast adapters can be implemented against guarded provider interfaces, then switched on with live credentials.
 - Production observability contracts and runbook links can be added before hosted platform wiring.
 
 ## Requires External Proof
 
 - Hosted database and deployment target.
 - Provider credentials and live/sandbox payloads.
+- EVM and Solana RPC credentials plus live transaction receipts.
 - Compliance vendor credentials and case references.
 - Evidence archive destination.
 - Live transfer provider events.

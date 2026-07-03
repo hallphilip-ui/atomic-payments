@@ -8,9 +8,11 @@ import {
   THOR_AFFILIATE_NAME,
 } from '../cryptoCore/routing';
 import { getProviderModeLabel } from '../cryptoCore/providerAdapters';
+import { getWalletBroadcastModeLabel } from '../cryptoCore/walletBroadcastAdapters';
 import {
   advanceStoredSwapQuote,
   authorizeStoredSwapQuote,
+  broadcastStoredSwapQuote,
   createStoredSwapQuote,
   getStoredSwapQuote,
   listStoredSwapQuotes,
@@ -40,6 +42,7 @@ router.get('/v1/swaps/config', (_req, res) => {
     quoteTtlSeconds: QUOTE_TTL_SECONDS,
     priceImpactLimitPct: PRICE_IMPACT_LIMIT_PCT,
     providerMode: getProviderModeLabel(),
+    walletBroadcastMode: getWalletBroadcastModeLabel(),
     mode: 'provider_adapters_with_simulation_default'
   });
 });
@@ -134,6 +137,22 @@ router.post('/v1/swaps/quotes/:id/advance', async (req, res) => {
   try {
     const quote = await advanceStoredSwapQuote(req.params.id);
     return res.json({ quote });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/v1/swaps/quotes/:id/broadcast', async (req, res) => {
+  try {
+    const result = await broadcastStoredSwapQuote(req.params.id, {
+      chain: String(req.body.chain ?? ''),
+      signedTransaction: String(req.body.signedTransaction ?? ''),
+      walletAddress: req.body.walletAddress ? String(req.body.walletAddress) : undefined
+    });
+    return res.json({
+      ...result,
+      nextStep: 'Broadcast proof recorded; routing tracker can advance provider and treasury states.'
+    });
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
   }

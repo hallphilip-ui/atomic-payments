@@ -373,11 +373,26 @@ async function main() {
   assert.ok(authorized.quote.walletAuthorization.signedMessageHash, 'authorization records signed message hash');
   assert.equal(authorized.quote.walletAuthorization.metadata.rawSignatureStored, false, 'authorization avoids raw signature storage');
 
+  const broadcast = await request(`/v1/swaps/quotes/${quoted.quote.id}/broadcast`, {
+    method: 'POST',
+    body: JSON.stringify({
+      chain: 'EVM',
+      signedTransaction: '0xabcdefabcdefabcdefabcdefabcdefabcdef',
+      walletAddress: quotePayload.userAddress
+    })
+  });
+  assert.equal(broadcast.broadcast.mode, 'simulation', 'wallet broadcast defaults to simulation');
+  assert.equal(broadcast.quote.status, 'ROUTING', 'wallet broadcast moves quote into routing');
+  assert.equal(broadcast.quote.currentState, 'MULTI_BRIDGE_ROUTING', 'wallet broadcast records routing state');
+  assert.equal(broadcast.quote.walletAuthorization.metadata.walletBroadcast.rawSignedTransactionStored, false, 'broadcast avoids raw transaction storage');
+  assert.ok(broadcast.broadcast.txHash.startsWith('0x'), 'wallet broadcast returns transaction hash');
+
   const advanced = await request(`/v1/swaps/quotes/${quoted.quote.id}/advance`, { method: 'POST' });
   assert.ok(['ROUTING', 'COMPLETE'].includes(advanced.quote.status), 'authorized quote advances');
 
   const events = await request(`/v1/swaps/quotes/${quoted.quote.id}/events`);
-  assert.ok(events.events.length >= 3, 'quote event log contains lifecycle entries');
+  assert.ok(events.events.length >= 4, 'quote event log contains lifecycle entries');
+  assert.ok(events.events.some((event) => event.state === 'MULTI_BRIDGE_ROUTING'), 'swap event log captures wallet broadcast');
   console.log(`OK authorize/advance/events: ${events.events.length} events`);
 
   const metrics = await request('/v1/metrics');
@@ -390,7 +405,7 @@ async function main() {
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
   assert.equal(progress.build.version, '1.1.0', 'progress endpoint reports build version');
-  assert.equal(progress.overallCompletionPct, 92, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 93, 'progress endpoint reports overall completion');
   assert.equal(progress.launchReadinessPath, '/v1/project/launch-readiness', 'progress endpoint links launch readiness');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);

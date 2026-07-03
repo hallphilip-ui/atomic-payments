@@ -147,6 +147,9 @@ const strict = deployEnv === 'production';
 const databaseUrl = env('DATABASE_URL');
 const swapProviderMode = env('ATOMIC_SWAP_PROVIDER_MODE', 'simulation');
 const complianceProviderMode = env('ATOMIC_COMPLIANCE_PROVIDER_MODE', 'simulation');
+const walletBroadcastMode = env('ATOMIC_WALLET_BROADCAST_MODE', 'simulation');
+const evmRpcUrl = env('ATOMIC_EVM_RPC_URL');
+const solanaRpcUrl = env('ATOMIC_SOLANA_RPC_URL');
 const webhookSecret = env('ATOMIC_WEBHOOK_SECRET');
 const operatorApiKey = env('ATOMIC_OPERATOR_API_KEY');
 const operatorReadOnlyApiKey = env('ATOMIC_OPERATOR_READONLY_API_KEY');
@@ -239,6 +242,27 @@ addCheck(
 );
 
 addCheck(
+  'ATOMIC_WALLET_BROADCAST_MODE',
+  walletBroadcastMode === 'simulation' ? (strict ? 'fail' : 'warn') : 'pass',
+  `Wallet broadcast mode is ${walletBroadcastMode}.`,
+  'Use live_with_fallback for pre-production broadcast verification and live after chain-specific smoke tests pass.'
+);
+
+addCheck(
+  'ATOMIC_EVM_RPC_URL',
+  evmRpcUrl ? 'pass' : strict ? 'fail' : 'warn',
+  evmRpcUrl ? 'EVM RPC URL is configured.' : 'EVM RPC URL is not configured.',
+  'Set ATOMIC_EVM_RPC_URL before enabling EVM wallet transaction broadcast.'
+);
+
+addCheck(
+  'ATOMIC_SOLANA_RPC_URL',
+  solanaRpcUrl ? 'pass' : strict ? 'fail' : 'warn',
+  solanaRpcUrl ? 'Solana RPC URL is configured.' : 'Solana RPC URL is not configured.',
+  'Set ATOMIC_SOLANA_RPC_URL before enabling Solana wallet transaction broadcast.'
+);
+
+addCheck(
   'PORT',
   Number.isInteger(Number(env('PORT', '3005'))) ? 'pass' : 'fail',
   `PORT is ${env('PORT', '3005')}.`,
@@ -273,6 +297,7 @@ const requiredContractScripts = [
   'test:platform-connectors',
   'test:test-accounts',
   'test:transfer-compliance',
+  'test:wallet-broadcast',
   'smoke:core:isolated'
 ];
 const missingContractScripts = requiredContractScripts.filter((scriptName) => !packageScripts[scriptName]);

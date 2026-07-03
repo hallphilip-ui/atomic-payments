@@ -45,6 +45,8 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - `ATOMIC_OPERATOR_READONLY_API_KEY` must be set to a separate non-placeholder secret before production for inspection-only workflows.
 - Production mode fails if swap provider mode is still `simulation`.
 - Production mode fails if compliance provider mode is still `simulation`.
+- Production mode fails if wallet broadcast mode is still `simulation`.
+- `ATOMIC_EVM_RPC_URL` and `ATOMIC_SOLANA_RPC_URL` must be configured before live wallet broadcast.
 - `PORT` must be a valid integer.
 - Required contract test scripts must be present for observability, operator auth, providers, platform connectors, and transfer compliance.
 - Production mode requires `ATOMIC_PUBLIC_BASE_URL` to be a valid HTTPS URL.

@@ -48,6 +48,7 @@ The strict gate must report zero failures before launch.
 - Set `ATOMIC_EVIDENCE_ARCHIVE_URL` to the immutable destination for operator audit and settlement reconciliation exports.
 - Set `ATOMIC_BUILD_SHA`, `ATOMIC_BUILD_TIMESTAMP`, and `ATOMIC_BUILD_CHANNEL` during release packaging.
 - Use `live_with_fallback` only during pre-production verification; use `live` after provider contract tests pass.
+- Set `ATOMIC_WALLET_BROADCAST_MODE`, `ATOMIC_EVM_RPC_URL`, and `ATOMIC_SOLANA_RPC_URL` before live wallet transaction broadcast.
 - Connect the compliance provider boundary to a real KYT/sanctions vendor before handling production value.
 - Configure the public domain with HTTPS end to end. Cloudflare `525` means the DNS proxy is active but the origin SSL handshake is failing.
 - Keep `/v1/health` wired to the platform health check.
@@ -61,6 +62,7 @@ Do not promote to production if any of these are true:
 - `npm run check:deploy` fails in strict production mode.
 - Prisma is still configured for SQLite.
 - Swap or compliance provider mode is still `simulation`.
+- Wallet broadcast mode is still `simulation` or RPC URLs are missing.
 - Webhook secret is unset, short, or placeholder-like.
 - `ATOMIC_PUBLIC_BASE_URL` is missing, non-HTTPS, or fails public HTTPS reachability.
 - Docker smoke or isolated core smoke fails.

@@ -32,11 +32,11 @@ const launchBlockers: LaunchBlocker[] = [
   {
     id: 'wallet-broadcast',
     area: 'Wallet execution',
-    status: 'blocked',
+    status: 'external_required',
     owner: 'wallets',
     requiredProof: 'Signed EVM and Solana transaction broadcast receipts on supported networks',
-    nextAction: 'Replace simulation fallback with guarded broadcast adapters and chain-specific failure handling.',
-    externalDependency: false
+    nextAction: 'Configure live RPC URLs, run guarded broadcast checks, and capture chain receipts.',
+    externalDependency: true
   },
   {
     id: 'kyt-sanctions-vendor',
@@ -92,7 +92,7 @@ export function getLaunchReadiness() {
     localSoftwareBlockerCount: blockedCount,
     blockers: launchBlockers,
     finishLine: {
-      canFinishLocallyToday: ['wallet-broadcast', 'production-observability'],
+      canFinishLocallyToday: ['production-observability'],
       requiresExternalSignoff: launchBlockers
         .filter((blocker) => blocker.externalDependency)
         .map((blocker) => blocker.id)
