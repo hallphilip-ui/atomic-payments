@@ -171,7 +171,20 @@ async function main() {
   });
   assert.equal(withdrawal.transfer.direction, 'withdrawal', 'connector withdrawal request stays transfer-scoped');
   assert.equal(withdrawal.transfer.status, 'simulated_pending', 'connector withdrawal remains simulated');
-  console.log('OK connector adapter endpoints: account/balances/deposit/withdrawal simulation');
+  assert.equal(withdrawal.compliance.status, 'AUTO_CLEARED', 'valid connector withdrawal auto-clears compliance');
+
+  const blockedWithdrawal = await assertJsonStatus('/v1/settlement/platform-connectors/coinbase-advanced/withdrawals', 403, {
+    method: 'POST',
+    body: JSON.stringify({
+      asset: 'USDC',
+      amount: '10.00',
+      destinationAddress: '0xsanction00000000000000000000000000000000',
+      network: 'base'
+    })
+  });
+  assert.equal(blockedWithdrawal.compliance.status, 'BLOCKED', 'sanction keyword blocks connector withdrawal');
+  assert.ok(blockedWithdrawal.compliance.flags.includes('sanctions_watchlist_keyword_match'), 'blocked withdrawal includes sanctions flag');
+  console.log('OK connector adapter endpoints: account/balances/deposit/withdrawal compliance simulation');
 
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),

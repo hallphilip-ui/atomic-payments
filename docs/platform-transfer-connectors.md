@@ -56,12 +56,14 @@ The simulated adapter is exposed through operator-protected settlement routes:
 - `GET /v1/settlement/platform-connectors/:connectorId/withdrawals/:transferId`
 - `GET /v1/settlement/platform-connectors/:connectorId/events`
 
+Outgoing withdrawal requests pass through the simulation compliance release gate before the adapter creates a transfer. Low-risk destinations return the simulated withdrawal plus the compliance assessment. Manual-review or blocked outcomes return a non-success response with the compliance flags, so unsafe destinations cannot move into connector execution.
+
 ## Before Live Connection
 
 1. Verify official API docs and regional availability.
 2. Confirm that API credentials can be scoped to transfer-only or read/funding permissions.
 3. Confirm withdrawal allowlists and dual-control approvals.
 4. Add sensitive-field filtering for logs and evidence exports.
-5. Add compliance screening before outgoing transfers.
+5. Replace simulated transfer compliance screening with the selected live KYT/sanctions vendor.
 6. Add reconciliation between platform events and Atomic treasury ledger entries.
 7. Add sandbox/paper tests before any production funds are touched.

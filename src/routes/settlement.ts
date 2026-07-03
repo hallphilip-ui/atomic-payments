@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { assessTransferCompliance } from '../compliance/complianceEngine';
 import { findSettlementRoutes, listEnabledCurrencies, launchSettlementRoutes } from '../settlement/currencyBasket';
 import { createSimulatedTransferAdapter } from '../settlement/platformTransferAdapters';
 import { listPlatformTransferConnectors } from '../settlement/platformTransferConnectors';
@@ -88,14 +89,31 @@ router.get('/v1/settlement/platform-connectors/:connectorId/deposits/:transferId
 });
 
 router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', (req, res) => {
+  const withdrawalRequest = {
+    asset: String(req.body.asset ?? 'USDC'),
+    amount: String(req.body.amount ?? '0.00'),
+    destinationAddress: String(req.body.destinationAddress ?? ''),
+    network: req.body.network ? String(req.body.network) : undefined,
+    memo: req.body.memo ? String(req.body.memo) : undefined
+  };
+  const compliance = assessTransferCompliance({
+    connectorId: String(req.params.connectorId),
+    asset: withdrawalRequest.asset,
+    amount: withdrawalRequest.amount,
+    destinationAddress: withdrawalRequest.destinationAddress,
+    network: withdrawalRequest.network
+  });
+
+  if (compliance.status !== 'AUTO_CLEARED') {
+    return res.status(compliance.status === 'BLOCKED' ? 403 : 409).json({
+      error: 'Withdrawal release blocked by compliance gate.',
+      compliance
+    });
+  }
+
   return withTransferAdapter(req, res, async (adapter) => ({
-    transfer: await adapter.requestWithdrawal({
-      asset: String(req.body.asset ?? 'USDC'),
-      amount: String(req.body.amount ?? '0.00'),
-      destinationAddress: String(req.body.destinationAddress ?? ''),
-      network: req.body.network ? String(req.body.network) : undefined,
-      memo: req.body.memo ? String(req.body.memo) : undefined
-    })
+    transfer: await adapter.requestWithdrawal(withdrawalRequest),
+    compliance
   }));
 });
 

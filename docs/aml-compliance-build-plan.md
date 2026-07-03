@@ -22,6 +22,7 @@ The first compliance slice is simulation-safe:
 - Block for critical-risk quotes.
 - Persisted compliance reviews tied to swap quotes.
 - Admin review list and approve/reject decision endpoint.
+- Simulated outgoing transfer release gate blocks connector withdrawals that fail destination or sanctions-keyword screening.
 
 ## Required Before Production
 
@@ -32,7 +33,7 @@ The first compliance slice is simulation-safe:
 - Add jurisdiction and IP/device checks.
 - Add suspicious activity report workflow.
 - Add immutable audit export.
-- Add compliance release gates to off-exchange settlement instructions.
+- Replace simulated off-exchange transfer release gates with a live KYT/sanctions provider.
 - Carry provider mode, provider quote ID, latency, and fallback diagnostics into compliance reviews for live swap investigations.
 
 ## Target Operator Workflow

@@ -111,3 +111,70 @@ export function assessSwapCompliance(input: {
     flags
   };
 }
+
+function getTransferAddressFormatCheck(network: string, address: string): { ok: boolean; check: string } {
+  const normalizedNetwork = network.trim().toLowerCase();
+  const normalizedAddress = address.trim();
+
+  if (['base', 'ethereum', 'eth', 'polygon', 'arbitrum', 'optimism', 'avalanche', 'avax', 'bnb'].includes(normalizedNetwork)) {
+    return { ok: /^0x[a-fA-F0-9]{40}$/.test(normalizedAddress), check: 'evm_transfer_destination_format' };
+  }
+
+  if (['solana', 'sol'].includes(normalizedNetwork)) {
+    return { ok: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(normalizedAddress), check: 'solana_transfer_destination_format' };
+  }
+
+  if (['tron', 'trx'].includes(normalizedNetwork)) {
+    return { ok: /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(normalizedAddress), check: 'tron_transfer_destination_format' };
+  }
+
+  return { ok: normalizedAddress.length >= 8, check: 'generic_transfer_destination_format' };
+}
+
+export function assessTransferCompliance(input: {
+  connectorId: string;
+  asset: string;
+  amount: string;
+  destinationAddress: string;
+  network?: string;
+}): ComplianceAssessment {
+  const checks: string[] = ['sanctions_keyword_screen', 'transfer_destination_format', 'outgoing_transfer_release_gate'];
+  const flags: string[] = [];
+  let riskScore = 5;
+  const network = input.network || 'default';
+  const normalizedAddress = input.destinationAddress.trim().toLowerCase();
+  const format = getTransferAddressFormatCheck(network, input.destinationAddress);
+
+  checks.push(format.check);
+  if (!format.ok) {
+    riskScore += 65;
+    flags.push(`invalid_${format.check}`);
+  }
+
+  if (blockedAddressFragments.some((fragment) => normalizedAddress.includes(fragment))) {
+    riskScore += 95;
+    flags.push('sanctions_watchlist_keyword_match');
+  }
+
+  const amount = Number(input.amount);
+  if (Number.isFinite(amount) && amount >= 10000) {
+    riskScore += 25;
+    flags.push('large_transfer_threshold');
+  }
+
+  if (['tron', 'trx'].includes(network.trim().toLowerCase())) {
+    riskScore += 15;
+    flags.push('enhanced_review_network');
+  }
+
+  riskScore = Math.min(100, riskScore);
+  const riskTier = tierFromScore(riskScore);
+
+  return {
+    status: statusFromTier(riskTier),
+    riskScore,
+    riskTier,
+    checks,
+    flags
+  };
+}
