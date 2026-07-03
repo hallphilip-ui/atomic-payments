@@ -1,6 +1,6 @@
 # Launch Readiness
 
-Current software build completion: `92%`
+Current software build completion: `94%`
 
 The launch-readiness contract is exposed at:
 
@@ -18,11 +18,7 @@ When `ATOMIC_OPERATOR_API_KEY` is configured, include `x-atomic-operator-key`.
 - Production KYT/sanctions vendor bridge.
 - Immutable evidence archive writes.
 - Live reconciliation ingestion from provider/platform transfer events.
-- Production observability with log shipping, dashboards, alerts, and incident runbooks.
-
-## Can Finish Locally
-
-- Production observability contracts and runbook links can be added before hosted platform wiring.
+- Production observability URLs for log shipping, dashboards, alerts, and incident runbooks.
 
 ## Requires External Proof
 
@@ -32,3 +28,4 @@ When `ATOMIC_OPERATOR_API_KEY` is configured, include `x-atomic-operator-key`.
 - Compliance vendor credentials and case references.
 - Evidence archive destination.
 - Live transfer provider events.
+- Production log drain, dashboard, alert policy, and incident runbook URLs.

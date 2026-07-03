@@ -68,11 +68,11 @@ const launchBlockers: LaunchBlocker[] = [
   {
     id: 'production-observability',
     area: 'Operations',
-    status: 'blocked',
+    status: 'external_required',
     owner: 'platform',
     requiredProof: 'Log shipping, metrics dashboards, alert rules, and incident runbook links',
-    nextAction: 'Wire structured logs and metrics to the hosting platform and document alert response.',
-    externalDependency: false
+    nextAction: 'Configure production observability URLs and verify alert response links before launch.',
+    externalDependency: true
   }
 ];
 
@@ -92,7 +92,7 @@ export function getLaunchReadiness() {
     localSoftwareBlockerCount: blockedCount,
     blockers: launchBlockers,
     finishLine: {
-      canFinishLocallyToday: ['production-observability'],
+      canFinishLocallyToday: [],
       requiresExternalSignoff: launchBlockers
         .filter((blocker) => blocker.externalDependency)
         .map((blocker) => blocker.id)

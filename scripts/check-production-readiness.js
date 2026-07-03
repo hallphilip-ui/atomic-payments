@@ -150,6 +150,10 @@ const complianceProviderMode = env('ATOMIC_COMPLIANCE_PROVIDER_MODE', 'simulatio
 const walletBroadcastMode = env('ATOMIC_WALLET_BROADCAST_MODE', 'simulation');
 const evmRpcUrl = env('ATOMIC_EVM_RPC_URL');
 const solanaRpcUrl = env('ATOMIC_SOLANA_RPC_URL');
+const logDrainUrl = env('ATOMIC_LOG_DRAIN_URL');
+const metricsDashboardUrl = env('ATOMIC_METRICS_DASHBOARD_URL');
+const alertPolicyUrl = env('ATOMIC_ALERT_POLICY_URL');
+const incidentRunbookUrl = env('ATOMIC_INCIDENT_RUNBOOK_URL');
 const webhookSecret = env('ATOMIC_WEBHOOK_SECRET');
 const operatorApiKey = env('ATOMIC_OPERATOR_API_KEY');
 const operatorReadOnlyApiKey = env('ATOMIC_OPERATOR_READONLY_API_KEY');
@@ -260,6 +264,34 @@ addCheck(
   solanaRpcUrl ? 'pass' : strict ? 'fail' : 'warn',
   solanaRpcUrl ? 'Solana RPC URL is configured.' : 'Solana RPC URL is not configured.',
   'Set ATOMIC_SOLANA_RPC_URL before enabling Solana wallet transaction broadcast.'
+);
+
+addCheck(
+  'ATOMIC_LOG_DRAIN_URL',
+  logDrainUrl ? 'pass' : strict ? 'fail' : 'warn',
+  logDrainUrl ? 'Log drain URL is configured.' : 'Log drain URL is not configured.',
+  'Set ATOMIC_LOG_DRAIN_URL to the production structured log destination.'
+);
+
+addCheck(
+  'ATOMIC_METRICS_DASHBOARD_URL',
+  metricsDashboardUrl ? 'pass' : strict ? 'fail' : 'warn',
+  metricsDashboardUrl ? 'Metrics dashboard URL is configured.' : 'Metrics dashboard URL is not configured.',
+  'Set ATOMIC_METRICS_DASHBOARD_URL to the production service dashboard.'
+);
+
+addCheck(
+  'ATOMIC_ALERT_POLICY_URL',
+  alertPolicyUrl ? 'pass' : strict ? 'fail' : 'warn',
+  alertPolicyUrl ? 'Alert policy URL is configured.' : 'Alert policy URL is not configured.',
+  'Set ATOMIC_ALERT_POLICY_URL to the production alert policy.'
+);
+
+addCheck(
+  'ATOMIC_INCIDENT_RUNBOOK_URL',
+  incidentRunbookUrl ? 'pass' : strict ? 'fail' : 'warn',
+  incidentRunbookUrl ? 'Incident runbook URL is configured.' : 'Incident runbook URL is not configured.',
+  'Set ATOMIC_INCIDENT_RUNBOOK_URL to the production incident runbook.'
 );
 
 addCheck(

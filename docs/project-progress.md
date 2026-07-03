@@ -4,15 +4,15 @@ Last updated: July 3, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 93%
+Estimated total completion: 94%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, wallet broadcast adapters, operator audit logs, settlement reconciliation exports, evidence-archive readiness checks, build version metadata, launch-readiness blocker tracking, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, live wallet/RPC proof, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, wallet broadcast adapters, production observability readiness contracts, operator audit logs, settlement reconciliation exports, evidence-archive readiness checks, build version metadata, launch-readiness blocker tracking, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, live wallet/RPC proof, production-grade AML/KYT vendors, hosted database migration, live reconciliation ingestion, and external operations wiring.
 
 ## Completed Slices
 
 ### Core App And API
 
-Completion: 87-89%
+Completion: 88-90%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
@@ -32,6 +32,7 @@ Completion: 87-89%
 - `/v1/project/launch-readiness` exposes remaining production blockers, owners, proof requirements, and external dependencies.
 - Structured request logging emits request ID, method, redacted path, status, duration, user agent, and remote address.
 - `/v1/metrics` exposes in-memory request counts, error counts, average/max latency, and per-route summaries.
+- `/v1/observability/readiness` exposes production log drain, dashboard, alert policy, and incident runbook readiness.
 - Deploy readiness check validates database config, Prisma datasource provider, webhook secret posture, operator API key posture, evidence archive posture, provider modes, and port settings.
 - Postgres Prisma schema variant and `npm run check:prisma` validate the managed database path without forcing local development off SQLite.
 - Public-domain readiness checks validate HTTPS reachability for Cloudflare-served URLs.
@@ -138,7 +139,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 87-90%
+Completion: 88-91%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
@@ -169,6 +170,7 @@ Completion: 87-90%
 - Smoke coverage verifies build version metadata on health, progress, and build endpoints.
 - Smoke coverage verifies launch-readiness blocker tracking and operator protection.
 - Smoke coverage verifies wallet broadcast state transition, event capture, and raw transaction redaction.
+- Smoke coverage verifies production observability readiness metadata and operator protection.
 - Deploy readiness check reports whether required local contract test scripts are present.
 - Smoke coverage verifies read-only operator access can inspect connector state and preview withdrawals but cannot create withdrawals.
 
@@ -292,7 +294,7 @@ Extend the Docker path into production deploy configuration, environment secrets
 - Docker is now repeatable locally, but production deploy still needs managed persistence, secrets, image publishing, and rollback controls.
 - Deploy readiness checks now block SQLite schema posture in strict production mode, but production still needs managed secrets, image publishing, and hosted database migration workflows.
 - Operator auth now gates sensitive API and internal progress routes when configured, but production still needs full identity, roles, session management, and immutable audit logs.
-- Health/readiness, structured request logs, and local request metrics exist, but production observability still needs traces, log shipping, dashboards, and alerting.
+- Health/readiness, structured request logs, local request metrics, and observability readiness contracts exist, but production still needs external log, dashboard, alert, and runbook URLs configured.
 
 ## Near-Term Completion Target
 

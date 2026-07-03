@@ -47,6 +47,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Production mode fails if compliance provider mode is still `simulation`.
 - Production mode fails if wallet broadcast mode is still `simulation`.
 - `ATOMIC_EVM_RPC_URL` and `ATOMIC_SOLANA_RPC_URL` must be configured before live wallet broadcast.
+- Production mode requires `ATOMIC_LOG_DRAIN_URL`, `ATOMIC_METRICS_DASHBOARD_URL`, `ATOMIC_ALERT_POLICY_URL`, and `ATOMIC_INCIDENT_RUNBOOK_URL`.
 - `PORT` must be a valid integer.
 - Required contract test scripts must be present for observability, operator auth, providers, platform connectors, and transfer compliance.
 - Production mode requires `ATOMIC_PUBLIC_BASE_URL` to be a valid HTTPS URL.

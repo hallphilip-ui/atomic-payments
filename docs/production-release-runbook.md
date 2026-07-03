@@ -52,7 +52,8 @@ The strict gate must report zero failures before launch.
 - Connect the compliance provider boundary to a real KYT/sanctions vendor before handling production value.
 - Configure the public domain with HTTPS end to end. Cloudflare `525` means the DNS proxy is active but the origin SSL handshake is failing.
 - Keep `/v1/health` wired to the platform health check.
-- Ship structured request logs to the platform log store.
+- Set `ATOMIC_LOG_DRAIN_URL`, `ATOMIC_METRICS_DASHBOARD_URL`, `ATOMIC_ALERT_POLICY_URL`, and `ATOMIC_INCIDENT_RUNBOOK_URL`.
+- Verify `/v1/observability/readiness` reports all production observability links configured.
 - Add release rollback instructions for the hosting target.
 
 ## Release Decision
@@ -63,6 +64,7 @@ Do not promote to production if any of these are true:
 - Prisma is still configured for SQLite.
 - Swap or compliance provider mode is still `simulation`.
 - Wallet broadcast mode is still `simulation` or RPC URLs are missing.
+- Production observability URLs are missing.
 - Webhook secret is unset, short, or placeholder-like.
 - `ATOMIC_PUBLIC_BASE_URL` is missing, non-HTTPS, or fails public HTTPS reachability.
 - Docker smoke or isolated core smoke fails.

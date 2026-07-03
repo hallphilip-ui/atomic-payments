@@ -402,10 +402,17 @@ async function main() {
   assert.ok(metrics.routes.some((route) => route.route.includes('/authorize')), 'metrics endpoint tracks authorization route');
   console.log(`OK metrics: ${metrics.requestCount} requests tracked`);
 
+  const observabilityReadiness = await request('/v1/observability/readiness');
+  assert.equal(observabilityReadiness.service, 'atomic-payments', 'observability readiness reports service name');
+  assert.equal(observabilityReadiness.status, 'blocked', 'local observability readiness reports missing production links');
+  assert.ok(observabilityReadiness.requiredSignals.includes('route_latency_p95'), 'observability readiness includes latency signal');
+  assert.ok(observabilityReadiness.alertTriggers.includes('wallet_broadcast_failure'), 'observability readiness includes wallet broadcast alert');
+  console.log(`OK observability readiness: ${observabilityReadiness.missingCount} links pending`);
+
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
   assert.equal(progress.build.version, '1.1.0', 'progress endpoint reports build version');
-  assert.equal(progress.overallCompletionPct, 93, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 94, 'progress endpoint reports overall completion');
   assert.equal(progress.launchReadinessPath, '/v1/project/launch-readiness', 'progress endpoint links launch readiness');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
@@ -426,6 +433,7 @@ async function main() {
   if (OPERATOR_API_KEY) {
     await Promise.all([
       assertStatusWithoutOperatorKey('/v1/metrics', 401),
+      assertStatusWithoutOperatorKey('/v1/observability/readiness', 401),
       assertStatusWithoutOperatorKey('/v1/project/progress', 401),
       assertStatusWithoutOperatorKey('/v1/project/launch-readiness', 401),
       assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401),

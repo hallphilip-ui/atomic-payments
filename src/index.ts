@@ -12,6 +12,7 @@ import healthRoutes from './routes/health';
 import metricsRoutes from './routes/metrics';
 import projectRoutes from './routes/project';
 import buildRoutes from './routes/build';
+import observabilityRoutes from './routes/observability';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
 
@@ -42,6 +43,7 @@ app.use(healthRoutes);
 app.use(metricsRoutes);
 app.use(projectRoutes);
 app.use(buildRoutes);
+app.use(observabilityRoutes);
 
 app.use('/defi-swap', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'defi-swap.html'), 'utf8');
