@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { decideComplianceReview, getComplianceEvidence, listComplianceReviews } from '../compliance/complianceStore';
+import { listOperatorAuditLogs, recordOperatorAudit } from '../security/operatorAudit';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -21,6 +22,11 @@ router.get('/v1/admin/compliance/reviews', async (req, res) => {
   return res.json({ reviews: await listComplianceReviews(status) });
 });
 
+router.get('/v1/admin/audit-log', async (req, res) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 100;
+  return res.json({ entries: await listOperatorAuditLogs(limit) });
+});
+
 router.get('/v1/admin/compliance/reviews/:id/evidence', async (req, res) => {
   const evidence = await getComplianceEvidence(req.params.id);
 
@@ -38,6 +44,20 @@ router.post('/v1/admin/compliance/reviews/:id/decision', async (req, res) => {
       decision: req.body.decision,
       reviewedBy: req.body.reviewedBy,
       notes: req.body.notes
+    });
+    await recordOperatorAudit({
+      action: 'compliance_review_decision',
+      subjectType: 'compliance_review',
+      subjectId: review.id,
+      operatorRole: res.locals.operatorRole,
+      requestId: res.locals.requestId,
+      method: req.method || 'POST',
+      path: req.originalUrl || `/v1/admin/compliance/reviews/${req.params.id}/decision`,
+      outcome: review.status,
+      metadata: {
+        decision: String(req.body.decision || ''),
+        reviewedBy: String(req.body.reviewedBy || '')
+      }
     });
 
     return res.json({ review });

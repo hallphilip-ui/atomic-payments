@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { assessTransferCompliance } from '../compliance/complianceEngine';
+import { recordOperatorAudit } from '../security/operatorAudit';
 import { findSettlementRoutes, listEnabledCurrencies, launchSettlementRoutes } from '../settlement/currencyBasket';
 import { createSimulatedTransferAdapter } from '../settlement/platformTransferAdapters';
 import { listPlatformTransferConnectors } from '../settlement/platformTransferConnectors';
@@ -123,20 +124,54 @@ router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals/preview
   });
 });
 
-router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', (req, res) => {
+router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', async (req, res) => {
   const { withdrawalRequest, compliance } = assessWithdrawalRequest(req);
 
   if (compliance.status !== 'AUTO_CLEARED') {
+    await recordOperatorAudit({
+      action: 'platform_withdrawal_request',
+      subjectType: 'platform_connector',
+      subjectId: String(req.params.connectorId),
+      operatorRole: res.locals.operatorRole,
+      requestId: res.locals.requestId,
+      method: req.method || 'POST',
+      path: req.originalUrl || `/v1/settlement/platform-connectors/${req.params.connectorId}/withdrawals`,
+      outcome: compliance.status,
+      metadata: {
+        asset: withdrawalRequest.asset,
+        amount: withdrawalRequest.amount,
+        network: withdrawalRequest.network || '',
+        releaseDecision: 'hold'
+      }
+    });
     return res.status(compliance.status === 'BLOCKED' ? 403 : 409).json({
       error: 'Withdrawal release blocked by compliance gate.',
       compliance
     });
   }
 
-  return withTransferAdapter(req, res, async (adapter) => ({
-    transfer: await adapter.requestWithdrawal(withdrawalRequest),
-    compliance
-  }));
+  return withTransferAdapter(req, res, async (adapter) => {
+    const transfer = await adapter.requestWithdrawal(withdrawalRequest);
+    await recordOperatorAudit({
+      action: 'platform_withdrawal_request',
+      subjectType: 'platform_connector',
+      subjectId: String(req.params.connectorId),
+      operatorRole: res.locals.operatorRole,
+      requestId: res.locals.requestId,
+      method: req.method || 'POST',
+      path: req.originalUrl || `/v1/settlement/platform-connectors/${req.params.connectorId}/withdrawals`,
+      outcome: compliance.status,
+      metadata: {
+        asset: withdrawalRequest.asset,
+        amount: withdrawalRequest.amount,
+        network: withdrawalRequest.network || '',
+        transferId: transfer.transferId,
+        releaseDecision: 'ready'
+      }
+    });
+
+    return { transfer, compliance };
+  });
 });
 
 router.get('/v1/settlement/platform-connectors/:connectorId/withdrawals/:transferId', (req, res) => {

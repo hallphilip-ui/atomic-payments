@@ -218,3 +218,21 @@ model ComplianceReview {
   @@index([subjectType, subjectId])
   @@index([swapQuoteId])
 }
+
+model OperatorAuditLog {
+  id           String   @id @default(uuid())
+  action       String
+  subjectType  String
+  subjectId    String?
+  operatorRole String
+  requestId    String?
+  method       String
+  path         String
+  outcome      String
+  metadata     String   @default("{}")
+  createdAt    DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([subjectType, subjectId])
+  @@index([operatorRole, createdAt])
+}

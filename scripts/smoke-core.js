@@ -434,8 +434,13 @@ async function main() {
   });
   assert.equal(decision.review.status, 'APPROVED', 'admin decision approves review');
   assert.ok(decision.review.swapQuote, 'decision response preserves quote context');
+  const auditLog = await request('/v1/admin/audit-log?limit=25');
+  assert.ok(auditLog.entries.some((entry) => entry.action === 'platform_withdrawal_request' && entry.outcome === 'AUTO_CLEARED'), 'audit log captures cleared platform withdrawal');
+  assert.ok(auditLog.entries.some((entry) => entry.action === 'platform_withdrawal_request' && entry.outcome === 'BLOCKED'), 'audit log captures blocked platform withdrawal');
+  assert.ok(auditLog.entries.some((entry) => entry.action === 'compliance_review_decision' && entry.subjectId === review.id), 'audit log captures compliance decision');
   console.log(`OK compliance evidence exported: ${evidence.evidence.evidenceHash.slice(0, 12)}`);
   console.log(`OK compliance review approved: ${review.id}`);
+  console.log(`OK operator audit log: ${auditLog.entries.length} recent entries`);
 
   console.log('Smoke complete');
 }

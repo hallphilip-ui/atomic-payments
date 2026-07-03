@@ -27,5 +27,6 @@ export function operatorAuth(req: Request, res: Response, next: NextFunction) {
     });
   }
 
+  res.locals.operatorRole = role;
   return next();
 }

@@ -37,6 +37,7 @@ Completion: 82-84%
 - Observability contract test verifies sensitive query parameters are redacted before logging or metrics aggregation.
 - Operator API key middleware protects admin, metrics, internal project progress, settlement quote list, settlement instruction, and treasury routes when `ATOMIC_OPERATOR_API_KEY` is configured.
 - Optional read-only operator key allows inspection and withdrawal previews while write actions require the full operator key.
+- Operator audit log records compliance decisions and platform withdrawal release attempts with role, request ID, outcome, and metadata.
 
 ### Off-Exchange Settlement And Market Making
 
@@ -90,6 +91,7 @@ Completion: 64-68%
 - Auto-clear, manual-review, blocked, approved, and rejected states.
 - Admin compliance API for listing reviews and recording decisions.
 - Compliance evidence export endpoint returns review context, linked quote context, generated timestamp, and SHA-256 evidence hash.
+- Operator audit log endpoint exposes recent privileged actions for internal review.
 - Operator review desk at `/admin-compliance`.
 - Compliance review response includes linked swap context.
 - Compliance provider boundary records simulated KYT vendor mode, provider, reference ID, decision, latency, and metadata.
@@ -99,7 +101,7 @@ Production gaps:
 
 - Real KYT/sanctions provider credentials and live request/response mapping.
 - Case management, audit export, user/KYC identity links, Travel Rule vendor flow.
-- Immutable audit logs and broader multi-user role management beyond API-key scoped operator access.
+- Immutable audit export and broader multi-user role management beyond API-key scoped operator access.
 
 ### Console UX And Brand
 
