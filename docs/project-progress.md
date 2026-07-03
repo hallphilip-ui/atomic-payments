@@ -149,12 +149,14 @@ Completion: 74-77%
 - Smoke-created quotes are cleaned up by default after each run.
 - Smoke-created payment intents and merchants are cleaned up by default after each run.
 - GitHub Actions CI runs install, Prisma database prep, build, local API startup, and core smoke checks on push/PR.
+- GitHub Actions CI runs platform connector and transfer compliance contract tests before smoke.
 - Isolated smoke command creates a temporary SQLite database and API port for clean local/CI runs.
 - Provider adapter contract test runs in CI without network or database dependencies.
 - Docker smoke command builds the container, starts the service, waits for readiness, runs the core smoke, and tears the stack down.
 - Smoke coverage verifies `/v1/health`; Docker healthcheck uses the dedicated readiness endpoint.
 - Smoke coverage verifies request ID propagation through the health endpoint.
 - Smoke coverage verifies `/v1/metrics` request and route tracking.
+- Deploy readiness check reports whether required local contract test scripts are present.
 
 Production gaps:
 

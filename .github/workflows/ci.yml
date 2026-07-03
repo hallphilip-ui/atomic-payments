@@ -44,6 +44,12 @@ jobs:
       - name: Run provider adapter contract tests
         run: npm run test:providers
 
+      - name: Run platform connector contract tests
+        run: npm run test:platform-connectors
+
+      - name: Run transfer compliance contract tests
+        run: npm run test:transfer-compliance
+
       - name: Run isolated core smoke test
         run: npm run smoke:core:isolated
 

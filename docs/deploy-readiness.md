@@ -45,6 +45,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Production mode fails if swap provider mode is still `simulation`.
 - Production mode fails if compliance provider mode is still `simulation`.
 - `PORT` must be a valid integer.
+- Required contract test scripts must be present for observability, operator auth, providers, platform connectors, and transfer compliance.
 - Production mode requires `ATOMIC_PUBLIC_BASE_URL` to be a valid HTTPS URL.
 - When `ATOMIC_PUBLIC_BASE_URL` is set, the checker probes public HTTPS reachability unless `ATOMIC_SKIP_PUBLIC_URL_CHECK=1` is set.
 - `ATOMIC_PRISMA_SCHEMA_PATH` can point the gate at `prisma/schema.postgres.prisma` for production database readiness checks.
@@ -56,6 +57,7 @@ ATOMIC_DEPLOY_ENV=production ATOMIC_PRISMA_SCHEMA_PATH=prisma/schema.postgres.pr
 - Store all secrets, including operator/admin keys used for internal metrics and progress endpoints, in the deployment secret store.
 - Run live provider contract tests against the exact Rango/THORChain payloads.
 - Connect KYT/sanctions credentials and record provider request IDs.
+- Keep platform connector and transfer compliance contract tests in CI before enabling live transfer credentials.
 - Add log shipping, dashboards, alerting, and rollback runbooks.
 
 ## Cloudflare Domain Check

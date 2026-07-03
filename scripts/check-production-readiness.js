@@ -72,6 +72,20 @@ function readPrismaDatasourceProvider() {
   return providerMatch ? providerMatch[1] : '';
 }
 
+function readPackageScripts() {
+  const packagePath = path.join(__dirname, '..', 'package.json');
+
+  if (!fs.existsSync(packagePath)) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(packagePath, 'utf8')).scripts || {};
+  } catch (_err) {
+    return {};
+  }
+}
+
 function parsePublicUrl(value) {
   if (!value) return null;
 
@@ -135,6 +149,7 @@ const prismaDatasourceProvider = readPrismaDatasourceProvider();
 const publicBaseUrl = env('ATOMIC_PUBLIC_BASE_URL');
 const parsedPublicUrl = parsePublicUrl(publicBaseUrl);
 const skipPublicUrlCheck = env('ATOMIC_SKIP_PUBLIC_URL_CHECK') === '1';
+const packageScripts = readPackageScripts();
 
 addCheck(
   'DATABASE_URL',
@@ -197,6 +212,24 @@ addCheck(
   Number.isInteger(Number(env('PORT', '3005'))) ? 'pass' : 'fail',
   `PORT is ${env('PORT', '3005')}.`,
   'Set PORT to a valid integer.'
+);
+
+const requiredContractScripts = [
+  'test:observability',
+  'test:operator-auth',
+  'test:providers',
+  'test:platform-connectors',
+  'test:transfer-compliance'
+];
+const missingContractScripts = requiredContractScripts.filter((scriptName) => !packageScripts[scriptName]);
+
+addCheck(
+  'LOCAL_CONTRACT_TESTS',
+  missingContractScripts.length === 0 ? 'pass' : strict ? 'fail' : 'warn',
+  missingContractScripts.length === 0
+    ? `Contract test scripts are present: ${requiredContractScripts.join(', ')}.`
+    : `Missing contract test scripts: ${missingContractScripts.join(', ')}.`,
+  'Keep contract tests wired before production promotion.'
 );
 
 addCheck(
