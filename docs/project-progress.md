@@ -1,18 +1,18 @@
 # Atomic Payments Project Progress
 
-Last updated: July 2, 2026
+Last updated: July 3, 2026
 
 ## Overall Build Completion
 
-Estimated total completion: 81-83%
+Estimated total completion: 84-86%
 
-Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, and core smoke coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, security controls, CI/CD, observability, and operational runbooks.
+Atomic Payments now has a working local foundation for merchant payments, off-exchange settlement, DeFi swap quoting, AML review, brand presentation, internationalized console UI, Cloudflare readiness checks, a Postgres schema path, cross-platform checkout UI, a real local payment-intent checkout contract, tethered-asset checkout rails for USDC, USDT, and PYUSD, transfer-only platform connector boundaries, simulated withdrawal compliance gates, and CI-backed contract coverage. The remaining work is mostly production hardening: real provider verification, real wallet signing, production-grade AML/KYT vendors, hosted database migration, role controls, reconciliation, observability, and operational runbooks.
 
 ## Completed Slices
 
 ### Core App And API
 
-Completion: 80-82%
+Completion: 82-84%
 
 - Express API running on port 3005.
 - Prisma-backed local SQLite data model.
@@ -39,7 +39,7 @@ Completion: 80-82%
 
 ### Off-Exchange Settlement And Market Making
 
-Completion: 52-57%
+Completion: 61-65%
 
 - Top-20 launch basket for liquid fiat and stablecoin rails.
 - FX quote engine with spreads, route fees, TTLs, and risk checks.
@@ -83,7 +83,7 @@ Production gaps:
 
 ### AML And Compliance
 
-Completion: 57-60%
+Completion: 64-68%
 
 - Compliance scoring engine for wallet format, watchlist keywords, enhanced chain review, amount thresholds, and price-impact risk.
 - Auto-clear, manual-review, blocked, approved, and rejected states.
@@ -102,7 +102,7 @@ Production gaps:
 
 ### Console UX And Brand
 
-Completion: 72-75%
+Completion: 75-78%
 
 - DeFi swap console at `/defi-swap`.
 - Checkout gateway at `/checkout` now uses a self-contained responsive Atomic UI with no Tailwind CDN dependency.
@@ -128,7 +128,7 @@ Production gaps:
 
 ### Smoke Coverage
 
-Completion: 74-77%
+Completion: 79-82%
 
 - Core smoke script at `scripts/smoke-core.js`.
 - `npm run smoke:core` checks:
