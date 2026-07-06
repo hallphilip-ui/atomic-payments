@@ -604,6 +604,8 @@
     .wallet-state { font-size: 11px; color: var(--muted); }
     .wallet-state.installed { color: var(--green); }
     .wallet-note { padding: 12px 20px 18px; margin: 0; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+    .wc-btn { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: rgba(14,34,51,0.7); color: var(--ink); font-size: 13px; cursor: pointer; }
+    .wc-btn:hover { border-color: var(--cyan); }
   </style>
 </head>
 <body data-i18n-title="defi.title">
@@ -1385,7 +1387,7 @@
           projectId: WC_PROJECT_ID,
           chains: [1],
           optionalChains: [8453, 42161, 10, 137, 56, 43114],
-          showQrModal: true,
+          showQrModal: false, // we render the QR ourselves, in-drawer
           metadata: {
             name: 'Atomic',
             description: 'Non-custodial cross-chain swaps',
@@ -1394,9 +1396,52 @@
           }
         });
       }
-      const accounts = await wcProvider.enable();
-      if (!accounts || !accounts.length) throw new Error('No account authorized.');
-      return { type: 'evm', address: accounts[0], provider: wcProvider };
+      if (wcProvider.accounts && wcProvider.accounts.length) {
+        return { type: 'evm', address: wcProvider.accounts[0], provider: wcProvider };
+      }
+      const onUri = (uri) => { showWcQr(uri); };
+      wcProvider.on('display_uri', onUri);
+      try {
+        const accounts = await wcProvider.enable();
+        if (!accounts || !accounts.length) throw new Error('No account authorized.');
+        return { type: 'evm', address: accounts[0], provider: wcProvider };
+      } finally {
+        if (wcProvider.removeListener) wcProvider.removeListener('display_uri', onUri);
+        hideWcQr();
+      }
+    }
+
+    async function showWcQr(uri) {
+      const box = el('wcQr');
+      if (!box) return;
+      el('walletList').style.display = 'none';
+      box.style.display = 'block';
+      let img = `<p style="word-break:break-all;font-size:11px;color:var(--muted);max-width:260px;margin:0 auto;">${uri}</p>`;
+      try {
+        const QR = await import('https://esm.sh/qrcode@1');
+        const dataUrl = await (QR.toDataURL || QR.default.toDataURL)(uri, { width: 232, margin: 1, color: { dark: '#04121d', light: '#ffffff' } });
+        img = `<img src="${dataUrl}" alt="WalletConnect QR" style="width:232px;height:232px;border-radius:12px;">`;
+      } catch (_) { /* fall back to the copyable URI above */ }
+      box.innerHTML = `
+        <div style="text-align:center;padding:16px 4px;">
+          <strong style="display:block;margin-bottom:4px;color:#fff;">Scan with your wallet</strong>
+          <p class="subtle" style="margin:0 0 16px;font-size:13px;">Open your wallet app → scan this code to connect</p>
+          ${img}
+          <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+            <a href="${uri}" class="wc-btn">Open in wallet app</a>
+            <button id="wcCopy" class="wc-btn">Copy link</button>
+            <button id="wcBack" class="wc-btn">← Back</button>
+          </div>
+        </div>`;
+      el('wcCopy') && el('wcCopy').addEventListener('click', () => { try { navigator.clipboard.writeText(uri); setActionHint('good', 'WalletConnect link copied.'); } catch (_) {} });
+      el('wcBack') && el('wcBack').addEventListener('click', hideWcQr);
+    }
+
+    function hideWcQr() {
+      const box = el('wcQr');
+      if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+      const list = el('walletList');
+      if (list) list.style.display = '';
     }
 
     function renderWalletList() {
@@ -1530,6 +1575,7 @@
         <button class="wallet-close" data-wallet-close aria-label="Close">&#10005;</button>
       </div>
       <div id="walletList" class="wallet-list"></div>
+      <div id="wcQr" class="wallet-list" style="display:none;"></div>
       <p class="wallet-note"><strong style="color:var(--steel)">Wallet on your phone?</strong> Pick it (or &ldquo;Scan QR code&rdquo;) and scan with the app &mdash; no extension needed.<br><br>Non-custodial &mdash; Atomic never holds your funds. You approve and sign in your own wallet; the swap routes on-chain straight to your destination address.</p>
     </div>
   </div>
