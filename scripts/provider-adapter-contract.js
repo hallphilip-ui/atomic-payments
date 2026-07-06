@@ -89,7 +89,7 @@ async function runContract() {
       assert.equal(parsed.searchParams.get('fromToken'), 'USDC');
       assert.equal(parsed.searchParams.get('toToken'), 'USDC');
       assert.equal(parsed.searchParams.get('integrator'), 'atomic');
-      assert.equal(parsed.searchParams.get('fee'), '0.005');
+      assert.equal(parsed.searchParams.get('fee'), '0.0075', 'integrator fee = our 0.5% margin + LI.FI 0.25%');
       assert.equal(parsed.searchParams.get('apiKey'), null, 'LI.FI api key must never be a query param');
       return { ok: true, json: async () => ({ id: 'lifi_route_1', tool: 'across', estimate: { toAmount: '99734972', toAmountUSD: '99.71', fromAmount: '100000000' } }) };
     };
