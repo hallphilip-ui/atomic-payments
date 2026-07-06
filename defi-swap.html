@@ -1246,40 +1246,11 @@
     const WC_PROJECT_ID = '45403b7d821f8cb31849c731f6cbf6af';
 
     const WALLET_DEFS = [
-      // One-tap connect when the page runs inside a wallet's own browser
-      // (Trust/MetaMask/Coinbase/Kraken in-app browsers inject window.ethereum).
-      // Hidden entirely when nothing is injected.
-      { group: 'Detected in this browser', id: 'injected', name: 'Use this wallet', sub: 'One tap — the wallet built into this app/browser', type: 'evm', color: '#39d98a', hideWhenUndetected: true,
-        detect: () => !!window.ethereum, connect: () => connectInjected(), link: '' },
-      // One-tap QR for ANY mobile wallet (Trust, Kraken, MetaMask mobile…)
-      { group: 'Scan with your phone', id: 'walletconnect', name: 'Scan QR code', sub: 'Works with any mobile wallet', type: 'evm', color: '#3b99fc',
+      // Universal QR (WalletConnect) — 400+ mobile wallets, and the reliable
+      // path in any multi-wallet browser (no window.ethereum injection fight).
+      // Installed EVM extensions are discovered separately via EIP-6963.
+      { group: 'Scan with your phone', id: 'walletconnect', name: 'Scan QR code', sub: 'Works with 400+ mobile wallets', type: 'evm', color: '#3b99fc',
         detect: () => true, connect: () => connectWalletConnect(), link: 'https://walletconnect.network/' },
-      // Ethereum / EVM — qr:true wallets fall back to the WalletConnect QR when
-      // the browser extension isn't installed (mobile-first wallets like Trust).
-      { group: 'Ethereum', id: 'metamask', name: 'MetaMask', type: 'evm', color: '#e2761b', qr: true,
-        detect: () => !!evmProvider('isMetaMask'), connect: () => connectEvm('isMetaMask'),
-        link: 'https://metamask.io/download/' },
-      { group: 'Ethereum', id: 'coinbase', name: 'Coinbase Wallet', type: 'evm', color: '#0052ff', qr: true,
-        detect: () => !!evmProvider('isCoinbaseWallet'), connect: () => connectEvm('isCoinbaseWallet'),
-        link: 'https://www.coinbase.com/wallet/downloads' },
-      { group: 'Ethereum', id: 'rabby', name: 'Rabby', type: 'evm', color: '#5b57e0',
-        detect: () => !!evmProvider('isRabby'), connect: () => connectEvm('isRabby'),
-        link: 'https://rabby.io/' },
-      { group: 'Ethereum', id: 'trust', name: 'Trust Wallet', type: 'evm', color: '#3375bb', qr: true,
-        detect: () => !!(evmProvider('isTrust') || evmProvider('isTrustWallet')),
-        connect: () => connectEvm('isTrust'), link: 'https://trustwallet.com/download' },
-      { group: 'Ethereum', id: 'rainbow', name: 'Rainbow', type: 'evm', color: '#7a4df0', qr: true,
-        detect: () => !!evmProvider('isRainbow'), connect: () => connectEvm('isRainbow'),
-        link: 'https://rainbow.me/' },
-      { group: 'Ethereum', id: 'brave', name: 'Brave Wallet', type: 'evm', color: '#fb542b',
-        detect: () => !!evmProvider('isBraveWallet'), connect: () => connectEvm('isBraveWallet'),
-        link: 'https://brave.com/wallet/' },
-      { group: 'Ethereum', id: 'zerion', name: 'Zerion', type: 'evm', color: '#2461ed', qr: true,
-        detect: () => !!evmProvider('isZerion'), connect: () => connectEvm('isZerion'),
-        link: 'https://zerion.io/' },
-      // Multi-chain
-      { group: 'Multi-chain', id: 'okx', name: 'OKX Wallet', type: 'evm', color: '#1a1a1a', qr: true,
-        detect: () => !!window.okxwallet, connect: connectOkx, link: 'https://www.okx.com/web3' },
       // Solana
       { group: 'Solana', id: 'phantom', name: 'Phantom', type: 'svm', color: '#6f57d9',
         detect: () => !!(window.phantom?.solana?.isPhantom || window.solana?.isPhantom),
@@ -1306,6 +1277,45 @@
         detect: () => !!(window.LeatherProvider || window.btc), connect: connectLeather,
         link: 'https://leather.io/install-extension' }
     ];
+
+    // EIP-6963: wallets announce themselves individually, so multiple installed
+    // EVM wallets (MetaMask + Trust + Phantom…) never clobber each other. This
+    // is the reliable way to list + connect every installed EVM wallet.
+    const eip6963 = new Map(); // rdns -> { info:{uuid,name,icon,rdns}, provider }
+    window.addEventListener('eip6963:announceProvider', (e) => {
+      const d = e && e.detail;
+      if (d && d.info && d.provider) eip6963.set(d.info.rdns, d);
+    });
+    function requestInjectedWallets() { try { window.dispatchEvent(new Event('eip6963:requestProvider')); } catch (_) {} }
+    requestInjectedWallets();
+
+    async function connectDiscovered(rdns, name) {
+      const d = eip6963.get(rdns);
+      const provider = d ? d.provider : window.ethereum;
+      if (!provider || !provider.request) throw new Error(`${name || 'Wallet'} is no longer available.`);
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      if (!accounts || !accounts.length) throw new Error('No account authorized.');
+      return { type: 'evm', address: accounts[0], provider };
+    }
+
+    async function onDiscoveredChosen(rdns, name) {
+      try {
+        showConnecting(name);
+        const result = await withTimeout(
+          connectDiscovered(rdns, name), 45000,
+          `${name} didn’t respond — approve the popup in your wallet, or use “Scan QR code”.`
+        );
+        state.wallet = { type: 'evm', address: result.address, provider: result.provider, wallet: name };
+        closeWalletModal();
+        fillConnectedDestination();
+        updateWalletMode();
+        setActionHint('good', `${name} connected: ${shortAddress(result.address)}`);
+        startWalletSession('evm', result.address, name);
+      } catch (error) {
+        const msg = (error && error.message) || 'Wallet connection failed.';
+        if (!el('walletModal').hidden) showConnectError(msg); else setActionHint('bad', msg);
+      }
+    }
 
     function evmProvider(flag) {
       const eth = window.ethereum;
@@ -1476,24 +1486,45 @@
     }
 
     function renderWalletList() {
+      requestInjectedWallets(); // re-scan in case a wallet loaded late
       let html = '';
       let lastGroup = '';
+
+      // 1) EIP-6963 discovered EVM wallets — the real installed wallets, each
+      //    with its own provider. Conflict-free and guaranteed to connect.
+      const discovered = [...eip6963.values()].sort((a, b) => a.info.name.localeCompare(b.info.name));
+      if (discovered.length) {
+        html += `<div class="wallet-group-label">Detected in this browser</div>`;
+        for (const d of discovered) {
+          const icon = d.info.icon ? `<img src="${d.info.icon}" alt="" style="width:30px;height:30px;border-radius:8px;">` : (d.info.name[0] || '?');
+          html += `<button class="wallet-item" data-eip6963="${d.info.rdns}" data-name="${d.info.name.replace(/"/g, '&quot;')}">
+            <span class="wallet-icon" style="background:#0e2233;padding:0;overflow:hidden;">${icon}</span>
+            <span class="wallet-name">${d.info.name}</span>
+            <span class="wallet-state installed">Ready</span>
+          </button>`;
+        }
+      }
+
+      // 2) Static entries: WalletConnect QR + Solana/BTC/Tron (own injection).
       for (const w of WALLET_DEFS) {
         let installed = false;
         try { installed = w.detect(); } catch (_) {}
-        // In-app-browser entry only shows when a wallet is actually injected.
         if (w.hideWhenUndetected && !installed) continue;
         if (w.group !== lastGroup) { html += `<div class="wallet-group-label">${w.group}</div>`; lastGroup = w.group; }
-        const stateLabelText = w.id === 'walletconnect' ? '' : w.id === 'injected' ? 'Detected' : installed ? 'Installed' : w.qr ? 'Scan QR' : 'Not detected';
+        const stateLabelText = w.id === 'walletconnect' ? '' : installed ? 'Installed' : w.qr ? 'Scan QR' : 'Not detected';
         html += `<button class="wallet-item" data-wallet="${w.id}">
           <span class="wallet-icon" style="background:${w.color}">${w.id === 'walletconnect' ? '▦' : w.name[0]}</span>
           <span class="wallet-name">${w.name}${w.sub ? `<br><small style="color:var(--muted);font-size:11px;">${w.sub}</small>` : ''}</span>
           <span class="wallet-state ${installed ? 'installed' : ''}">${stateLabelText}</span>
         </button>`;
       }
+
       el('walletList').innerHTML = html;
       el('walletList').querySelectorAll('.wallet-item').forEach((btn) => {
-        btn.addEventListener('click', () => onWalletChosen(btn.dataset.wallet));
+        btn.addEventListener('click', () => {
+          if (btn.dataset.eip6963) onDiscoveredChosen(btn.dataset.eip6963, btn.dataset.name);
+          else onWalletChosen(btn.dataset.wallet);
+        });
       });
     }
 
