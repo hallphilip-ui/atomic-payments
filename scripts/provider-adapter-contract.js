@@ -89,7 +89,7 @@ async function runContract() {
       assert.equal(parsed.searchParams.get('fromToken'), 'USDC');
       assert.equal(parsed.searchParams.get('toToken'), 'USDC');
       assert.equal(parsed.searchParams.get('integrator'), 'atomic');
-      assert.equal(parsed.searchParams.get('fee'), '0.0075', 'integrator fee = our 0.5% margin + LI.FI 0.25%');
+      assert.equal(parsed.searchParams.get('fee'), '0.0275', 'integrator fee = our 2.5% margin + LI.FI 0.25%');
       assert.equal(parsed.searchParams.get('apiKey'), null, 'LI.FI api key must never be a query param');
       return { ok: true, json: async () => ({ id: 'lifi_route_1', tool: 'across', estimate: { toAmount: '99734972', toAmountUSD: '99.71', fromAmount: '100000000' } }) };
     };
@@ -97,7 +97,7 @@ async function runContract() {
     assert.equal(calls, 1);
     assert.equal(q.mode, 'live');
     assert.equal(q.estimatedOutputAmount, '99734972', 'LI.FI toAmount used as-is (fee already deducted by LI.FI)');
-    assert.equal(q.platformFeeAmount, '500000', 'platform fee = amount * 50 bps');
+    assert.equal(q.platformFeeAmount, '2500000', 'platform fee = amount * 250 bps');
     assert.equal(q.providerQuoteId, 'lifi_route_1');
     assert.ok(q.diagnostics.some((d) => d.includes('tool:across')), 'diagnostics carry the routing tool');
 
@@ -117,7 +117,7 @@ async function runContract() {
   assert.equal(rangoPayload.endpoint, 'https://api.rango.exchange/basic/quote');
   assert.equal(rangoPayload.from, evmRequest.fromAsset);
   assert.equal(rangoPayload.to, evmRequest.toAsset);
-  assert.equal(rangoPayload.referrerFee, '0.5');
+  assert.equal(rangoPayload.referrerFee, '2.5');
   assert.equal(rangoPayload.referrerAddress, undefined, 'Rango payload must not carry a non-existent referrerAddress param');
   assert.equal(rangoPayload.apiKey, undefined, 'Rango apiKey must never appear in the stored request payload');
 
@@ -126,7 +126,7 @@ async function runContract() {
   assert.equal(thorPayload.from_asset, nativeRequest.fromAsset);
   assert.equal(thorPayload.to_asset, nativeRequest.toAsset);
   assert.equal(thorPayload.destination, nativeRequest.userAddress);
-  assert.equal(thorPayload.affiliate_bps, '50');
+  assert.equal(thorPayload.affiliate_bps, '250');
 
   const quote = await getProviderQuote({
     request: childMode === 'fallback' ? nativeRequest : evmRequest,
@@ -134,8 +134,8 @@ async function runContract() {
     amount: 100000000n
   });
 
-  assert.equal(quote.estimatedOutputAmount, '99500000');
-  assert.equal(quote.platformFeeAmount, '500000');
+  assert.equal(quote.estimatedOutputAmount, '97500000');
+  assert.equal(quote.platformFeeAmount, '2500000');
   assert.ok(quote.providerQuoteId.startsWith(`sim_${childMode === 'fallback' ? 'thorchain' : 'rango'}_`));
   assert.ok(Number.isFinite(quote.priceImpactPct));
   assert.ok(quote.priceImpactPct > 0);

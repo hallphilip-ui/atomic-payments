@@ -145,7 +145,7 @@ async function main() {
 
   assert.ok(Array.isArray(assets.assets), 'assets response includes assets array');
   assert.ok(assets.assets.length >= 20, 'asset registry has at least 20 enabled assets');
-  assert.equal(config.platformSpreadBps, 50, 'platform spread is 50 bps');
+  assert.equal(config.platformSpreadBps, 250, 'platform spread is 250 bps');
   assert.equal(config.priceImpactLimitPct, 1.5, 'price-impact guardrail is 1.5%');
   console.log(`OK assets/config: ${assets.assets.length} assets, ${config.providerMode} provider mode`);
 
@@ -347,7 +347,7 @@ async function main() {
   }));
 
   assert.equal(quoted.quote.status, 'QUOTED', 'valid quote is quoted');
-  assert.equal(quoted.quote.platformFeeBps, 50, 'quote embeds platform fee');
+  assert.equal(quoted.quote.platformFeeBps, 250, 'quote embeds platform fee');
   assert.ok(quoted.quote.providerQuoteId, 'quote includes provider quote id');
   assert.ok(['AUTO_CLEARED', 'APPROVED'].includes(quoted.complianceReview.status), 'valid quote is compliance-cleared');
   assert.equal(quoted.complianceReview.vendorMode, 'simulation', 'compliance review includes vendor mode');
