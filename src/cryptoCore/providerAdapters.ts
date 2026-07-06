@@ -1,4 +1,8 @@
 import {
+  LIFI_API_KEY,
+  LIFI_FEE_DECIMAL,
+  LIFI_INTEGRATOR,
+  LIFI_QUOTE_ENDPOINT,
   PLATFORM_SPREAD_BPS,
   PLATFORM_SPREAD_PERCENT,
   PRICE_IMPACT_LIMIT_PCT,
@@ -9,7 +13,7 @@ import {
   THOR_CLIENT_ID,
   THOR_QUOTE_ENDPOINT
 } from './swapConfig';
-import { getProviderAssetId } from './tokens';
+import { getLifiAsset, getProviderAssetId } from './tokens';
 import { SwapRoutingProvider, UnifiedSwapQuoteRequest } from './routing';
 
 export type ProviderMode = 'simulation' | 'live' | 'fallback';
@@ -55,7 +59,7 @@ function estimatePriceImpactPct(amount: bigint, provider: SwapRoutingProvider): 
 // to the internal ID purely for display in the stored request payload.
 function resolveAssetForPayload(
   assetId: string,
-  provider: SwapRoutingProvider,
+  provider: 'THORCHAIN' | 'RANGO',
   live: boolean
 ): string {
   const providerId = getProviderAssetId(assetId, provider);
@@ -71,8 +75,35 @@ export function buildProviderPayload(
   provider: SwapRoutingProvider,
   live = false
 ): Record<string, string> {
-  const fromId = resolveAssetForPayload(request.fromAsset, provider, live);
-  const toId = resolveAssetForPayload(request.toAsset, provider, live);
+  if (provider === 'LIFI') {
+    // LI.FI needs a chain key + token per side. Uncertified assets fail closed
+    // in live mode. The x-lifi-api-key header is injected at fetch time, not
+    // here, so the key never enters the stored/returned payload.
+    const from = getLifiAsset(request.fromAsset);
+    const to = getLifiAsset(request.toAsset);
+    if (live && (!from || !to)) {
+      throw new Error(`Asset ${!from ? request.fromAsset : request.toAsset} is not certified for live LIFI routing.`);
+    }
+    const f = from ?? { chain: request.fromAsset, token: request.fromAsset };
+    const t = to ?? { chain: request.toAsset, token: request.toAsset };
+    return {
+      endpoint: LIFI_QUOTE_ENDPOINT,
+      fromChain: f.chain,
+      toChain: t.chain,
+      fromToken: f.token,
+      toToken: t.token,
+      fromAmount: request.amount,
+      fromAddress: request.userAddress,
+      toAddress: request.userAddress,
+      integrator: LIFI_INTEGRATOR,
+      fee: LIFI_FEE_DECIMAL
+    };
+  }
+
+  // LIFI returned above, so provider is THORCHAIN | RANGO here.
+  const nonLifi = provider as 'THORCHAIN' | 'RANGO';
+  const fromId = resolveAssetForPayload(request.fromAsset, nonLifi, live);
+  const toId = resolveAssetForPayload(request.toAsset, nonLifi, live);
 
   if (provider === 'THORCHAIN') {
     return {
@@ -164,6 +195,9 @@ async function fetchProviderJson(
   if (provider === 'THORCHAIN' && THOR_CLIENT_ID) {
     headers['x-client-id'] = THOR_CLIENT_ID;
   }
+  if (provider === 'LIFI' && LIFI_API_KEY) {
+    headers['x-lifi-api-key'] = LIFI_API_KEY;
+  }
 
   const response = await fetch(url, {
     headers,
@@ -181,6 +215,28 @@ async function liveQuote(input: SimulationInput): Promise<ProviderQuoteResult> {
   const startedAt = Date.now();
   const payload = buildProviderPayload(input.request, input.provider, true);
   const json = await fetchProviderJson(payload, input.provider);
+
+  if (input.provider === 'LIFI') {
+    // LI.FI returns the estimate under `estimate.toAmount`, already net of the
+    // integrator fee we requested (so we do NOT re-apply the platform fee here).
+    const est = json?.estimate ?? {};
+    const output = pickString(est.toAmount);
+    if (!output) {
+      throw new Error(json?.message ? `LI.FI: ${json.message}` : 'LI.FI response did not include an output amount.');
+    }
+    const feeAmount = (input.amount * BigInt(PLATFORM_SPREAD_BPS) / 10000n).toString();
+    return {
+      mode: 'live',
+      providerQuoteId: pickString(json?.id, json?.tool) ?? `live_lifi_${Date.now()}`,
+      estimatedOutputAmount: output,
+      platformFeeAmount: feeAmount,
+      priceImpactPct: estimatePriceImpactPct(input.amount, input.provider),
+      requestPayload: payload,
+      latencyMs: Date.now() - startedAt,
+      diagnostics: ['live_provider_quote_received', `tool:${pickString(json?.tool) ?? 'lifi'}`]
+    };
+  }
+
   const output = pickString(
     json?.expected_amount_out,
     json?.expectedAmountOut,

@@ -21,3 +21,17 @@ export const THOR_QUOTE_ENDPOINT =
 // Nine Realms and most hosted THORNodes expect an x-client-id header for
 // identification/rate-limiting. Sent as a header, not a query param.
 export const THOR_CLIENT_ID = process.env.ATOMIC_THOR_CLIENT_ID ?? '';
+
+// LI.FI aggregator (cross-chain incl. native BTC, Solana, EVM). Gatekeeper-free:
+// no token/on-chain name required — revenue comes from an integrator fee that
+// LI.FI collects to a fee wallet configured in the LI.FI portal. The API key is
+// sent as an x-lifi-api-key header, injected at request time so it never enters
+// the stored/returned payload.
+export const LIFI_QUOTE_ENDPOINT =
+  process.env.ATOMIC_LIFI_QUOTE_ENDPOINT ?? 'https://li.quest/v1/quote';
+export const LIFI_API_KEY = process.env.ATOMIC_LIFI_API_KEY ?? '';
+// Must match the integrator registered in portal.li.fi (the one with a fee
+// wallet configured), otherwise LI.FI rejects fee collection.
+export const LIFI_INTEGRATOR = process.env.ATOMIC_LIFI_INTEGRATOR ?? 'atomic';
+// Integrator fee as a decimal fraction (0.005 = 0.5%), derived from the spread.
+export const LIFI_FEE_DECIMAL = (PLATFORM_SPREAD_BPS / 10000).toString();

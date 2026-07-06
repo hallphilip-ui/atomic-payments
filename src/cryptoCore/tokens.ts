@@ -72,3 +72,31 @@ export function getProviderAssetId(
   if (!asset) return undefined;
   return provider === 'THORCHAIN' ? asset.thorAsset : asset.rangoAsset;
 }
+
+// LI.FI routing map. Verified against LI.FI /chains on 2026-07-06 (chain = LI.FI
+// chain key; token = symbol, which LI.FI resolves to the canonical asset). Only
+// assets listed here can route live via LI.FI — anything else fails closed. The
+// long-tail L1s (XRP/DOGE/ADA/LTC/DOT/ATOM/NEAR/APT) are intentionally omitted
+// until each is confirmed on LI.FI. Symbols should be hardened to contract
+// addresses before high volume.
+const LIFI_ASSET_MAP: Record<string, { chain: string; token: string }> = {
+  'BITCOIN.BTC': { chain: 'btc', token: 'BTC' },
+  'ETH.ETH': { chain: 'eth', token: 'ETH' },
+  'SOLANA.SOL': { chain: 'sol', token: 'SOL' },
+  'ETH.USDC': { chain: 'eth', token: 'USDC' },
+  'ETH.USDT': { chain: 'eth', token: 'USDT' },
+  'ETH.WBTC': { chain: 'eth', token: 'WBTC' },
+  'ETH.DAI': { chain: 'eth', token: 'DAI' },
+  'ETH.UNI': { chain: 'eth', token: 'UNI' },
+  'CHAINLINK.LINK': { chain: 'eth', token: 'LINK' },
+  'BASE.USDC': { chain: 'bas', token: 'USDC' },
+  'ARBITRUM.ARB': { chain: 'arb', token: 'ARB' },
+  'OPTIMISM.OP': { chain: 'opt', token: 'OP' },
+  'POLYGON.POL': { chain: 'pol', token: 'POL' },
+  'BNB.BNB': { chain: 'bsc', token: 'BNB' },
+  'AVAX.AVAX': { chain: 'ava', token: 'AVAX' }
+};
+
+export function getLifiAsset(assetId: string): { chain: string; token: string } | undefined {
+  return LIFI_ASSET_MAP[assetId.toUpperCase()];
+}

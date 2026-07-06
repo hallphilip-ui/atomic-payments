@@ -26,7 +26,7 @@ export type UnifiedSwapQuoteRequest = {
   userAddress: string;
 };
 
-export type SwapRoutingProvider = 'RANGO' | 'THORCHAIN';
+export type SwapRoutingProvider = 'RANGO' | 'THORCHAIN' | 'LIFI';
 export type SwapQuoteStatus = 'QUOTED' | 'HALTED' | 'BLOCKED' | 'AUTHORIZED' | 'ROUTING' | 'COMPLETE' | 'EXPIRED';
 
 export type UnifiedSwapQuote = {
@@ -74,8 +74,11 @@ function parseAtomicAmount(amount: string): bigint {
   return parsed;
 }
 
-function selectProvider(fromAssetId: string, toAssetId: string): SwapRoutingProvider {
-  return isNativeL1Asset(fromAssetId) || isNativeL1Asset(toAssetId) ? 'THORCHAIN' : 'RANGO';
+function selectProvider(_fromAssetId: string, _toAssetId: string): SwapRoutingProvider {
+  // LI.FI is the unified, gatekeeper-free backend: it covers native BTC, Solana,
+  // EVM and cross-chain in one API with an integrator fee (no token, no on-chain
+  // affiliate name). Assets it doesn't cover fail closed in buildProviderPayload.
+  return 'LIFI';
 }
 
 export async function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest): Promise<UnifiedSwapQuote> {
