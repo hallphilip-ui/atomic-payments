@@ -205,7 +205,16 @@ async function fetchProviderJson(
   });
 
   if (!response.ok) {
-    throw new Error(`Provider returned HTTP ${response.status}`);
+    // Surface the provider's own error message (LI.FI/Rango return a `message`)
+    // so live failures like no-route or fee-config are diagnosable.
+    let detail = '';
+    try {
+      const body: any = await response.json();
+      if (body?.message) detail = `: ${body.message}`;
+    } catch {
+      // non-JSON error body — status alone is the signal
+    }
+    throw new Error(`Provider returned HTTP ${response.status}${detail}`);
   }
 
   return response.json();
