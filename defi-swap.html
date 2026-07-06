@@ -1242,33 +1242,34 @@
     const WC_PROJECT_ID = '45403b7d821f8cb31849c731f6cbf6af';
 
     const WALLET_DEFS = [
-      // Mobile & multi-chain via WalletConnect (Kraken Wallet, Trust, Rainbow…)
-      { group: 'Mobile / WalletConnect', id: 'walletconnect', name: 'WalletConnect', type: 'evm', color: '#3b99fc',
+      // One-tap QR for ANY mobile wallet (Trust, Kraken, MetaMask mobile…)
+      { group: 'Scan with your phone', id: 'walletconnect', name: 'Scan QR code', sub: 'Works with any mobile wallet', type: 'evm', color: '#3b99fc',
         detect: () => true, connect: () => connectWalletConnect(), link: 'https://walletconnect.network/' },
-      // Ethereum / EVM
-      { group: 'Ethereum', id: 'metamask', name: 'MetaMask', type: 'evm', color: '#e2761b',
+      // Ethereum / EVM — qr:true wallets fall back to the WalletConnect QR when
+      // the browser extension isn't installed (mobile-first wallets like Trust).
+      { group: 'Ethereum', id: 'metamask', name: 'MetaMask', type: 'evm', color: '#e2761b', qr: true,
         detect: () => !!evmProvider('isMetaMask'), connect: () => connectEvm('isMetaMask'),
         link: 'https://metamask.io/download/' },
-      { group: 'Ethereum', id: 'coinbase', name: 'Coinbase Wallet', type: 'evm', color: '#0052ff',
+      { group: 'Ethereum', id: 'coinbase', name: 'Coinbase Wallet', type: 'evm', color: '#0052ff', qr: true,
         detect: () => !!evmProvider('isCoinbaseWallet'), connect: () => connectEvm('isCoinbaseWallet'),
         link: 'https://www.coinbase.com/wallet/downloads' },
       { group: 'Ethereum', id: 'rabby', name: 'Rabby', type: 'evm', color: '#5b57e0',
         detect: () => !!evmProvider('isRabby'), connect: () => connectEvm('isRabby'),
         link: 'https://rabby.io/' },
-      { group: 'Ethereum', id: 'trust', name: 'Trust Wallet', type: 'evm', color: '#3375bb',
+      { group: 'Ethereum', id: 'trust', name: 'Trust Wallet', type: 'evm', color: '#3375bb', qr: true,
         detect: () => !!(evmProvider('isTrust') || evmProvider('isTrustWallet')),
         connect: () => connectEvm('isTrust'), link: 'https://trustwallet.com/download' },
-      { group: 'Ethereum', id: 'rainbow', name: 'Rainbow', type: 'evm', color: '#7a4df0',
+      { group: 'Ethereum', id: 'rainbow', name: 'Rainbow', type: 'evm', color: '#7a4df0', qr: true,
         detect: () => !!evmProvider('isRainbow'), connect: () => connectEvm('isRainbow'),
         link: 'https://rainbow.me/' },
       { group: 'Ethereum', id: 'brave', name: 'Brave Wallet', type: 'evm', color: '#fb542b',
         detect: () => !!evmProvider('isBraveWallet'), connect: () => connectEvm('isBraveWallet'),
         link: 'https://brave.com/wallet/' },
-      { group: 'Ethereum', id: 'zerion', name: 'Zerion', type: 'evm', color: '#2461ed',
+      { group: 'Ethereum', id: 'zerion', name: 'Zerion', type: 'evm', color: '#2461ed', qr: true,
         detect: () => !!evmProvider('isZerion'), connect: () => connectEvm('isZerion'),
         link: 'https://zerion.io/' },
       // Multi-chain
-      { group: 'Multi-chain', id: 'okx', name: 'OKX Wallet', type: 'evm', color: '#1a1a1a',
+      { group: 'Multi-chain', id: 'okx', name: 'OKX Wallet', type: 'evm', color: '#1a1a1a', qr: true,
         detect: () => !!window.okxwallet, connect: connectOkx, link: 'https://www.okx.com/web3' },
       // Solana
       { group: 'Solana', id: 'phantom', name: 'Phantom', type: 'svm', color: '#6f57d9',
@@ -1390,10 +1391,11 @@
         if (w.group !== lastGroup) { html += `<div class="wallet-group-label">${w.group}</div>`; lastGroup = w.group; }
         let installed = false;
         try { installed = w.detect(); } catch (_) {}
+        const stateLabelText = w.id === 'walletconnect' ? '' : installed ? 'Installed' : w.qr ? 'Scan QR' : 'Not detected';
         html += `<button class="wallet-item" data-wallet="${w.id}">
-          <span class="wallet-icon" style="background:${w.color}">${w.name[0]}</span>
-          <span class="wallet-name">${w.name}</span>
-          <span class="wallet-state ${installed ? 'installed' : ''}">${installed ? 'Installed' : 'Not detected'}</span>
+          <span class="wallet-icon" style="background:${w.color}">${w.id === 'walletconnect' ? '▦' : w.name[0]}</span>
+          <span class="wallet-name">${w.name}${w.sub ? `<br><small style="color:var(--muted);font-size:11px;">${w.sub}</small>` : ''}</span>
+          <span class="wallet-state ${installed ? 'installed' : ''}">${stateLabelText}</span>
         </button>`;
       }
       el('walletList').innerHTML = html;
@@ -1407,9 +1409,13 @@
       if (!w) return;
       let installed = false;
       try { installed = w.detect(); } catch (_) {}
-      if (!installed) { window.open(w.link, '_blank', 'noopener'); return; }
+      // Mobile-first wallets (Trust, Rainbow, MetaMask mobile…) rarely exist as
+      // extensions — fall back to the WalletConnect QR so one scan connects them.
+      const useQrFallback = !installed && w.qr;
+      if (!installed && !useQrFallback) { window.open(w.link, '_blank', 'noopener'); return; }
       try {
-        const result = await w.connect();
+        if (useQrFallback) setActionHint('good', `Opening QR — scan it with the ${w.name} app on your phone…`);
+        const result = useQrFallback ? await connectWalletConnect() : await w.connect();
         state.wallet = { type: result.type, address: result.address, provider: result.provider, wallet: w.name };
         closeWalletModal();
         fillConnectedDestination();
@@ -1507,7 +1513,7 @@
         <button class="wallet-close" data-wallet-close aria-label="Close">&#10005;</button>
       </div>
       <div id="walletList" class="wallet-list"></div>
-      <p class="wallet-note">Non-custodial &mdash; Atomic never holds your funds. You approve and sign in your own wallet; the swap routes on-chain straight to your destination address.</p>
+      <p class="wallet-note"><strong style="color:var(--steel)">Wallet on your phone?</strong> Pick it (or &ldquo;Scan QR code&rdquo;) and scan with the app &mdash; no extension needed.<br><br>Non-custodial &mdash; Atomic never holds your funds. You approve and sign in your own wallet; the swap routes on-chain straight to your destination address.</p>
     </div>
   </div>
 </body>
