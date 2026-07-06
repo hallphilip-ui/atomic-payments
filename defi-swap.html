@@ -1161,7 +1161,14 @@
     el('connectWalletBtn').addEventListener('click', openWalletModal);
 
     // ---- Connect Wallet modal (non-custodial: Atomic never holds funds) ----
+    // WalletConnect project ID — get a free one at https://cloud.reown.com
+    // (it is a public client-side identifier, safe to embed in the page).
+    const WC_PROJECT_ID = 'REPLACE_WITH_WC_PROJECT_ID';
+
     const WALLET_DEFS = [
+      // Mobile & multi-chain via WalletConnect (Kraken Wallet, Trust, Rainbow…)
+      { group: 'Mobile / WalletConnect', id: 'walletconnect', name: 'WalletConnect', type: 'evm', color: '#3b99fc',
+        detect: () => true, connect: () => connectWalletConnect(), link: 'https://walletconnect.network/' },
       // Ethereum / EVM
       { group: 'Ethereum', id: 'metamask', name: 'MetaMask', type: 'evm', color: '#e2761b',
         detect: () => !!evmProvider('isMetaMask'), connect: () => connectEvm('isMetaMask'),
@@ -1270,6 +1277,34 @@
       const btc = list.find((a) => a.type === 'p2wpkh' || a.symbol === 'BTC') || list[0];
       if (!btc?.address) throw new Error('Could not read a Leather BTC address.');
       return { type: 'btc', address: btc.address, provider: p };
+    }
+
+    // WalletConnect v2 — QR/deep-link for Kraken Wallet, Trust, Rainbow and most
+    // mobile wallets. Lazily loads the SDK from a CDN; returns an EIP-1193
+    // provider the executeSwap flow already knows how to drive.
+    let wcProvider = null;
+    async function connectWalletConnect() {
+      if (!WC_PROJECT_ID || WC_PROJECT_ID === 'REPLACE_WITH_WC_PROJECT_ID') {
+        throw new Error('WalletConnect isn’t configured yet — the operator needs to add a project ID.');
+      }
+      if (!wcProvider) {
+        const { EthereumProvider } = await import('https://esm.sh/@walletconnect/ethereum-provider@2');
+        wcProvider = await EthereumProvider.init({
+          projectId: WC_PROJECT_ID,
+          chains: [1],
+          optionalChains: [8453, 42161, 10, 137, 56, 43114],
+          showQrModal: true,
+          metadata: {
+            name: 'Atomic',
+            description: 'Non-custodial cross-chain swaps',
+            url: 'https://atomicpay.cloud',
+            icons: ['https://atomicpay.cloud/assets/atomic-mark.png']
+          }
+        });
+      }
+      const accounts = await wcProvider.enable();
+      if (!accounts || !accounts.length) throw new Error('No account authorized.');
+      return { type: 'evm', address: accounts[0], provider: wcProvider };
     }
 
     function renderWalletList() {
