@@ -589,7 +589,7 @@
       color: var(--ink); text-align: left; cursor: pointer; transition: 0.14s;
     }
     .wallet-item:hover { border-color: rgba(25, 210, 242, 0.5); background: rgba(6, 151, 255, 0.1); }
-    .wallet-icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 15px; font-weight: 700; color: #06101a; flex: 0 0 auto; }
+    .wallet-icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 15px; font-weight: 700; color: #fff; flex: 0 0 auto; }
     .wallet-name { flex: 1; font-size: 14px; }
     .wallet-state { font-size: 11px; color: var(--muted); }
     .wallet-state.installed { color: var(--green); }
@@ -805,6 +805,12 @@
         el('destination').value = state.wallet.address;
       }
       if (state.wallet.type === 'svm' && toAsset.chainFamily === 'svm') {
+        el('destination').value = state.wallet.address;
+      }
+      if (state.wallet.type === 'tron' && toAsset.chainFamily === 'tron') {
+        el('destination').value = state.wallet.address;
+      }
+      if (state.wallet.type === 'btc' && toAsset.chain === 'BITCOIN') {
         el('destination').value = state.wallet.address;
       }
       updateAddressValidation();
@@ -1095,22 +1101,56 @@
 
     // ---- Connect Wallet modal (non-custodial: Atomic never holds funds) ----
     const WALLET_DEFS = [
-      { group: 'Ethereum', id: 'metamask', name: 'MetaMask', type: 'evm', color: '#f6851b',
+      // Ethereum / EVM
+      { group: 'Ethereum', id: 'metamask', name: 'MetaMask', type: 'evm', color: '#e2761b',
         detect: () => !!evmProvider('isMetaMask'), connect: () => connectEvm('isMetaMask'),
         link: 'https://metamask.io/download/' },
       { group: 'Ethereum', id: 'coinbase', name: 'Coinbase Wallet', type: 'evm', color: '#0052ff',
         detect: () => !!evmProvider('isCoinbaseWallet'), connect: () => connectEvm('isCoinbaseWallet'),
         link: 'https://www.coinbase.com/wallet/downloads' },
-      { group: 'Solana', id: 'phantom', name: 'Phantom', type: 'svm', color: '#ab9ff2',
+      { group: 'Ethereum', id: 'rabby', name: 'Rabby', type: 'evm', color: '#5b57e0',
+        detect: () => !!evmProvider('isRabby'), connect: () => connectEvm('isRabby'),
+        link: 'https://rabby.io/' },
+      { group: 'Ethereum', id: 'trust', name: 'Trust Wallet', type: 'evm', color: '#3375bb',
+        detect: () => !!(evmProvider('isTrust') || evmProvider('isTrustWallet')),
+        connect: () => connectEvm('isTrust'), link: 'https://trustwallet.com/download' },
+      { group: 'Ethereum', id: 'rainbow', name: 'Rainbow', type: 'evm', color: '#7a4df0',
+        detect: () => !!evmProvider('isRainbow'), connect: () => connectEvm('isRainbow'),
+        link: 'https://rainbow.me/' },
+      { group: 'Ethereum', id: 'brave', name: 'Brave Wallet', type: 'evm', color: '#fb542b',
+        detect: () => !!evmProvider('isBraveWallet'), connect: () => connectEvm('isBraveWallet'),
+        link: 'https://brave.com/wallet/' },
+      { group: 'Ethereum', id: 'zerion', name: 'Zerion', type: 'evm', color: '#2461ed',
+        detect: () => !!evmProvider('isZerion'), connect: () => connectEvm('isZerion'),
+        link: 'https://zerion.io/' },
+      // Multi-chain
+      { group: 'Multi-chain', id: 'okx', name: 'OKX Wallet', type: 'evm', color: '#1a1a1a',
+        detect: () => !!window.okxwallet, connect: connectOkx, link: 'https://www.okx.com/web3' },
+      // Solana
+      { group: 'Solana', id: 'phantom', name: 'Phantom', type: 'svm', color: '#6f57d9',
         detect: () => !!(window.phantom?.solana?.isPhantom || window.solana?.isPhantom),
         connect: () => connectSolana(window.phantom?.solana || window.solana),
         link: 'https://phantom.app/download' },
       { group: 'Solana', id: 'solflare', name: 'Solflare', type: 'svm', color: '#fc7227',
         detect: () => !!window.solflare?.isSolflare, connect: () => connectSolana(window.solflare),
         link: 'https://solflare.com/download' },
-      { group: 'Tron', id: 'tronlink', name: 'TronLink', type: 'tron', color: '#ff060a',
+      { group: 'Solana', id: 'backpack', name: 'Backpack', type: 'svm', color: '#e33e3f',
+        detect: () => !!(window.backpack?.isBackpack || window.backpack),
+        connect: () => connectSolana(window.backpack?.solana || window.backpack),
+        link: 'https://backpack.app/' },
+      // Tron
+      { group: 'Tron', id: 'tronlink', name: 'TronLink', type: 'tron', color: '#d9042b',
         detect: () => !!(window.tronLink || window.tronWeb), connect: connectTron,
-        link: 'https://www.tronlink.org/' }
+        link: 'https://www.tronlink.org/' },
+      // Bitcoin
+      { group: 'Bitcoin', id: 'unisat', name: 'Unisat', type: 'btc', color: '#f7931a',
+        detect: () => !!window.unisat, connect: connectUnisat, link: 'https://unisat.io/download' },
+      { group: 'Bitcoin', id: 'xverse', name: 'Xverse', type: 'btc', color: '#ee7a30',
+        detect: () => !!(window.XverseProviders?.BitcoinProvider || window.BitcoinProvider),
+        connect: connectXverse, link: 'https://www.xverse.app/download' },
+      { group: 'Bitcoin', id: 'leather', name: 'Leather', type: 'btc', color: '#ff5500',
+        detect: () => !!(window.LeatherProvider || window.btc), connect: connectLeather,
+        link: 'https://leather.io/install-extension' }
     ];
 
     function evmProvider(flag) {
@@ -1138,6 +1178,37 @@
       const addr = window.tronWeb?.defaultAddress?.base58;
       if (!addr) throw new Error('Unlock TronLink and try again.');
       return { type: 'tron', address: addr, provider: window.tronWeb };
+    }
+    async function connectOkx() {
+      const p = window.okxwallet;
+      if (!p?.request) throw new Error('OKX Wallet not available in this browser.');
+      const accounts = await p.request({ method: 'eth_requestAccounts' });
+      if (!accounts || !accounts.length) throw new Error('No account authorized.');
+      return { type: 'evm', address: accounts[0], provider: p };
+    }
+    async function connectUnisat() {
+      if (!window.unisat?.requestAccounts) throw new Error('Unisat not available in this browser.');
+      const accts = await window.unisat.requestAccounts();
+      if (!accts || !accts.length) throw new Error('No account authorized.');
+      return { type: 'btc', address: accts[0], provider: window.unisat };
+    }
+    async function connectXverse() {
+      const p = window.XverseProviders?.BitcoinProvider || window.BitcoinProvider;
+      if (!p?.request) throw new Error('Open Xverse and approve the connection.');
+      const res = await p.request('getAccounts', { purposes: ['payment'] });
+      const list = res?.result || [];
+      const payment = list.find((a) => a.purpose === 'payment') || list[0];
+      if (!payment?.address) throw new Error('Could not read a Xverse payment address.');
+      return { type: 'btc', address: payment.address, provider: p };
+    }
+    async function connectLeather() {
+      const p = window.LeatherProvider || window.btc;
+      if (!p?.request) throw new Error('Open Leather and approve the connection.');
+      const res = await p.request('getAddresses');
+      const list = res?.result?.addresses || [];
+      const btc = list.find((a) => a.type === 'p2wpkh' || a.symbol === 'BTC') || list[0];
+      if (!btc?.address) throw new Error('Could not read a Leather BTC address.');
+      return { type: 'btc', address: btc.address, provider: p };
     }
 
     function renderWalletList() {
