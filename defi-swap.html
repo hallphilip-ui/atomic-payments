@@ -696,7 +696,8 @@
               <div class="review-item"><span data-i18n="defi.latency">Latency</span><strong id="providerLatency">-</strong></div>
             </div>
             <div class="actions">
-              <button class="primary" id="approveBtn" disabled data-i18n="defi.approveBroadcast">Approve & Broadcast</button>
+              <button class="primary" id="executeBtn" disabled title="Signs and submits the real swap through your connected wallet">Execute Swap (Live)</button>
+              <button class="secondary" id="approveBtn" disabled data-i18n="defi.approveBroadcast">Approve &amp; Broadcast (sim)</button>
               <button class="secondary" id="advanceBtn" disabled data-i18n="defi.advanceTracker">Advance Tracker</button>
             </div>
             <div class="alert" id="actionHint" style="margin-top: 12px;" data-i18n="defi.createQuote">Create a quote to unlock the next action.</div>
@@ -942,6 +943,9 @@
       const canApprove = quote.status === 'QUOTED' && (!review || review.status === 'AUTO_CLEARED' || review.status === 'APPROVED');
       el('approveBtn').disabled = !canApprove;
       el('advanceBtn').disabled = !['AUTHORIZED', 'ROUTING'].includes(quote.status);
+      const hasLiveTx = !!(quote.execution && quote.execution.transactionRequest);
+      el('executeBtn').disabled = !(canApprove && hasLiveTx);
+      el('executeBtn').textContent = hasLiveTx ? 'Execute Swap (Live)' : 'Execute Swap (connect wallet + live quote)';
       const nextAction = explainNextAction(quote, review);
       setActionHint(nextAction.kind, nextAction.text);
       renderTimeline();
@@ -984,7 +988,10 @@
         fromAsset: el('fromAsset').value,
         toAsset: el('toAsset').value,
         amount: el('amount').value.trim(),
-        userAddress: el('destination').value.trim()
+        userAddress: el('destination').value.trim(),
+        // Source address = connected wallet, so live cross-chain quotes resolve
+        // and we get back a signable transaction to execute.
+        fromAddress: (state.wallet && state.wallet.address) || undefined
       };
       const response = await fetch(`${API_BASE}/v1/swaps/quote`, {
         method: 'POST',
@@ -999,6 +1006,59 @@
         return;
       }
       renderQuote(data);
+    }
+
+    // Execute a live swap: the connected EVM wallet signs LI.FI's transaction.
+    async function executeSwap() {
+      const q = state.quote;
+      const ex = q && q.execution;
+      if (!ex || !ex.transactionRequest) { setActionHint('bad', 'No live transaction on this quote. Connect an EVM wallet and get a fresh quote.'); return; }
+      const w = state.wallet;
+      if (!w || w.type !== 'evm' || !w.provider) { setActionHint('bad', 'Connect an EVM wallet (MetaMask, Rabby, Coinbase…) to execute.'); return; }
+      const provider = w.provider;
+      const tx = ex.transactionRequest;
+      const from = w.address;
+      const btn = el('executeBtn');
+      btn.disabled = true;
+      try {
+        // 1. Make sure the wallet is on the source chain.
+        if (tx.chainId) {
+          const wantChain = '0x' + Number(tx.chainId).toString(16);
+          try {
+            await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: wantChain }] });
+          } catch (switchErr) {
+            if (switchErr && switchErr.code === 4902) throw new Error('Add that network to your wallet first, then retry.');
+          }
+        }
+        // 2. ERC20 approval when the source token is not native.
+        const native = ['0x0000000000000000000000000000000000000000', '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'];
+        if (ex.fromTokenAddress && ex.approvalAddress && !native.includes(ex.fromTokenAddress.toLowerCase())) {
+          const amount = BigInt(el('amount').value.trim());
+          const owner = from.toLowerCase().replace('0x', '').padStart(64, '0');
+          const spender = ex.approvalAddress.toLowerCase().replace('0x', '').padStart(64, '0');
+          let allowance = 0n;
+          try {
+            const res = await provider.request({ method: 'eth_call', params: [{ to: ex.fromTokenAddress, data: '0xdd62ed3e' + owner + spender }, 'latest'] });
+            allowance = BigInt(res || '0x0');
+          } catch (_) {}
+          if (allowance < amount) {
+            setActionHint('good', 'Approve token spend in your wallet…');
+            const approveData = '0x095ea7b3' + spender + amount.toString(16).padStart(64, '0');
+            await provider.request({ method: 'eth_sendTransaction', params: [{ from, to: ex.fromTokenAddress, data: approveData }] });
+          }
+        }
+        // 3. Send the swap.
+        setActionHint('good', 'Confirm the swap in your wallet…');
+        const params = { from, to: tx.to, data: tx.data, value: tx.value || '0x0' };
+        if (tx.gasLimit) params.gas = tx.gasLimit;
+        const hash = await provider.request({ method: 'eth_sendTransaction', params: [params] });
+        setActionHint('good', 'Swap submitted on-chain. Tx: ' + hash);
+        btn.textContent = 'Submitted ✓';
+      } catch (error) {
+        const msg = (error && (error.message || (error.data && error.data.message))) || 'Swap cancelled or failed.';
+        setActionHint('bad', msg);
+        btn.disabled = false;
+      }
     }
 
     async function approveQuote() {
@@ -1097,6 +1157,7 @@
     }
 
     el('quoteBtn').addEventListener('click', getQuote);
+    el('executeBtn').addEventListener('click', executeSwap);
     el('connectWalletBtn').addEventListener('click', openWalletModal);
 
     // ---- Connect Wallet modal (non-custodial: Atomic never holds funds) ----

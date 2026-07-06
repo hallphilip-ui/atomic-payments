@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { TokenRegistryEntry, getSwapAsset, isNativeL1Asset } from './tokens';
-import { getProviderQuote } from './providerAdapters';
+import { getProviderQuote, ProviderExecution } from './providerAdapters';
 import {
   PLATFORM_SPREAD_BPS,
   PLATFORM_SPREAD_PERCENT,
@@ -55,6 +55,9 @@ export type UnifiedSwapQuote = {
   requestPayload: Record<string, string>;
   executionStates: string[];
   guardrails: string[];
+  // Transient (not persisted): the signable transaction for live client-side
+  // execution. Present only for live provider quotes.
+  execution?: ProviderExecution;
 };
 
 function requireAsset(assetId: string, fieldName: string): TokenRegistryEntry {
@@ -126,6 +129,7 @@ export async function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest)
     quoteTtlSeconds: QUOTE_TTL_SECONDS,
     requestPayload: providerQuote.requestPayload,
     executionStates: ['SOURCING', 'ESCROW_ESCORTING', 'MULTI_BRIDGE_ROUTING', 'TREASURY_CLEARING', 'DISTRIBUTION_COMPLETE'],
+    execution: providerQuote.execution,
     guardrails: [
       'immutable_30_second_quote_ttl',
       'price_impact_halt_above_1_5_pct',

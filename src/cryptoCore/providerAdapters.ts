@@ -18,6 +18,16 @@ import { SwapRoutingProvider, UnifiedSwapQuoteRequest } from './routing';
 
 export type ProviderMode = 'simulation' | 'live' | 'fallback';
 
+export type ProviderExecution = {
+  // The signable transaction from the provider (LI.FI transactionRequest) for
+  // the connected wallet to send, plus the ERC20 approval target and token
+  // address so the client can approve spend before swapping. EVM only for now.
+  transactionRequest?: Record<string, unknown>;
+  approvalAddress?: string;
+  fromTokenAddress?: string;
+  toAmountMin?: string;
+};
+
 export type ProviderQuoteResult = {
   mode: ProviderMode;
   providerQuoteId: string;
@@ -27,6 +37,7 @@ export type ProviderQuoteResult = {
   requestPayload: Record<string, string>;
   latencyMs: number;
   diagnostics: string[];
+  execution?: ProviderExecution;
 };
 
 type SimulationInput = {
@@ -244,7 +255,13 @@ async function liveQuote(input: SimulationInput): Promise<ProviderQuoteResult> {
       priceImpactPct: estimatePriceImpactPct(input.amount, input.provider),
       requestPayload: payload,
       latencyMs: Date.now() - startedAt,
-      diagnostics: ['live_provider_quote_received', `tool:${pickString(json?.tool) ?? 'lifi'}`]
+      diagnostics: ['live_provider_quote_received', `tool:${pickString(json?.tool) ?? 'lifi'}`],
+      execution: {
+        transactionRequest: json?.transactionRequest ?? undefined,
+        approvalAddress: pickString(est.approvalAddress),
+        fromTokenAddress: pickString(json?.action?.fromToken?.address),
+        toAmountMin: pickString(est.toAmountMin)
+      }
     };
   }
 

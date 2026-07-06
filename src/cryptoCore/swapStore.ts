@@ -236,7 +236,12 @@ export async function createStoredSwapQuote(request: UnifiedSwapQuoteRequest) {
   });
 
   return {
-    quote: toSwapQuoteView(result.created),
+    // execution is transient (not persisted) and only returned for a clean,
+    // compliance-cleared QUOTED status so a blocked/halted quote can't be signed.
+    quote: {
+      ...toSwapQuoteView(result.created),
+      execution: result.created.status === 'QUOTED' ? quote.execution : undefined
+    },
     complianceReview: toComplianceReviewView(result.review as StoredComplianceReview)
   };
 }
