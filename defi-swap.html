@@ -566,6 +566,34 @@
         justify-content: flex-start;
       }
     }
+    /* Connect Wallet modal (non-custodial) */
+    .wallet-modal[hidden] { display: none; }
+    .wallet-modal { position: fixed; inset: 0; z-index: 100; }
+    .wallet-modal-backdrop { position: absolute; inset: 0; background: rgba(3, 9, 16, 0.66); backdrop-filter: blur(2px); }
+    .wallet-modal-panel {
+      position: absolute; top: 0; right: 0; height: 100%; width: min(420px, 100%);
+      background: var(--panel-strong, #0e2233); border-left: 1px solid rgba(25, 210, 242, 0.22);
+      display: flex; flex-direction: column; box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5);
+      animation: walletSlide 0.18s ease-out;
+    }
+    @keyframes walletSlide { from { transform: translateX(28px); opacity: 0.3; } to { transform: none; opacity: 1; } }
+    .wallet-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .wallet-modal-head strong { font-size: 16px; color: #fff; }
+    .wallet-close { background: transparent; color: var(--muted); font-size: 18px; line-height: 1; padding: 6px 9px; border-radius: 8px; }
+    .wallet-close:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+    .wallet-list { padding: 8px 12px 4px; overflow-y: auto; flex: 1; }
+    .wallet-group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); padding: 14px 8px 6px; }
+    .wallet-item {
+      width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 4px;
+      border: 1px solid transparent; border-radius: 12px; background: rgba(14, 34, 51, 0.55);
+      color: var(--ink); text-align: left; cursor: pointer; transition: 0.14s;
+    }
+    .wallet-item:hover { border-color: rgba(25, 210, 242, 0.5); background: rgba(6, 151, 255, 0.1); }
+    .wallet-icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 15px; font-weight: 700; color: #06101a; flex: 0 0 auto; }
+    .wallet-name { flex: 1; font-size: 14px; }
+    .wallet-state { font-size: 11px; color: var(--muted); }
+    .wallet-state.installed { color: var(--green); }
+    .wallet-note { padding: 12px 20px 18px; margin: 0; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
   </style>
 </head>
 <body data-i18n-title="defi.title">
@@ -823,17 +851,20 @@
     async function getWalletSignature() {
       const message = quoteSignatureMessage();
 
-      if (state.wallet?.type === 'evm' && window.ethereum?.request) {
-        const signature = await window.ethereum.request({
+      const evmProv = state.wallet?.provider || window.ethereum;
+      const svmProv = state.wallet?.provider || window.solana;
+
+      if (state.wallet?.type === 'evm' && evmProv?.request) {
+        const signature = await evmProv.request({
           method: 'personal_sign',
           params: [message, state.wallet.address]
         });
         return { signature, signedMessage: message, signatureKind: 'evm_personal_sign' };
       }
 
-      if (state.wallet?.type === 'svm' && window.solana?.signMessage) {
+      if (state.wallet?.type === 'svm' && svmProv?.signMessage) {
         const encoded = new TextEncoder().encode(message);
-        const signed = await window.solana.signMessage(encoded, 'utf8');
+        const signed = await svmProv.signMessage(encoded, 'utf8');
         const bytes = Array.from(signed.signature || []);
         return { signature: `solana:${btoa(String.fromCharCode(...bytes))}`, signedMessage: message, signatureKind: 'solana_sign_message' };
       }
@@ -1060,7 +1091,99 @@
     }
 
     el('quoteBtn').addEventListener('click', getQuote);
-    el('connectWalletBtn').addEventListener('click', connectWallet);
+    el('connectWalletBtn').addEventListener('click', openWalletModal);
+
+    // ---- Connect Wallet modal (non-custodial: Atomic never holds funds) ----
+    const WALLET_DEFS = [
+      { group: 'Ethereum', id: 'metamask', name: 'MetaMask', type: 'evm', color: '#f6851b',
+        detect: () => !!evmProvider('isMetaMask'), connect: () => connectEvm('isMetaMask'),
+        link: 'https://metamask.io/download/' },
+      { group: 'Ethereum', id: 'coinbase', name: 'Coinbase Wallet', type: 'evm', color: '#0052ff',
+        detect: () => !!evmProvider('isCoinbaseWallet'), connect: () => connectEvm('isCoinbaseWallet'),
+        link: 'https://www.coinbase.com/wallet/downloads' },
+      { group: 'Solana', id: 'phantom', name: 'Phantom', type: 'svm', color: '#ab9ff2',
+        detect: () => !!(window.phantom?.solana?.isPhantom || window.solana?.isPhantom),
+        connect: () => connectSolana(window.phantom?.solana || window.solana),
+        link: 'https://phantom.app/download' },
+      { group: 'Solana', id: 'solflare', name: 'Solflare', type: 'svm', color: '#fc7227',
+        detect: () => !!window.solflare?.isSolflare, connect: () => connectSolana(window.solflare),
+        link: 'https://solflare.com/download' },
+      { group: 'Tron', id: 'tronlink', name: 'TronLink', type: 'tron', color: '#ff060a',
+        detect: () => !!(window.tronLink || window.tronWeb), connect: connectTron,
+        link: 'https://www.tronlink.org/' }
+    ];
+
+    function evmProvider(flag) {
+      const eth = window.ethereum;
+      if (!eth) return null;
+      if (Array.isArray(eth.providers)) return eth.providers.find((p) => p && p[flag]) || null;
+      return eth[flag] ? eth : null;
+    }
+    async function connectEvm(flag) {
+      const provider = evmProvider(flag) || window.ethereum;
+      if (!provider?.request) throw new Error('Wallet not available in this browser.');
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      if (!accounts || !accounts.length) throw new Error('No account authorized.');
+      return { type: 'evm', address: accounts[0], provider };
+    }
+    async function connectSolana(prov) {
+      if (!prov?.connect) throw new Error('Wallet not available in this browser.');
+      const res = await prov.connect();
+      const key = (res && res.publicKey) || prov.publicKey;
+      if (!key) throw new Error('No account authorized.');
+      return { type: 'svm', address: key.toString(), provider: prov };
+    }
+    async function connectTron() {
+      if (window.tronLink?.request) { try { await window.tronLink.request({ method: 'tron_requestAccounts' }); } catch (_) {} }
+      const addr = window.tronWeb?.defaultAddress?.base58;
+      if (!addr) throw new Error('Unlock TronLink and try again.');
+      return { type: 'tron', address: addr, provider: window.tronWeb };
+    }
+
+    function renderWalletList() {
+      let html = '';
+      let lastGroup = '';
+      for (const w of WALLET_DEFS) {
+        if (w.group !== lastGroup) { html += `<div class="wallet-group-label">${w.group}</div>`; lastGroup = w.group; }
+        let installed = false;
+        try { installed = w.detect(); } catch (_) {}
+        html += `<button class="wallet-item" data-wallet="${w.id}">
+          <span class="wallet-icon" style="background:${w.color}">${w.name[0]}</span>
+          <span class="wallet-name">${w.name}</span>
+          <span class="wallet-state ${installed ? 'installed' : ''}">${installed ? 'Installed' : 'Not detected'}</span>
+        </button>`;
+      }
+      el('walletList').innerHTML = html;
+      el('walletList').querySelectorAll('.wallet-item').forEach((btn) => {
+        btn.addEventListener('click', () => onWalletChosen(btn.dataset.wallet));
+      });
+    }
+
+    async function onWalletChosen(id) {
+      const w = WALLET_DEFS.find((x) => x.id === id);
+      if (!w) return;
+      let installed = false;
+      try { installed = w.detect(); } catch (_) {}
+      if (!installed) { window.open(w.link, '_blank', 'noopener'); return; }
+      try {
+        const result = await w.connect();
+        state.wallet = { type: result.type, address: result.address, provider: result.provider, wallet: w.name };
+        closeWalletModal();
+        fillConnectedDestination();
+        updateWalletMode();
+        setActionHint('good', `${w.name} connected: ${shortAddress(result.address)}`);
+      } catch (error) {
+        setActionHint('bad', error.message || 'Wallet connection failed.');
+      }
+    }
+
+    function openWalletModal() { renderWalletList(); el('walletModal').hidden = false; }
+    function closeWalletModal() { el('walletModal').hidden = true; }
+    // Delegated so it works even though the modal markup is parsed after this script.
+    document.addEventListener('click', (e) => {
+      if (e.target.closest && e.target.closest('[data-wallet-close]')) closeWalletModal();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeWalletModal(); });
     el('approveBtn').addEventListener('click', approveQuote);
     el('advanceBtn').addEventListener('click', advanceQuote);
     el('autofillBtn').addEventListener('click', autofillWallet);
@@ -1082,5 +1205,17 @@
     updateWalletMode();
     loadAssets().catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
   </script>
+
+  <div id="walletModal" class="wallet-modal" hidden>
+    <div class="wallet-modal-backdrop" data-wallet-close></div>
+    <div class="wallet-modal-panel" role="dialog" aria-modal="true" aria-label="Connect Wallet">
+      <div class="wallet-modal-head">
+        <strong>Connect Wallet</strong>
+        <button class="wallet-close" data-wallet-close aria-label="Close">&#10005;</button>
+      </div>
+      <div id="walletList" class="wallet-list"></div>
+      <p class="wallet-note">Non-custodial &mdash; Atomic never holds your funds. You approve and sign in your own wallet; the swap routes on-chain straight to your destination address.</p>
+    </div>
+  </div>
 </body>
 </html>
