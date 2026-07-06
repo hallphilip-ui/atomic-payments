@@ -9,6 +9,7 @@ import {
   THOR_CLIENT_ID,
   THOR_QUOTE_ENDPOINT
 } from './swapConfig';
+import { getProviderAssetId } from './tokens';
 import { SwapRoutingProvider, UnifiedSwapQuoteRequest } from './routing';
 
 export type ProviderMode = 'simulation' | 'live' | 'fallback';
@@ -48,15 +49,36 @@ function estimatePriceImpactPct(amount: bigint, provider: SwapRoutingProvider): 
   return Number(Math.min(4.5, baseImpact + sizeImpact).toFixed(2));
 }
 
+// Resolve the provider-specific routing ID for an asset. In live mode an
+// uncertified asset (no verified provider ID) throws so we never send an
+// internal ID like BITCOIN.BTC to a real provider; in simulation we fall back
+// to the internal ID purely for display in the stored request payload.
+function resolveAssetForPayload(
+  assetId: string,
+  provider: SwapRoutingProvider,
+  live: boolean
+): string {
+  const providerId = getProviderAssetId(assetId, provider);
+  if (providerId) return providerId;
+  if (live) {
+    throw new Error(`Asset ${assetId} is not certified for live ${provider} routing.`);
+  }
+  return assetId;
+}
+
 export function buildProviderPayload(
   request: UnifiedSwapQuoteRequest,
-  provider: SwapRoutingProvider
+  provider: SwapRoutingProvider,
+  live = false
 ): Record<string, string> {
+  const fromId = resolveAssetForPayload(request.fromAsset, provider, live);
+  const toId = resolveAssetForPayload(request.toAsset, provider, live);
+
   if (provider === 'THORCHAIN') {
     return {
       endpoint: THOR_QUOTE_ENDPOINT,
-      from_asset: request.fromAsset,
-      to_asset: request.toAsset,
+      from_asset: fromId,
+      to_asset: toId,
       amount: request.amount,
       destination: request.userAddress,
       affiliate: THOR_AFFILIATE_NAME,
@@ -70,8 +92,8 @@ export function buildProviderPayload(
   // never appears in the stored/returned request payload.
   return {
     endpoint: RANGO_QUOTE_ENDPOINT,
-    from: request.fromAsset,
-    to: request.toAsset,
+    from: fromId,
+    to: toId,
     amount: request.amount,
     slippage: '1.0',
     referrerFee: PLATFORM_SPREAD_PERCENT,
@@ -157,7 +179,7 @@ async function fetchProviderJson(
 
 async function liveQuote(input: SimulationInput): Promise<ProviderQuoteResult> {
   const startedAt = Date.now();
-  const payload = buildProviderPayload(input.request, input.provider);
+  const payload = buildProviderPayload(input.request, input.provider, true);
   const json = await fetchProviderJson(payload, input.provider);
   const output = pickString(
     json?.expected_amount_out,

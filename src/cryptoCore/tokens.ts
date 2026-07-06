@@ -10,6 +10,12 @@ export type TokenRegistryEntry = {
   enabled: boolean;
   routingPreference: 'rango' | 'thorchain';
   priceImpactLimitPct: number;
+  // Live-provider routing identifiers. Left undefined until certified against
+  // each provider's official asset list (THORChain pools / Rango meta) — these
+  // are financial routing IDs and must NOT be guessed. Until set, live mode
+  // fails closed for the asset (see buildProviderPayload).
+  thorAsset?: string;
+  rangoAsset?: string;
 };
 
 export const targetAssetRegistry: TokenRegistryEntry[] = [
@@ -52,4 +58,17 @@ export function getSwapAsset(assetId: string): TokenRegistryEntry | undefined {
 export function isNativeL1Asset(assetId: string): boolean {
   const asset = getSwapAsset(assetId);
   return asset?.chainFamily === 'native_l1';
+}
+
+// Translate an internal asset ID (e.g. BITCOIN.BTC) into the live-provider
+// routing identifier for the given provider, or undefined if the asset has not
+// been certified for that provider yet. Callers must fail closed on undefined
+// in live mode rather than sending the internal ID to a real provider.
+export function getProviderAssetId(
+  assetId: string,
+  provider: 'THORCHAIN' | 'RANGO'
+): string | undefined {
+  const asset = getSwapAsset(assetId);
+  if (!asset) return undefined;
+  return provider === 'THORCHAIN' ? asset.thorAsset : asset.rangoAsset;
 }

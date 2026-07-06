@@ -49,77 +49,29 @@ async function runContract() {
   if (childMode === 'live_rango' || childMode === 'live_thorchain') {
     const expectedProvider = childMode === 'live_rango' ? 'RANGO' : 'THORCHAIN';
     const expectedRequest = childMode === 'live_rango' ? evmRequest : nativeRequest;
-    const expectedEndpoint = expectedProvider === 'RANGO'
-      ? 'https://api.rango.exchange/basic/quote'
-      : 'https://thornode.ninerealms.com/thorchain/quote/swap';
+
+    // No asset is certified for live provider routing yet, so live mode must
+    // fail closed — and it must do so BEFORE any network call, never sending an
+    // internal asset ID (e.g. BITCOIN.BTC) to a real provider.
     let fetchCalls = 0;
-
-    globalThis.fetch = async (url, options) => {
+    globalThis.fetch = async () => {
       fetchCalls += 1;
-      const parsed = new URL(String(url));
-      assert.equal(`${parsed.origin}${parsed.pathname}`, expectedEndpoint);
-      assert.equal(options.headers.accept, 'application/json');
-
-      if (expectedProvider === 'RANGO') {
-        assert.equal(parsed.searchParams.get('from'), evmRequest.fromAsset);
-        assert.equal(parsed.searchParams.get('to'), evmRequest.toAsset);
-        assert.equal(parsed.searchParams.get('amount'), evmRequest.amount);
-        assert.equal(parsed.searchParams.get('referrerFee'), '0.5');
-        assert.equal(parsed.searchParams.get('referrerAddress'), null, 'referrerAddress is not a Rango parameter');
-
-        return {
-          ok: true,
-          json: async () => ({
-            requestId: 'rango_contract_request',
-            route: {
-              outputAmount: '123456789',
-              priceImpact: '0.42'
-            }
-          })
-        };
-      }
-
-      assert.equal(parsed.searchParams.get('from_asset'), nativeRequest.fromAsset);
-      assert.equal(parsed.searchParams.get('to_asset'), nativeRequest.toAsset);
-      assert.equal(parsed.searchParams.get('amount'), nativeRequest.amount);
-      assert.equal(parsed.searchParams.get('destination'), nativeRequest.userAddress);
-      assert.equal(parsed.searchParams.get('affiliate_bps'), '50');
-
-      return {
-        ok: true,
-        json: async () => ({
-          quoteId: 'thorchain_contract_quote',
-          expected_amount_out: '987654321',
-          priceImpactPct: 0.61
-        })
-      };
+      throw new Error('fetch_should_not_be_called_when_asset_uncertified');
     };
 
-    const liveQuote = await getProviderQuote({
-      request: expectedRequest,
-      provider: expectedProvider,
-      amount: BigInt(expectedRequest.amount)
-    });
+    await assert.rejects(
+      getProviderQuote({
+        request: expectedRequest,
+        provider: expectedProvider,
+        amount: BigInt(expectedRequest.amount)
+      }),
+      /is not certified for live/i,
+      'live mode fails closed for uncertified assets'
+    );
 
-    assert.equal(fetchCalls, 1, 'live contract should call provider once');
+    assert.equal(fetchCalls, 0, 'fail-closed guard must run before any provider network call');
     assert.equal(getProviderModeLabel(), 'live');
-    assert.equal(liveQuote.mode, 'live');
-    assert.equal(
-      liveQuote.providerQuoteId,
-      expectedProvider === 'RANGO' ? 'rango_contract_request' : 'thorchain_contract_quote'
-    );
-    assert.equal(
-      liveQuote.estimatedOutputAmount,
-      expectedProvider === 'RANGO' ? '122839506' : '982716050'
-    );
-    assert.equal(
-      liveQuote.platformFeeAmount,
-      expectedProvider === 'RANGO' ? '617283' : '4938271'
-    );
-    assert.equal(liveQuote.priceImpactPct, expectedProvider === 'RANGO' ? 0.42 : 0.61);
-    assert.deepEqual(liveQuote.diagnostics, ['live_provider_quote_received']);
-
-    console.log(`OK provider adapter contract: ${childMode}`);
+    console.log(`OK provider adapter contract: ${childMode} (fail-closed for uncertified asset)`);
     return;
   }
 
@@ -154,8 +106,8 @@ async function runContract() {
     assert.equal(getProviderModeLabel(), 'live_with_fallback');
     assert.equal(quote.mode, 'fallback');
     assert.ok(
-      quote.diagnostics.some((item) => item.includes('provider_fallback:contract_network_blocked')),
-      'fallback quote includes provider failure diagnostic'
+      quote.diagnostics.some((item) => item.includes('provider_fallback:') && item.includes('not certified')),
+      'fallback quote surfaces the fail-closed provider diagnostic'
     );
   } else {
     assert.equal(getProviderModeLabel(), 'simulation');
