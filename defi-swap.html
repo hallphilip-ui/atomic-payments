@@ -606,6 +606,8 @@
     .wallet-note { padding: 12px 20px 18px; margin: 0; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
     .wc-btn { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: rgba(14,34,51,0.7); color: var(--ink); font-size: 13px; cursor: pointer; }
     .wc-btn:hover { border-color: var(--cyan); }
+    .wc-spin { width: 34px; height: 34px; border: 3px solid var(--line); border-top-color: var(--cyan); border-radius: 50%; margin: 0 auto 16px; animation: wcspin 0.8s linear infinite; }
+    @keyframes wcspin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body data-i18n-title="defi.title">
@@ -1444,6 +1446,35 @@
       if (list) list.style.display = '';
     }
 
+    function withTimeout(promise, ms, msg) {
+      return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
+    }
+
+    // Shown while an injected wallet's approval popup is pending, so a click is
+    // never a silent no-op. Guides multi-wallet users to the reliable options.
+    function showModalStatus(html) {
+      const box = el('wcQr');
+      if (!box) return;
+      el('walletList').style.display = 'none';
+      box.style.display = 'block';
+      box.innerHTML = `<div style="text-align:center;padding:34px 20px;">${html}</div>`;
+      const back = el('wcBack');
+      if (back) back.addEventListener('click', hideWcQr);
+    }
+    function showConnecting(name) {
+      showModalStatus(`
+        <div class="wc-spin"></div>
+        <strong style="color:#fff;">Connecting ${name}…</strong>
+        <p class="subtle" style="margin:8px 0 0;font-size:13px;">Approve the popup in your wallet. If nothing appears and you have several wallet extensions, they can block each other — use <b>Scan QR code</b> instead (it always works).</p>
+        <button id="wcBack" class="wc-btn" style="margin-top:16px;">← Back</button>`);
+    }
+    function showConnectError(msg) {
+      showModalStatus(`
+        <strong style="color:var(--red);">Couldn’t connect</strong>
+        <p class="subtle" style="margin:10px 0 0;font-size:13px;">${msg}</p>
+        <button id="wcBack" class="wc-btn" style="margin-top:16px;">← Try another wallet</button>`);
+    }
+
     function renderWalletList() {
       let html = '';
       let lastGroup = '';
@@ -1476,8 +1507,16 @@
       const useQrFallback = !installed && w.qr;
       if (!installed && !useQrFallback) { window.open(w.link, '_blank', 'noopener'); return; }
       try {
-        if (useQrFallback) setActionHint('good', `Opening QR — scan it with the ${w.name} app on your phone…`);
-        const result = useQrFallback ? await connectWalletConnect() : await w.connect();
+        let result;
+        if (useQrFallback) {
+          result = await connectWalletConnect();
+        } else {
+          showConnecting(w.name);
+          result = await withTimeout(
+            w.connect(), 45000,
+            `${w.name} didn’t respond. With several wallet extensions installed they can conflict — use “Scan QR code” (most reliable) or disable the other wallets.`
+          );
+        }
         state.wallet = { type: result.type, address: result.address, provider: result.provider, wallet: w.name };
         closeWalletModal();
         fillConnectedDestination();
@@ -1485,7 +1524,8 @@
         setActionHint('good', `${w.name} connected: ${shortAddress(result.address)}`);
         startWalletSession(result.type, result.address, w.name);
       } catch (error) {
-        setActionHint('bad', error.message || 'Wallet connection failed.');
+        const msg = (error && error.message) || 'Wallet connection failed.';
+        if (!el('walletModal').hidden) showConnectError(msg); else setActionHint('bad', msg);
       }
     }
 
@@ -1539,7 +1579,7 @@
     })();
 
     function openWalletModal() { renderWalletList(); el('walletModal').hidden = false; }
-    function closeWalletModal() { el('walletModal').hidden = true; }
+    function closeWalletModal() { hideWcQr(); el('walletModal').hidden = true; }
     // Delegated so it works even though the modal markup is parsed after this script.
     document.addEventListener('click', (e) => {
       if (e.target.closest && e.target.closest('[data-wallet-close]')) closeWalletModal();
