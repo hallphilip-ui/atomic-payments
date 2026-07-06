@@ -110,6 +110,9 @@
       .stats { grid-template-columns: 1fr; }
       .hide-sm { display: none; }
       thead th, tbody td { padding: 12px 12px; }
+      /* Let the table scroll sideways instead of clipping amounts. */
+      .panel { overflow-x: auto; }
+      table { min-width: 520px; }
     }
   </style>
 </head>

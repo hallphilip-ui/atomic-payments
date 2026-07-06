@@ -61,6 +61,68 @@ router.post('/v1/users/:id/connections', async (req, res) => {
   }
 });
 
+// Wallet-first session: connecting a wallet creates/recognizes a user with no
+// signup form. Username/email are derived deterministically from the address
+// (a real email can replace the placeholder later via profile update).
+const CHAIN_BY_WALLET_TYPE: Record<string, string> = {
+  evm: 'ETHEREUM',
+  svm: 'SOLANA',
+  btc: 'BITCOIN',
+  tron: 'TRON'
+};
+
+router.post('/v1/users/wallet_session', async (req, res) => {
+  try {
+    const address = String(req.body.address ?? '').trim();
+    const walletType = String(req.body.walletType ?? 'evm').toLowerCase();
+    const walletName = String(req.body.walletName ?? '').slice(0, 40);
+    const chain = CHAIN_BY_WALLET_TYPE[walletType] ?? 'ETHEREUM';
+
+    if (address.length < 8 || address.length > 90) {
+      return res.status(400).json({ error: 'A wallet address is required.' });
+    }
+    if (chain === 'ETHEREUM' && !ETH_REGEX.test(address)) {
+      return res.status(400).json({ error: 'Malformatted EVM address.' });
+    }
+    if (chain === 'SOLANA' && !SOL_REGEX.test(address)) {
+      return res.status(400).json({ error: 'Malformatted Solana address.' });
+    }
+
+    const slug = `w_${address.slice(0, 10)}${address.slice(-6)}`.toLowerCase();
+    const placeholderEmail = `${slug}@wallet.atomicpay.cloud`;
+
+    let user = await prisma.user.findUnique({ where: { username: slug } });
+    const isNew = !user;
+    if (!user) {
+      user = await prisma.user.create({ data: { username: slug, email: placeholderEmail } });
+    }
+    await prisma.wallet.upsert({
+      where: { userId_chain: { userId: user.id, chain } },
+      update: { address },
+      create: { userId: user.id, chain, address }
+    });
+
+    // Recent swap activity for this wallet across sessions = the sticky loop.
+    const recentSwaps = await prisma.swapQuote.findMany({
+      where: { OR: [{ userAddress: address }, { walletAddress: address }] },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true, status: true, fromAsset: true, toAsset: true,
+        amount: true, estimatedOutputAmount: true, createdAt: true
+      }
+    });
+
+    return res.json({
+      user: { id: user.id, username: user.username, memberSince: user.createdAt, isNew },
+      wallet: { chain, address, walletName },
+      recentSwaps: recentSwaps.map((s) => ({ ...s, createdAt: s.createdAt.toISOString() }))
+    });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message });
+  }
+});
+
 router.get('/v1/users/:id/network_directory', async (req, res) => {
   try {
     const { id } = req.params;

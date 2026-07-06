@@ -97,8 +97,14 @@ function trackIntent(result) {
   return result;
 }
 
+const createdUsernames = new Set();
+
 async function cleanupSmokeData() {
   if (KEEP_SMOKE_DATA) return;
+
+  if (createdUsernames.size > 0) {
+    await prisma.user.deleteMany({ where: { username: { in: Array.from(createdUsernames) } } });
+  }
 
   const quoteIds = Array.from(createdQuoteIds);
   const intentIds = Array.from(createdIntentIds);
@@ -394,6 +400,23 @@ async function main() {
   assert.ok(events.events.length >= 4, 'quote event log contains lifecycle entries');
   assert.ok(events.events.some((event) => event.state === 'MULTI_BRIDGE_ROUTING'), 'swap event log captures wallet broadcast');
   console.log(`OK authorize/advance/events: ${events.events.length} events`);
+
+  // Wallet-first user session: connect creates a user, reconnect recognizes it.
+  const smokeAddr = '0x' + Array.from({ length: 40 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+  const session1 = await request('/v1/users/wallet_session', {
+    method: 'POST',
+    body: JSON.stringify({ address: smokeAddr, walletType: 'evm', walletName: 'SmokeWallet' })
+  });
+  createdUsernames.add(session1.user.username);
+  assert.equal(session1.user.isNew, true, 'first wallet connect creates a user');
+  assert.ok(Array.isArray(session1.recentSwaps), 'wallet session returns recent swaps');
+  const session2 = await request('/v1/users/wallet_session', {
+    method: 'POST',
+    body: JSON.stringify({ address: smokeAddr, walletType: 'evm' })
+  });
+  assert.equal(session2.user.isNew, false, 'second connect recognizes the returning user');
+  assert.equal(session2.user.id, session1.user.id, 'same wallet maps to the same user');
+  console.log(`OK wallet session: ${session1.user.username} created then recognized`);
 
   const transfers = await request('/v1/transfers?status=all&page=0&pageSize=20');
   assert.ok(Array.isArray(transfers.transfers), 'transfers feed returns an array');

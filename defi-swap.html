@@ -566,6 +566,16 @@
         justify-content: flex-start;
       }
     }
+
+    @media (max-width: 560px) {
+      /* Stack the topbar and keep the brand on one clean line on phones. */
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .brand img { width: 44px; height: 36px; }
+      .brand strong { font-size: 15px; white-space: nowrap; }
+      .brand span { display: none; }
+      .actions { flex-direction: column; align-items: stretch; }
+      .actions button { width: 100%; min-height: 46px; }
+    }
     /* Connect Wallet modal (non-custodial) */
     .wallet-modal[hidden] { display: none; }
     .wallet-modal { position: fixed; inset: 0; z-index: 100; }
@@ -701,6 +711,10 @@
               <button class="secondary" id="advanceBtn" disabled data-i18n="defi.advanceTracker">Advance Tracker</button>
             </div>
             <div class="alert" id="actionHint" style="margin-top: 12px;" data-i18n="defi.createQuote">Create a quote to unlock the next action.</div>
+            <div id="myActivity" style="margin-top: 14px; display: none;">
+              <div class="section-head" style="margin-bottom: 8px;"><div><h2 style="font-size:15px;margin:0">Your recent swaps</h2><p class="subtle" id="myActivityMeta" style="margin:2px 0 0"></p></div></div>
+              <div id="myActivityList"></div>
+            </div>
           </section>
         </div>
 
@@ -1008,13 +1022,18 @@
       renderQuote(data);
     }
 
-    // Execute a live swap: the connected EVM wallet signs LI.FI's transaction.
+    // Execute a live swap through the connected wallet. EVM signs LI.FI's
+    // transaction; BTC sends to the returned deposit address; Solana signs the
+    // returned serialized transaction.
     async function executeSwap() {
       const q = state.quote;
       const ex = q && q.execution;
-      if (!ex || !ex.transactionRequest) { setActionHint('bad', 'No live transaction on this quote. Connect an EVM wallet and get a fresh quote.'); return; }
+      if (!ex || !ex.transactionRequest) { setActionHint('bad', 'No live transaction on this quote. Connect a wallet and get a fresh quote.'); return; }
       const w = state.wallet;
-      if (!w || w.type !== 'evm' || !w.provider) { setActionHint('bad', 'Connect an EVM wallet (MetaMask, Rabby, Coinbase…) to execute.'); return; }
+      if (!w || !w.provider) { setActionHint('bad', 'Connect a wallet to execute.'); return; }
+      if (w.type === 'btc') return executeBtcSwap(ex, w);
+      if (w.type === 'svm') return executeSolSwap(ex, w);
+      if (w.type !== 'evm') { setActionHint('bad', 'This wallet type cannot execute swaps yet.'); return; }
       const provider = w.provider;
       const tx = ex.transactionRequest;
       const from = w.address;
@@ -1057,6 +1076,63 @@
       } catch (error) {
         const msg = (error && (error.message || (error.data && error.data.message))) || 'Swap cancelled or failed.';
         setActionHint('bad', msg);
+        btn.disabled = false;
+      }
+    }
+
+    // BTC-source swaps: LI.FI returns { to: depositAddress, value: sats }. The
+    // wallet just sends that amount to the deposit address; the route handles
+    // the rest. Falls back to showing the address for manual send.
+    async function executeBtcSwap(ex, w) {
+      const tx = ex.transactionRequest;
+      const depositAddress = tx.to;
+      const sats = Number(tx.value);
+      if (!depositAddress || !sats) { setActionHint('bad', 'BTC route did not include a deposit address. Get a fresh quote.'); return; }
+      const btn = el('executeBtn');
+      btn.disabled = true;
+      try {
+        setActionHint('good', 'Confirm the BTC send in your wallet…');
+        let txid = null;
+        const p = w.provider;
+        if (typeof p.sendBitcoin === 'function') {
+          // Unisat
+          txid = await p.sendBitcoin(depositAddress, sats);
+        } else if (typeof p.request === 'function') {
+          // Xverse / Leather sendTransfer
+          const res = await p.request('sendTransfer', { recipients: [{ address: depositAddress, amount: sats }] });
+          txid = (res && (res.result?.txid || res.txid)) || null;
+        }
+        if (!txid) throw new Error('manual');
+        setActionHint('good', 'BTC sent. Txid: ' + txid + ' — the route completes after confirmations.');
+        btn.textContent = 'Submitted ✓';
+      } catch (error) {
+        const btc = (sats / 1e8).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
+        setActionHint('warn', `Wallet send unavailable (${(error && error.message) || 'cancelled'}). Manual option: send exactly ${btc} BTC to ${depositAddress} before the quote expires.`);
+        btn.disabled = false;
+      }
+    }
+
+    // Solana-source swaps: LI.FI returns a base64-serialized transaction; the
+    // wallet deserializes, signs, and sends it.
+    async function executeSolSwap(ex, w) {
+      const b64 = ex.transactionRequest && ex.transactionRequest.data;
+      if (!b64) { setActionHint('bad', 'Solana route did not include a transaction. Get a fresh quote.'); return; }
+      const btn = el('executeBtn');
+      btn.disabled = true;
+      try {
+        setActionHint('good', 'Loading Solana signer…');
+        const web3 = await import('https://esm.sh/@solana/web3.js@1');
+        const raw = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        let tx;
+        try { tx = web3.VersionedTransaction.deserialize(raw); }
+        catch (_) { tx = web3.Transaction.from(raw); }
+        setActionHint('good', 'Confirm the swap in your wallet…');
+        const res = await w.provider.signAndSendTransaction(tx);
+        const sig = (res && (res.signature || res)) || '';
+        setActionHint('good', 'Swap submitted on Solana. Signature: ' + sig);
+        btn.textContent = 'Submitted ✓';
+      } catch (error) {
+        setActionHint('bad', (error && error.message) || 'Solana swap cancelled or failed.');
         btn.disabled = false;
       }
     }
@@ -1339,10 +1415,60 @@
         fillConnectedDestination();
         updateWalletMode();
         setActionHint('good', `${w.name} connected: ${shortAddress(result.address)}`);
+        startWalletSession(result.type, result.address, w.name);
       } catch (error) {
         setActionHint('bad', error.message || 'Wallet connection failed.');
       }
     }
+
+    // ---- Sticky wallet session: recognize returning users + show their swaps ----
+    const SESSION_KEY = 'atomic_session';
+
+    async function startWalletSession(walletType, address, walletName) {
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ walletType, address, walletName, savedAt: Date.now() }));
+        const res = await fetch(`${API_BASE}/v1/users/wallet_session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, walletType, walletName })
+        });
+        const data = await res.json();
+        if (data.error) return;
+        renderMyActivity(data, address);
+        if (!data.user.isNew && data.recentSwaps.length) {
+          setActionHint('good', `Welcome back — ${data.recentSwaps.length} recent swap${data.recentSwaps.length > 1 ? 's' : ''} on this wallet.`);
+        }
+      } catch (_) { /* activity is a nice-to-have; never block the swap flow */ }
+    }
+
+    function renderMyActivity(data, address) {
+      const box = el('myActivity');
+      if (!data.recentSwaps || !data.recentSwaps.length) { box.style.display = 'none'; return; }
+      el('myActivityMeta').textContent = `${shortAddress(address)} · member since ${new Date(data.user.memberSince).toLocaleDateString()}`;
+      el('myActivityList').innerHTML = data.recentSwaps.map((s) => {
+        const from = (s.fromAsset || '').split('.').pop();
+        const to = (s.toAsset || '').split('.').pop();
+        const cls = s.status === 'COMPLETE' ? 'good' : ['HALTED', 'BLOCKED', 'EXPIRED'].includes(s.status) ? 'bad' : 'warn';
+        return `<div class="alert ${cls}" style="margin-bottom:6px;font-size:13px;">${from} → ${to} · ${statusLabel(s.status)} · ${new Date(s.createdAt).toLocaleString()}</div>`;
+      }).join('');
+      box.style.display = 'block';
+    }
+
+    // Restore a returning visitor's context on load (display only; executing
+    // still requires reconnecting the wallet so the provider is live).
+    (function restoreSession() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+        if (!saved || !saved.address) return;
+        fetch(`${API_BASE}/v1/users/wallet_session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: saved.address, walletType: saved.walletType, walletName: saved.walletName })
+        }).then((r) => r.json()).then((data) => {
+          if (!data.error) renderMyActivity(data, saved.address);
+        }).catch(() => {});
+      } catch (_) {}
+    })();
 
     function openWalletModal() { renderWalletList(); el('walletModal').hidden = false; }
     function closeWalletModal() { el('walletModal').hidden = true; }
