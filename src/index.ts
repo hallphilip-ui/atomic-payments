@@ -8,6 +8,7 @@ import userRoutes from './routes/users';
 import adminRoutes from './routes/admin';
 import settlementRoutes from './routes/settlement';
 import swapRoutes from './routes/swaps';
+import transferRoutes from './routes/transfers';
 import healthRoutes from './routes/health';
 import metricsRoutes from './routes/metrics';
 import projectRoutes from './routes/project';
@@ -39,6 +40,7 @@ app.use(userRoutes);
 app.use(adminRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
+app.use(transferRoutes);
 app.use(healthRoutes);
 app.use(metricsRoutes);
 app.use(projectRoutes);
@@ -59,6 +61,12 @@ app.use('/checkout', (_req: Request, res: Response) => {
 
 app.use('/admin-compliance', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'admin-compliance.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+});
+
+app.use('/transfers', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'transfers.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   return res.send(html);
 });

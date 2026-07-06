@@ -395,6 +395,21 @@ async function main() {
   assert.ok(events.events.some((event) => event.state === 'MULTI_BRIDGE_ROUTING'), 'swap event log captures wallet broadcast');
   console.log(`OK authorize/advance/events: ${events.events.length} events`);
 
+  const transfers = await request('/v1/transfers?status=all&page=0&pageSize=20');
+  assert.ok(Array.isArray(transfers.transfers), 'transfers feed returns an array');
+  assert.ok(transfers.total >= 1, 'transfers feed reports at least the smoke conversion');
+  assert.ok(transfers.statusCounts.all >= 1, 'transfers status counts include the smoke conversion');
+  assert.equal(transfers.page, 0, 'transfers feed echoes requested page');
+  assert.ok(transfers.totalPages >= 1, 'transfers feed reports total pages');
+  assert.ok(transfers.transfers.some((t) => t.id === quoted.quote.id), 'transfers feed includes the smoke conversion row');
+  const smokeRow = transfers.transfers.find((t) => t.id === quoted.quote.id);
+  assert.ok(smokeRow.from.symbol && smokeRow.to.symbol, 'transfer row carries from/to asset symbols');
+  assert.ok(['pending', 'complete', 'failed'].includes(smokeRow.statusGroup), 'transfer row carries a status group');
+  const pendingTransfers = await request('/v1/transfers?status=pending&page=0');
+  assert.equal(pendingTransfers.statusFilter, 'pending', 'transfers feed honors the status filter');
+  await assertContains('/transfers', 'Transfers');
+  console.log(`OK transfers explorer: ${transfers.total} total, ${transfers.statusCounts.complete} complete`);
+
   const metrics = await request('/v1/metrics');
   assert.equal(metrics.service, 'atomic-payments', 'metrics endpoint reports service name');
   assert.ok(metrics.requestCount >= 8, 'metrics endpoint tracks request count');

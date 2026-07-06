@@ -250,6 +250,98 @@ export async function listStoredSwapQuotes() {
   return quotes.map(toSwapQuoteView);
 }
 
+// Public transfers explorer: groups swap conversions into pending/complete/
+// failed buckets, paginates, and reports per-bucket counts for the filter tabs.
+const TRANSFER_STATUS_GROUPS: Record<string, string[]> = {
+  pending: ['QUOTED', 'AUTHORIZED', 'ROUTING'],
+  complete: ['COMPLETE'],
+  failed: ['HALTED', 'BLOCKED', 'EXPIRED']
+};
+
+function statusGroupFor(status: string): 'pending' | 'complete' | 'failed' {
+  for (const [group, members] of Object.entries(TRANSFER_STATUS_GROUPS)) {
+    if (members.includes(status)) return group as 'pending' | 'complete' | 'failed';
+  }
+  return 'pending';
+}
+
+function formatAtomicAmount(amount: string, decimals: number): string {
+  if (!/^[0-9]+$/.test(amount)) return amount;
+  const padded = amount.padStart(decimals + 1, '0');
+  const whole = padded.slice(0, padded.length - decimals) || '0';
+  const fraction = (decimals > 0 ? padded.slice(padded.length - decimals) : '').replace(/0+$/, '').slice(0, 6);
+  const wholeGrouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return fraction ? `${wholeGrouped}.${fraction}` : wholeGrouped;
+}
+
+function truncateAddress(address: string | null | undefined): string | null {
+  const a = (address ?? '').trim();
+  if (!a) return null;
+  return a.length <= 14 ? a : `${a.slice(0, 8)}…${a.slice(-6)}`;
+}
+
+export async function listTransfers(options: { statusGroup?: string; page?: number; pageSize?: number }) {
+  const requested = (options.statusGroup ?? 'all').toLowerCase();
+  const group = ['pending', 'complete', 'failed'].includes(requested) ? requested : 'all';
+  const page = Number.isFinite(options.page) && (options.page as number) > 0 ? Math.floor(options.page as number) : 0;
+  const pageSize = Math.min(100, Math.max(1, Math.floor(options.pageSize ?? 20)));
+  const where = group === 'all' ? {} : { status: { in: TRANSFER_STATUS_GROUPS[group] } };
+
+  const [rows, total, grouped] = await Promise.all([
+    prisma.swapQuote.findMany({ where, orderBy: { createdAt: 'desc' }, skip: page * pageSize, take: pageSize }),
+    prisma.swapQuote.count({ where }),
+    prisma.swapQuote.groupBy({ by: ['status'], _count: { _all: true } })
+  ]);
+
+  const statusCounts = { all: 0, pending: 0, complete: 0, failed: 0 };
+  for (const entry of grouped) {
+    const count = (entry as { _count: { _all: number } })._count._all;
+    statusCounts.all += count;
+    statusCounts[statusGroupFor(entry.status)] += count;
+  }
+
+  const transfers = rows.map((row) => {
+    const fromAsset = getSwapAsset(row.fromAsset);
+    const toAsset = getSwapAsset(row.toAsset);
+    return {
+      id: row.id,
+      createdAt: row.createdAt.toISOString(),
+      status: row.status,
+      statusGroup: statusGroupFor(row.status),
+      currentState: row.currentState,
+      provider: row.provider,
+      priceImpactPct: row.priceImpactPct,
+      platformFeeBps: row.platformFeeBps,
+      from: {
+        symbol: fromAsset?.symbol ?? row.fromAsset,
+        chain: fromAsset?.chain ?? row.fromAsset.split('.')[0],
+        amount: formatAtomicAmount(row.amount, fromAsset?.decimals ?? 0)
+      },
+      to: {
+        symbol: toAsset?.symbol ?? row.toAsset,
+        chain: toAsset?.chain ?? row.toAsset.split('.')[0],
+        // Simulation quotes express estimatedOutputAmount in the INPUT asset's
+        // atomic units (input minus fee), so format with the from-asset decimals
+        // to avoid underflow to 0. Real per-asset output scaling arrives with
+        // live provider certification (see docs/provider-certification-checklist).
+        amount: formatAtomicAmount(row.estimatedOutputAmount, fromAsset?.decimals ?? toAsset?.decimals ?? 0)
+      },
+      address: truncateAddress(row.walletAddress ?? row.userAddress)
+    };
+  });
+
+  return {
+    transfers,
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    statusFilter: group,
+    statusCounts,
+    generatedAt: new Date().toISOString()
+  };
+}
+
 export async function getStoredSwapQuote(quoteId: string) {
   const quote = await prisma.swapQuote.findUnique({ where: { id: quoteId } });
   if (!quote) {
