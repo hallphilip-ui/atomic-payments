@@ -1242,6 +1242,11 @@
     const WC_PROJECT_ID = '45403b7d821f8cb31849c731f6cbf6af';
 
     const WALLET_DEFS = [
+      // One-tap connect when the page runs inside a wallet's own browser
+      // (Trust/MetaMask/Coinbase/Kraken in-app browsers inject window.ethereum).
+      // Hidden entirely when nothing is injected.
+      { group: 'Detected in this browser', id: 'injected', name: 'Use this wallet', sub: 'One tap — the wallet built into this app/browser', type: 'evm', color: '#39d98a', hideWhenUndetected: true,
+        detect: () => !!window.ethereum, connect: () => connectInjected(), link: '' },
       // One-tap QR for ANY mobile wallet (Trust, Kraken, MetaMask mobile…)
       { group: 'Scan with your phone', id: 'walletconnect', name: 'Scan QR code', sub: 'Works with any mobile wallet', type: 'evm', color: '#3b99fc',
         detect: () => true, connect: () => connectWalletConnect(), link: 'https://walletconnect.network/' },
@@ -1356,6 +1361,16 @@
       return { type: 'btc', address: btc.address, provider: p };
     }
 
+    // Generic injected connect for in-app wallet browsers: whatever wallet this
+    // browser/app has built in (Trust, MetaMask mobile, Coinbase, Kraken…).
+    async function connectInjected() {
+      const p = window.ethereum;
+      if (!p?.request) throw new Error('No wallet detected in this browser.');
+      const accounts = await p.request({ method: 'eth_requestAccounts' });
+      if (!accounts || !accounts.length) throw new Error('No account authorized.');
+      return { type: 'evm', address: accounts[0], provider: p };
+    }
+
     // WalletConnect v2 — QR/deep-link for Kraken Wallet, Trust, Rainbow and most
     // mobile wallets. Lazily loads the SDK from a CDN; returns an EIP-1193
     // provider the executeSwap flow already knows how to drive.
@@ -1388,10 +1403,12 @@
       let html = '';
       let lastGroup = '';
       for (const w of WALLET_DEFS) {
-        if (w.group !== lastGroup) { html += `<div class="wallet-group-label">${w.group}</div>`; lastGroup = w.group; }
         let installed = false;
         try { installed = w.detect(); } catch (_) {}
-        const stateLabelText = w.id === 'walletconnect' ? '' : installed ? 'Installed' : w.qr ? 'Scan QR' : 'Not detected';
+        // In-app-browser entry only shows when a wallet is actually injected.
+        if (w.hideWhenUndetected && !installed) continue;
+        if (w.group !== lastGroup) { html += `<div class="wallet-group-label">${w.group}</div>`; lastGroup = w.group; }
+        const stateLabelText = w.id === 'walletconnect' ? '' : w.id === 'injected' ? 'Detected' : installed ? 'Installed' : w.qr ? 'Scan QR' : 'Not detected';
         html += `<button class="wallet-item" data-wallet="${w.id}">
           <span class="wallet-icon" style="background:${w.color}">${w.id === 'walletconnect' ? '▦' : w.name[0]}</span>
           <span class="wallet-name">${w.name}${w.sub ? `<br><small style="color:var(--muted);font-size:11px;">${w.sub}</small>` : ''}</span>
