@@ -23,7 +23,12 @@ export type UnifiedSwapQuoteRequest = {
   fromAsset: string;
   toAsset: string;
   amount: string;
+  // Destination address (where the swapped funds land).
   userAddress: string;
+  // Source/sender address on the FROM chain (the connected wallet). Required for
+  // cross-chain quotes where the source and destination are different chains/
+  // address types (e.g. BTC->ETH). Falls back to userAddress for same-chain.
+  fromAddress?: string;
 };
 
 export type SwapRoutingProvider = 'RANGO' | 'THORCHAIN' | 'LIFI';

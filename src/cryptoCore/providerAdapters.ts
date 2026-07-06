@@ -93,7 +93,9 @@ export function buildProviderPayload(
       fromToken: f.token,
       toToken: t.token,
       fromAmount: request.amount,
-      fromAddress: request.userAddress,
+      // Source = connected wallet on the FROM chain (falls back to destination
+      // for same-chain swaps); destination = where funds land.
+      fromAddress: request.fromAddress ?? request.userAddress,
       toAddress: request.userAddress,
       integrator: LIFI_INTEGRATOR,
       fee: LIFI_FEE_DECIMAL
