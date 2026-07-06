@@ -50,7 +50,7 @@ async function runContract() {
     const expectedProvider = childMode === 'live_rango' ? 'RANGO' : 'THORCHAIN';
     const expectedRequest = childMode === 'live_rango' ? evmRequest : nativeRequest;
     const expectedEndpoint = expectedProvider === 'RANGO'
-      ? 'https://api.rango.exchange/v1/quote'
+      ? 'https://api.rango.exchange/basic/quote'
       : 'https://thornode.ninerealms.com/thorchain/quote/swap';
     let fetchCalls = 0;
 
@@ -65,7 +65,7 @@ async function runContract() {
         assert.equal(parsed.searchParams.get('to'), evmRequest.toAsset);
         assert.equal(parsed.searchParams.get('amount'), evmRequest.amount);
         assert.equal(parsed.searchParams.get('referrerFee'), '0.5');
-        assert.ok(parsed.searchParams.get('referrerAddress').startsWith('0x'));
+        assert.equal(parsed.searchParams.get('referrerAddress'), null, 'referrerAddress is not a Rango parameter');
 
         return {
           ok: true,
@@ -124,11 +124,12 @@ async function runContract() {
   }
 
   const rangoPayload = buildProviderPayload(evmRequest, 'RANGO');
-  assert.equal(rangoPayload.endpoint, 'https://api.rango.exchange/v1/quote');
+  assert.equal(rangoPayload.endpoint, 'https://api.rango.exchange/basic/quote');
   assert.equal(rangoPayload.from, evmRequest.fromAsset);
   assert.equal(rangoPayload.to, evmRequest.toAsset);
   assert.equal(rangoPayload.referrerFee, '0.5');
-  assert.ok(rangoPayload.referrerAddress.startsWith('0x'), 'Rango payload carries the Atomic treasury address');
+  assert.equal(rangoPayload.referrerAddress, undefined, 'Rango payload must not carry a non-existent referrerAddress param');
+  assert.equal(rangoPayload.apiKey, undefined, 'Rango apiKey must never appear in the stored request payload');
 
   const thorPayload = buildProviderPayload(nativeRequest, 'THORCHAIN');
   assert.equal(thorPayload.endpoint, 'https://thornode.ninerealms.com/thorchain/quote/swap');
