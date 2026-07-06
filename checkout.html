@@ -9,7 +9,7 @@
   <title>Atomic Payments Checkout</title>
   <script>
     (function() {
-      const storedMode = localStorage.getItem('atomic-theme-mode') || 'system';
+      const storedMode = localStorage.getItem('atomic-theme-mode') || 'light';
       const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
       const resolved = storedMode === 'system' ? (systemDark ? 'dark' : 'light') : storedMode;
       document.documentElement.dataset.theme = resolved;
@@ -36,19 +36,20 @@
 
     :root[data-theme="light"] {
       color-scheme: light;
-      --ink: #071522;
-      --muted: #5a6f80;
-      --soft: #243b4d;
-      --paper: #f4f8fb;
-      --panel: rgba(255, 255, 255, 0.94);
-      --panel-strong: #f6fbff;
-      --line: rgba(36, 78, 108, 0.18);
-      --blue: #066fd1;
-      --cyan: #00a8d8;
-      --green: #148c5c;
-      --amber: #a76518;
-      --red: #c43649;
-      --shadow: 0 28px 90px rgba(30, 59, 88, 0.18);
+      --ink: #14161c;
+      --muted: #667085;
+      --soft: #344054;
+      --paper: #fbfbfd;
+      --panel: #ffffff;
+      --panel-strong: #ffffff;
+      --line: #e8e9f0;
+      --blue: #6d5cf5;
+      --cyan: #6d5cf5;
+      --green: #16b364;
+      --amber: #d97706;
+      --red: #e5484d;
+      --accent: #6d5cf5;
+      --shadow: 0 1px 2px rgba(16,18,30,0.04), 0 8px 24px rgba(16,18,30,0.06);
     }
 
     * { box-sizing: border-box; }
@@ -73,13 +74,7 @@
     }
 
     :root[data-theme="light"] body {
-      background:
-        linear-gradient(rgba(8, 119, 216, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(8, 119, 216, 0.045) 1px, transparent 1px),
-        radial-gradient(circle at 15% 12%, rgba(25, 210, 242, 0.18), transparent 30%),
-        radial-gradient(circle at 88% 22%, rgba(57, 217, 138, 0.12), transparent 26%),
-        linear-gradient(135deg, #f7fbff 0%, #eaf5fb 48%, #f8fbfd 100%);
-      background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%, 100% 100%;
+      background: radial-gradient(900px 480px at 85% -12%, rgba(109,92,245,0.08), transparent 60%), #fbfbfd;
     }
 
     button, input {
