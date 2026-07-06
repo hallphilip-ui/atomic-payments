@@ -412,7 +412,7 @@ async function main() {
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
   assert.equal(progress.build.version, '1.1.0', 'progress endpoint reports build version');
-  assert.equal(progress.overallCompletionPct, 94, 'progress endpoint reports overall completion');
+  assert.equal(progress.overallCompletionPct, 95, 'progress endpoint reports overall completion');
   assert.equal(progress.launchReadinessPath, '/v1/project/launch-readiness', 'progress endpoint links launch readiness');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
   console.log(`OK project progress: ${progress.overallCompletionRange} overall`);
@@ -430,11 +430,20 @@ async function main() {
   assert.ok(launchReadiness.finishLine.requiresExternalSignoff.includes('kyt-sanctions-vendor'), 'launch readiness identifies external compliance signoff');
   console.log(`OK launch readiness: ${launchReadiness.blockerCount} blockers tracked`);
 
+  const launchEvidence = await request('/v1/project/launch-evidence');
+  assert.equal(launchEvidence.service, 'atomic-payments', 'launch evidence endpoint reports service name');
+  assert.equal(launchEvidence.completion.localSoftwareReadyForBugTest, true, 'launch evidence marks local software ready for bug test');
+  assert.equal(launchEvidence.releaseDecision.decision, 'bug_test_candidate', 'launch evidence reports bug test candidate decision');
+  assert.ok(launchEvidence.localVerification.some((item) => item.id === 'core-smoke'), 'launch evidence includes core smoke proof');
+  assert.ok(launchEvidence.externalProofRequired.some((item) => item.id === 'hosted-postgres-migration'), 'launch evidence includes hosted Postgres external proof');
+  console.log(`OK launch evidence: ${launchEvidence.externalProofRequired.length} external proofs pending`);
+
   if (OPERATOR_API_KEY) {
     await Promise.all([
       assertStatusWithoutOperatorKey('/v1/metrics', 401),
       assertStatusWithoutOperatorKey('/v1/observability/readiness', 401),
       assertStatusWithoutOperatorKey('/v1/project/progress', 401),
+      assertStatusWithoutOperatorKey('/v1/project/launch-evidence', 401),
       assertStatusWithoutOperatorKey('/v1/project/launch-readiness', 401),
       assertStatusWithoutOperatorKey('/v1/admin/compliance/reviews', 401),
       assertStatusWithoutOperatorKey('/v1/settlement/platform-connectors', 401),

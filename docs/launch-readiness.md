@@ -1,6 +1,6 @@
 # Launch Readiness
 
-Current software build completion: `94%`
+Current software build completion: `95%`
 
 The launch-readiness contract is exposed at:
 
@@ -8,7 +8,15 @@ The launch-readiness contract is exposed at:
 curl http://127.0.0.1:3005/v1/project/launch-readiness
 ```
 
+The launch-evidence bundle for bug-test handoff is exposed at:
+
+```bash
+curl http://127.0.0.1:3005/v1/project/launch-evidence
+```
+
 When `ATOMIC_OPERATOR_API_KEY` is configured, include `x-atomic-operator-key`.
+
+Local bug-test handoff: **ready as a bug-test candidate**.
 
 ## Remaining Blockers
 

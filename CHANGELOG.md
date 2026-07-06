@@ -7,6 +7,7 @@
 - Added guarded wallet broadcast adapters for EVM and Solana simulation/live/live-with-fallback modes.
 - Added swap broadcast route with transaction proof capture and raw transaction redaction.
 - Added production observability readiness contract for log drain, dashboard, alert policy, and incident runbook links.
+- Added a protected launch-evidence bundle for bug-test handoff, local verification proof, production observability state, release decision, and remaining external signoffs.
 - Added operator audit evidence exports with SHA-256 digests.
 - Added settlement reconciliation evidence exports with SHA-256 digests.
 - Added production readiness gates for evidence archive configuration and build identity.

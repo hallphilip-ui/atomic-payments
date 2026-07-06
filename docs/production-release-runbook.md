@@ -54,6 +54,7 @@ The strict gate must report zero failures before launch.
 - Keep `/v1/health` wired to the platform health check.
 - Set `ATOMIC_LOG_DRAIN_URL`, `ATOMIC_METRICS_DASHBOARD_URL`, `ATOMIC_ALERT_POLICY_URL`, and `ATOMIC_INCIDENT_RUNBOOK_URL`.
 - Verify `/v1/observability/readiness` reports all production observability links configured.
+- Verify `/v1/project/launch-evidence` reports `bug_test_candidate` locally and lists every external signoff still required for production promotion.
 - Add release rollback instructions for the hosting target.
 
 ## Release Decision
