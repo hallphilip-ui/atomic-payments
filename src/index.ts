@@ -49,6 +49,12 @@ app.use(projectRoutes);
 app.use(buildRoutes);
 app.use(observabilityRoutes);
 
+app.get('/', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+});
+
 app.use('/defi-swap', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'defi-swap.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');

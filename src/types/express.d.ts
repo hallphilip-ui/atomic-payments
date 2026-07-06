@@ -38,6 +38,7 @@ declare module 'express' {
   type ExpressApp = {
     use(handler: any): void;
     use(path: string, handler: Handler): void;
+    get(path: string, handler: Handler): void;
     listen(port: number, callback?: () => void): void;
   };
 

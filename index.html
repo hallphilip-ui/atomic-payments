@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic — Swap crypto across chains, non-custodially</title>
+  <meta name="description" content="Atomic is a non-custodial cross-chain swap exchange. Convert Bitcoin, Ethereum, Solana and more — you keep your keys, trades settle on-chain to your wallet.">
+  <link rel="icon" href="/assets/atomic-mark.png">
+  <meta property="og:title" content="Atomic — Non-custodial cross-chain crypto swaps">
+  <meta property="og:description" content="Swap Bitcoin, Ethereum, Solana and more across chains. Non-custodial: your keys, your coins.">
+  <meta property="og:type" content="website">
+  <style>
+    :root {
+      --ink: #edf7ff; --muted: #8fa8bc; --line: rgba(128, 200, 235, 0.2);
+      --paper: #07111b; --panel: rgba(11, 24, 36, 0.94); --panel-strong: #0e2233;
+      --blue: #0697ff; --cyan: #19d2f2; --green: #39d98a; --violet: #9e7bff; --steel: #c9d7e4;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1100px 520px at 78% -8%, rgba(6, 151, 255, 0.16), transparent 60%),
+        radial-gradient(900px 480px at 8% 0%, rgba(25, 210, 242, 0.12), transparent 55%),
+        linear-gradient(rgba(25, 210, 242, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(25, 210, 242, 0.04) 1px, transparent 1px),
+        linear-gradient(160deg, #06101a 0%, #0b1723 48%, #0a1017 100%);
+      background-size: auto, auto, 36px 36px, 36px 36px, 100% 100%;
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1140px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 32px); }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 20; height: 74px; display: flex; align-items: center;
+      justify-content: space-between; border-bottom: 1px solid rgba(25, 210, 242, 0.18);
+      background: rgba(5, 13, 22, 0.72); backdrop-filter: blur(14px);
+      padding: 0 clamp(18px, 4vw, 32px);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; }
+    .brand img { width: 54px; height: 42px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(25, 210, 242, 0.36)); }
+    .brand strong { font-size: 17px; color: #fff; letter-spacing: 0.02em; }
+    .nav { display: flex; align-items: center; gap: 6px; }
+    .nav a { padding: 8px 14px; font-size: 14px; color: var(--steel); border-radius: 999px; }
+    .nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;
+      padding: 11px 20px; border-radius: 999px; cursor: pointer; border: 1px solid transparent; transition: 0.15s;
+    }
+    .btn-primary { background: linear-gradient(120deg, var(--blue), var(--cyan)); color: #04121d; }
+    .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-ghost { border-color: var(--line); color: var(--ink); background: rgba(14, 34, 51, 0.6); }
+    .btn-ghost:hover { border-color: var(--cyan); }
+
+    .hero { padding: clamp(56px, 9vw, 120px) 0 clamp(40px, 6vw, 72px); text-align: center; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--cyan);
+      border: 1px solid rgba(25, 210, 242, 0.35); background: rgba(25, 210, 242, 0.08);
+      padding: 6px 14px; border-radius: 999px; margin-bottom: 22px;
+    }
+    .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+    h1 { font-size: clamp(34px, 6vw, 64px); line-height: 1.04; margin: 0 auto 20px; max-width: 14ch; letter-spacing: -0.02em; }
+    h1 .grad { background: linear-gradient(110deg, var(--cyan), var(--blue) 55%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lede { font-size: clamp(16px, 2.2vw, 20px); color: var(--muted); max-width: 60ch; margin: 0 auto 34px; line-height: 1.5; }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .trust { display: flex; gap: clamp(20px, 5vw, 60px); justify-content: center; flex-wrap: wrap; margin-top: clamp(40px, 6vw, 64px); }
+    .trust div { text-align: center; }
+    .trust .n { font-size: clamp(22px, 3vw, 30px); font-weight: 700; color: #fff; }
+    .trust .l { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+
+    section.block { padding: clamp(44px, 7vw, 80px) 0; }
+    .eyebrow { color: var(--cyan); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.12em; text-align: center; }
+    h2 { font-size: clamp(24px, 4vw, 36px); text-align: center; margin: 8px auto 10px; letter-spacing: -0.01em; }
+    .sub { color: var(--muted); text-align: center; max-width: 56ch; margin: 0 auto 40px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: 24px; }
+    .card .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; margin-bottom: 14px; background: rgba(6, 151, 255, 0.14); border: 1px solid rgba(25, 210, 242, 0.25); }
+    .card h3 { margin: 0 0 8px; font-size: 17px; color: #fff; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; counter-reset: step; }
+    .step { border: 1px solid var(--line); border-radius: 16px; background: rgba(11, 24, 36, 0.7); padding: 22px; position: relative; }
+    .step::before { counter-increment: step; content: counter(step); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(120deg, var(--blue), var(--cyan)); color: #04121d; font-weight: 700; margin-bottom: 12px; }
+    .step h3 { margin: 0 0 6px; font-size: 16px; color: #fff; }
+    .step p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+
+    .assets { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 780px; margin: 0 auto; }
+    .asset { border: 1px solid var(--line); background: rgba(14, 34, 51, 0.6); border-radius: 999px; padding: 8px 16px; font-size: 13.5px; color: var(--steel); }
+    .asset b { color: #fff; }
+
+    .final { border: 1px solid rgba(25, 210, 242, 0.3); border-radius: 24px; background: linear-gradient(150deg, rgba(6, 151, 255, 0.12), rgba(25, 210, 242, 0.06)); padding: clamp(34px, 5vw, 56px); text-align: center; }
+
+    footer { border-top: 1px solid var(--line); padding: 30px 0; margin-top: 40px; }
+    .foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+    .foot a { color: var(--muted); }
+    .foot a:hover { color: var(--cyan); }
+    .foot-links { display: flex; gap: 18px; flex-wrap: wrap; }
+    .disclaimer { color: #5f7994; font-size: 11.5px; margin-top: 14px; max-width: 70ch; line-height: 1.5; }
+
+    @media (max-width: 640px) { .nav a:not(.btn) { display: none; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'"><strong>Atomic</strong></a>
+    <nav class="nav">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="/transfers">Explorer</a>
+      <a class="btn btn-primary" href="/defi-swap">Launch App</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <span class="pill"><span class="dot"></span> Non-custodial · live on mainnet-ready rails</span>
+      <h1>Swap crypto <span class="grad">across chains</span>, without giving up your keys</h1>
+      <p class="lede">Atomic routes Bitcoin, Ethereum, Solana and more between chains and settles on-chain straight to your wallet. No account, no custody — you sign every trade yourself.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/defi-swap">Launch App →</a>
+        <a class="btn btn-ghost" href="/transfers">View live transfers</a>
+      </div>
+      <div class="trust">
+        <div><div class="n">25+</div><div class="l">Assets</div></div>
+        <div><div class="n">0.5%</div><div class="l">Flat spread</div></div>
+        <div><div class="n">0</div><div class="l">Custody of funds</div></div>
+        <div><div class="n">BTC</div><div class="l">Native, not wrapped</div></div>
+      </div>
+    </section>
+
+    <section class="block wrap" id="features">
+      <div class="eyebrow">Why Atomic</div>
+      <h2>An exchange that never touches your funds</h2>
+      <p class="sub">Trades route through decentralized cross-chain liquidity. Your assets go from your wallet to the protocol to your destination — Atomic only ever earns a transparent spread.</p>
+      <div class="grid">
+        <div class="card"><div class="ic">🔑</div><h3>Non-custodial by design</h3><p>You connect your own wallet and sign every swap. Atomic holds no balances and can never move your funds.</p></div>
+        <div class="card"><div class="ic">₿</div><h3>Native Bitcoin</h3><p>Swap real BTC to ETH, USDC and more — no wrapped tokens, no bridges you have to trust.</p></div>
+        <div class="card"><div class="ic">⚡</div><h3>Cross-chain routing</h3><p>Aggregated liquidity across Bitcoin, Ethereum, Solana, Tron and major L2s, with a locked quote before you sign.</p></div>
+        <div class="card"><div class="ic">🛡️</div><h3>Screened &amp; transparent</h3><p>Every route runs compliance screening, and the flat 0.5% spread is shown up front — no hidden fees.</p></div>
+      </div>
+    </section>
+
+    <section class="block wrap" id="how">
+      <div class="eyebrow">How it works</div>
+      <h2>Three steps, funds never leave your control</h2>
+      <div class="steps">
+        <div class="step"><h3>Connect your wallet</h3><p>MetaMask, Phantom, Unisat and 12+ more across Ethereum, Solana, Tron and Bitcoin.</p></div>
+        <div class="step"><h3>Get a locked quote</h3><p>Pick your pair and amount. See the rate, spread, and price impact before anything is signed.</p></div>
+        <div class="step"><h3>Sign &amp; settle</h3><p>You approve in your wallet; the swap routes on-chain and lands in your destination address.</p></div>
+      </div>
+    </section>
+
+    <section class="block wrap">
+      <div class="eyebrow">Supported</div>
+      <h2>Trade the assets people actually use</h2>
+      <p class="sub">A curated set of the most liquid assets across chains, expanding over time.</p>
+      <div class="assets">
+        <span class="asset"><b>BTC</b> Bitcoin</span>
+        <span class="asset"><b>ETH</b> Ethereum</span>
+        <span class="asset"><b>SOL</b> Solana</span>
+        <span class="asset"><b>USDC</b></span>
+        <span class="asset"><b>USDT</b></span>
+        <span class="asset"><b>XRP</b></span>
+        <span class="asset"><b>DOGE</b></span>
+        <span class="asset"><b>AVAX</b></span>
+        <span class="asset"><b>LTC</b></span>
+        <span class="asset"><b>ATOM</b></span>
+        <span class="asset">+ more</span>
+      </div>
+    </section>
+
+    <section class="block wrap">
+      <div class="final">
+        <h2 style="margin-top:0">Ready to swap?</h2>
+        <p class="sub" style="margin-bottom:26px">Connect a wallet and get a quote in seconds. No sign-up, no custody.</p>
+        <a class="btn btn-primary" href="/defi-swap">Launch App →</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><img src="/assets/atomic-mark.png" alt="Atomic" style="width:38px;height:30px" onerror="this.style.display='none'"><strong>Atomic</strong></a>
+      <div class="foot-links">
+        <a href="/defi-swap">Swap</a>
+        <a href="/transfers">Explorer</a>
+        <a href="/checkout">Checkout</a>
+      </div>
+      <div>© 2026 Atomic</div>
+    </div>
+    <p class="disclaimer">Atomic is a non-custodial interface to decentralized cross-chain liquidity. It does not take custody of user funds. Digital assets are volatile and swaps are irreversible; use at your own risk and comply with the laws of your jurisdiction. Currently in beta.</p>
+  </footer>
+</body>
+</html>
