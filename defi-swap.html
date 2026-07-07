@@ -650,8 +650,8 @@
 
             <div class="swap-grid" style="margin-top: 14px;">
               <div class="field">
-                <label for="amount" data-i18n="defi.inputAmount">Input Amount</label>
-                <input id="amount" class="amount-input" inputmode="numeric" value="100000000" aria-label="Atomic integer amount">
+                <label for="amount" data-i18n="defi.inputAmount">Amount</label>
+                <input id="amount" class="amount-input" inputmode="decimal" value="10" placeholder="0.0" aria-label="Amount to swap">
               </div>
               <div></div>
               <div class="field">
@@ -780,6 +780,30 @@
 
     function selectedAsset(selectId) {
       return state.assets.find((asset) => asset.assetId === el(selectId).value);
+    }
+
+    // Human decimal input (e.g. "10", "0.5") -> atomic integer string for the
+    // asset's decimals. Throws a friendly error on invalid input.
+    function toAtomicAmount(human, asset) {
+      const decimals = (asset && asset.decimals) || 0;
+      const s = String(human == null ? '' : human).trim();
+      if (s === '' || s === '.' || !/^\d*\.?\d*$/.test(s)) throw new Error('Enter a valid amount (e.g. 10 or 0.5).');
+      const [whole, frac = ''] = s.split('.');
+      if (frac.length > decimals) throw new Error(`${asset ? asset.symbol : 'This asset'} supports at most ${decimals} decimals.`);
+      const fracPadded = (frac + '0'.repeat(decimals)).slice(0, decimals);
+      const atomic = (BigInt(whole || '0') * (10n ** BigInt(decimals)) + BigInt(fracPadded || '0')).toString();
+      if (atomic === '0') throw new Error('Amount must be greater than zero.');
+      return atomic;
+    }
+
+    // Atomic integer string -> human decimal for display.
+    function fromAtomicAmount(atomic, asset) {
+      const decimals = (asset && asset.decimals) || 0;
+      if (!/^\d+$/.test(String(atomic || ''))) return String(atomic || '');
+      const padded = String(atomic).padStart(decimals + 1, '0');
+      const whole = padded.slice(0, padded.length - decimals) || '0';
+      const frac = (decimals ? padded.slice(padded.length - decimals) : '').replace(/0+$/, '').slice(0, 6);
+      return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (frac ? '.' + frac : '');
     }
 
     function shortAddress(address) {
@@ -943,8 +967,11 @@
       el('currentState').textContent = stateLabel(quote.currentState);
       el('expiresAt').textContent = new Date(quote.expiresAt).toLocaleTimeString();
       el('reviewProvider').textContent = quote.provider;
-      el('reviewOutput').textContent = quote.estimatedOutputAmount;
-      el('reviewFee').textContent = `${quote.platformFeeAmount} (${quote.platformFeeBps} bps)`;
+      // Live LI.FI output is in the destination asset's units; simulation output
+      // is in the source asset's units. Format with whichever matches.
+      const outUnitAsset = quote.providerMode === 'live' ? quote.toAsset : quote.fromAsset;
+      el('reviewOutput').textContent = `${fromAtomicAmount(quote.estimatedOutputAmount, outUnitAsset)} ${(quote.toAsset && quote.toAsset.symbol) || ''}`.trim();
+      el('reviewFee').textContent = `${fromAtomicAmount(quote.platformFeeAmount, quote.fromAsset)} ${(quote.fromAsset && quote.fromAsset.symbol) || ''} (${quote.platformFeeBps} bps)`.trim();
       el('reviewImpact').textContent = `${quote.priceImpactPct}% / limit ${quote.priceImpactLimitPct}%`;
       renderProviderDiagnostics(quote);
 
@@ -998,10 +1025,13 @@
     }
 
     async function getQuote() {
+      let atomicAmount;
+      try { atomicAmount = toAtomicAmount(el('amount').value, selectedAsset('fromAsset')); }
+      catch (e) { setActionHint('bad', e.message); return; }
       const payload = {
         fromAsset: el('fromAsset').value,
         toAsset: el('toAsset').value,
-        amount: el('amount').value.trim(),
+        amount: atomicAmount,
         userAddress: el('destination').value.trim(),
         // Source address = connected wallet, so live cross-chain quotes resolve
         // and we get back a signable transaction to execute.
@@ -1052,7 +1082,7 @@
         // 2. ERC20 approval when the source token is not native.
         const native = ['0x0000000000000000000000000000000000000000', '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'];
         if (ex.fromTokenAddress && ex.approvalAddress && !native.includes(ex.fromTokenAddress.toLowerCase())) {
-          const amount = BigInt(el('amount').value.trim());
+          const amount = BigInt(state.quote.amount);
           const owner = from.toLowerCase().replace('0x', '').padStart(64, '0');
           const spender = ex.approvalAddress.toLowerCase().replace('0x', '').padStart(64, '0');
           let allowance = 0n;
