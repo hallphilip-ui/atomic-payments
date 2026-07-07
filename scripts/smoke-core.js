@@ -1,6 +1,10 @@
 const assert = require('node:assert/strict');
 const { PrismaClient } = require('@prisma/client');
 
+// Read the expected build version from package.json so this never goes stale on a
+// version bump (a hard-coded value here silently broke CI after the 1.2.0 release).
+const EXPECTED_VERSION = require('../package.json').version;
+
 const BASE_URL = process.env.ATOMIC_BASE_URL || 'http://127.0.0.1:3005';
 const KEEP_SMOKE_DATA = process.env.ATOMIC_SMOKE_KEEP_DATA === '1';
 const OPERATOR_API_KEY = process.env.ATOMIC_OPERATOR_API_KEY || '';
@@ -145,7 +149,7 @@ async function main() {
   assert.equal(health.status, 'ok', 'health endpoint reports ok');
   assert.equal(health.database, 'ready', 'health endpoint reports database readiness');
   assert.equal(health.service, 'atomic-payments', 'health endpoint reports service name');
-  assert.equal(health.build.version, '1.1.0', 'health endpoint reports build version');
+  assert.equal(health.build.version, EXPECTED_VERSION, 'health endpoint reports build version');
   assert.ok(String(health.requestId || '').startsWith('smoke-'), 'health endpoint echoes request id');
   console.log(`OK health: ${health.database}, ${health.providerMode} provider mode`);
 
@@ -449,7 +453,7 @@ async function main() {
 
   const progress = await request('/v1/project/progress');
   assert.equal(progress.service, 'atomic-payments', 'progress endpoint reports service name');
-  assert.equal(progress.build.version, '1.1.0', 'progress endpoint reports build version');
+  assert.equal(progress.build.version, EXPECTED_VERSION, 'progress endpoint reports build version');
   assert.equal(progress.overallCompletionPct, 95, 'progress endpoint reports overall completion');
   assert.equal(progress.launchReadinessPath, '/v1/project/launch-readiness', 'progress endpoint links launch readiness');
   assert.ok(progress.workstreams.some((item) => item.id === 'defi-swap'), 'progress endpoint includes DeFi workstream');
@@ -457,7 +461,7 @@ async function main() {
 
   const build = await request('/v1/build');
   assert.equal(build.build.service, 'atomic-payments', 'build endpoint reports service name');
-  assert.equal(build.build.version, '1.1.0', 'build endpoint reports package version');
+  assert.equal(build.build.version, EXPECTED_VERSION, 'build endpoint reports package version');
   assert.ok(build.build.buildSha, 'build endpoint reports build SHA or local fallback');
   console.log(`OK build version: ${build.build.version} (${build.build.buildChannel})`);
 
