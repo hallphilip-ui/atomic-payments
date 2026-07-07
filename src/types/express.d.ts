@@ -6,6 +6,7 @@ declare module 'express' {
     headers: Record<string, string | string[] | undefined>;
     method?: string;
     originalUrl?: string;
+    path?: string;
     ip?: string;
     on(event: string, callback: () => void): Request;
   };
@@ -39,6 +40,7 @@ declare module 'express' {
     use(handler: any): void;
     use(path: string, handler: Handler): void;
     get(path: string, handler: Handler): void;
+    set(setting: string, value: unknown): void;
     listen(port: number, callback?: () => void): void;
   };
 
@@ -52,9 +54,14 @@ declare module 'express' {
 }
 
 declare module 'express-rate-limit' {
+  import type { Request, Response } from 'express';
   type RateLimitOptions = {
     windowMs: number;
     max: number;
+    standardHeaders?: boolean | string;
+    legacyHeaders?: boolean;
+    keyGenerator?: (req: Request, res?: Response) => string;
+    skip?: (req: Request, res?: Response) => boolean;
   };
 
   export default function rateLimit(options: RateLimitOptions): any;

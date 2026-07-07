@@ -21,10 +21,37 @@ import { operatorAuth } from './security/operatorAuth';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3005);
+
+// Behind Cloudflare -> nginx -> node, every request arrives from 127.0.0.1. Without
+// this, req.ip is the proxy and the rate limiter buckets ALL traffic together (a
+// single 127.0.0.1 key), so light load 429s the entire site. Trust the two proxies
+// (Cloudflare + nginx) so req.ip resolves to the real client.
+app.set('trust proxy', 2);
+
 app.use(express.json());
 app.use(requestLogger);
 
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+// Real per-visitor rate limiting. Cloudflare sets CF-Connecting-IP to the true
+// client IP (and strips any client-supplied value, so it can't be spoofed); fall
+// back to req.ip for direct-to-origin requests. Static assets, HTML pages and the
+// health check don't count, so ordinary browsing never trips the limit — only the
+// /v1 API is metered.
+const clientIp = (req: Request): string => {
+  const cf = req.headers['cf-connecting-ip'];
+  if (typeof cf === 'string' && cf.length) return cf;
+  return req.ip || 'unknown';
+};
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000, // per client IP per window — generous for active swapping, still caps abuse
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: clientIp,
+  skip: (req: Request) =>
+    req.method === 'OPTIONS' ||
+    !req.path?.startsWith('/v1') || // HTML pages, /assets/*, favicon, etc.
+    req.path === '/v1/health'
+}));
 
 app.use((req: Request, res: Response, next?: () => void) => {
   res.header('Access-Control-Allow-Origin', '*');
