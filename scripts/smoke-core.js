@@ -361,7 +361,7 @@ async function main() {
   assert.ok(quoted.quote.providerQuoteId, 'quote includes provider quote id');
   assert.ok(['AUTO_CLEARED', 'APPROVED'].includes(quoted.complianceReview.status), 'valid quote is compliance-cleared');
   assert.equal(quoted.complianceReview.vendorMode, 'simulation', 'compliance review includes vendor mode');
-  assert.equal(quoted.complianceReview.vendorProvider, 'atomic-simulated-kyt', 'compliance review includes vendor provider');
+  assert.equal(quoted.complianceReview.vendorProvider, 'ofac-sdn-local', 'compliance review includes vendor provider');
   assert.ok(quoted.complianceReview.vendorReferenceId, 'compliance review includes vendor reference id');
   console.log(`OK quote created: ${quoted.quote.id}`);
 
@@ -534,8 +534,8 @@ async function main() {
   const review = reviewList.reviews.find((item) => item.id === reviewQuote.complianceReview.id);
   assert.ok(review, 'manual review appears in admin queue');
   assert.ok(review.swapQuote, 'admin review includes swap quote context');
-  assert.equal(review.vendorProvider, 'atomic-simulated-kyt', 'admin review preserves vendor provider');
-  assert.equal(review.vendorMetadata.screeningModel, 'deterministic_v1', 'admin review preserves vendor metadata');
+  assert.equal(review.vendorProvider, 'ofac-sdn-local', 'admin review preserves vendor provider');
+  assert.equal(review.vendorMetadata.screeningModel, 'ofac_address_and_jurisdiction_v1', 'admin review preserves vendor metadata');
 
   const evidence = await request(`/v1/admin/compliance/reviews/${review.id}/evidence`);
   assert.equal(evidence.evidence.schemaVersion, 'compliance-evidence.v1', 'evidence export includes schema version');

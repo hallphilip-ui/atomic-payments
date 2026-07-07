@@ -49,9 +49,12 @@ router.get('/v1/swaps/config', (_req, res) => {
 
 router.post('/v1/swaps/quote', async (req, res) => {
   try {
-    const result = await createStoredSwapQuote(req.body);
+    // Cloudflare sets CF-IPCountry to the visitor's ISO country for jurisdiction screening.
+    const cfCountry = req.headers['cf-ipcountry'];
+    const countryCode = typeof cfCountry === 'string' ? cfCountry : undefined;
+    const result = await createStoredSwapQuote(req.body, { countryCode });
     const quote = result.quote;
-    const statusCode = quote.status === 'HALTED' ? 409 : 201;
+    const statusCode = quote.status === 'HALTED' ? 409 : quote.status === 'BLOCKED' ? 403 : 201;
 
     return res.status(statusCode).json({
       quote,

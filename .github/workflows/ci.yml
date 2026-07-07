@@ -44,6 +44,9 @@ jobs:
       - name: Run provider adapter contract tests
         run: npm run test:providers
 
+      - name: Run sanctions screening contract tests
+        run: npm run test:sanctions
+
       - name: Run platform connector contract tests
         run: npm run test:platform-connectors
 

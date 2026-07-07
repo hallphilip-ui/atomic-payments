@@ -159,13 +159,18 @@ function toSwapQuoteView(quote: StoredSwapQuote): UnifiedSwapQuote & {
   };
 }
 
-export async function createStoredSwapQuote(request: UnifiedSwapQuoteRequest) {
+export async function createStoredSwapQuote(
+  request: UnifiedSwapQuoteRequest,
+  context: { countryCode?: string } = {}
+) {
   const quote = await getEnforcedPlatformQuote(request);
   const compliance = await screenSwapCompliance({
     fromAsset: quote.fromAsset,
     toAsset: quote.toAsset,
     amount: quote.amount,
     userAddress: request.userAddress,
+    sourceAddress: request.fromAddress,
+    countryCode: context.countryCode,
     priceImpactPct: quote.priceImpactPct
   });
 

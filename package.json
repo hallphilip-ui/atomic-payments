@@ -11,6 +11,7 @@
     "test:observability": "node scripts/observability-contract.js",
     "test:operator-auth": "node scripts/operator-auth-contract.js",
     "test:providers": "node scripts/provider-adapter-contract.js",
+    "test:sanctions": "node scripts/sanctions-contract.js",
     "test:test-accounts": "node scripts/test-account-seed-contract.js",
     "test:transfer-compliance": "node scripts/transfer-compliance-contract.js",
     "test:wallet-broadcast": "node scripts/wallet-broadcast-contract.js",
