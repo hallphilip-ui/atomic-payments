@@ -1024,10 +1024,31 @@
       setApiStatus(true, t('defi.apiConnected'), 'defi.apiConnected');
     }
 
+    // Which wallet type can send an asset's chain (the swap SOURCE).
+    function sourceWalletType(asset) {
+      if (!asset) return null;
+      if (asset.chainFamily === 'evm') return 'evm';
+      if (asset.chainFamily === 'svm') return 'svm';
+      if (asset.chainFamily === 'tron') return 'tron';
+      if (asset.chain === 'BITCOIN') return 'btc';
+      return null; // long-tail L1s: no supported source wallet yet
+    }
+    function sourceWalletLabel(asset) {
+      return ({ evm: 'an EVM wallet (MetaMask, Rabby…)', svm: 'a Solana wallet (Phantom, Solflare…)', tron: 'a Tron wallet (TronLink)', btc: 'a Bitcoin wallet (Unisat, Xverse, Leather)' })[sourceWalletType(asset)] || 'a compatible wallet';
+    }
+
     async function getQuote() {
       let atomicAmount;
       try { atomicAmount = toAtomicAmount(el('amount').value, selectedAsset('fromAsset')); }
       catch (e) { setActionHint('bad', e.message); return; }
+      // If a wallet is connected, make sure it can actually SEND the source asset
+      // (an EVM wallet can't send BTC, etc.) — otherwise the quote can't execute.
+      const fromA = selectedAsset('fromAsset');
+      const need = sourceWalletType(fromA);
+      if (state.wallet && need && state.wallet.type !== need) {
+        setActionHint('bad', `Your connected wallet can’t send ${fromA.symbol} (${fromA.chain}). To swap from ${fromA.symbol}, connect ${sourceWalletLabel(fromA)} — or pick a source asset your wallet supports.`);
+        return;
+      }
       const payload = {
         fromAsset: el('fromAsset').value,
         toAsset: el('toAsset').value,
