@@ -33,9 +33,9 @@ export const LIFI_API_KEY = process.env.ATOMIC_LIFI_API_KEY ?? '';
 // Must match the integrator registered in portal.li.fi (the one with a fee
 // wallet configured), otherwise LI.FI rejects fee collection.
 export const LIFI_INTEGRATOR = process.env.ATOMIC_LIFI_INTEGRATOR ?? 'atomic';
-// LI.FI takes a ~25 bps share of the integrator fee we collect (not an additive
-// charge). To net our PLATFORM_SPREAD_BPS margin after their cut, we pass an
-// integrator fee of (our margin + LI.FI's 25 bps). We still record our own
-// revenue as PLATFORM_SPREAD_BPS (see the LIFI branch in providerAdapters).
-export const LIFI_PROTOCOL_FEE_BPS = 25;
-export const LIFI_FEE_DECIMAL = ((PLATFORM_SPREAD_BPS + LIFI_PROTOCOL_FEE_BPS) / 10000).toString();
+// Verified against live LI.FI quotes (2026-07-06): LI.FI's ~25 bps fixed fee is
+// ADDED ON TOP of our integrator fee, not deducted from it. So we pass exactly
+// our PLATFORM_SPREAD_BPS margin and receive it in full (customer's all-in cost
+// is our fee + LI.FI's 25 bps + gas). Recorded platform revenue == what we net.
+export const LIFI_PROTOCOL_FEE_BPS = 25; // LI.FI's additive fixed fee (informational)
+export const LIFI_FEE_DECIMAL = (PLATFORM_SPREAD_BPS / 10000).toString();
