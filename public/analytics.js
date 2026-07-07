@@ -2,7 +2,7 @@
 // (replay a user's session when they report an issue = fast support). The project
 // key is a PUBLIC client-side identifier — safe to ship. No-ops until configured.
 (function () {
-  var POSTHOG_KEY = 'REPLACE_WITH_POSTHOG_KEY';
+  var POSTHOG_KEY = 'phc_kC3jJX868sdYAWGNRvgyYBCRDtQu3eXrc2TQSTYvLA49';
   var POSTHOG_HOST = 'https://us.i.posthog.com'; // EU: https://eu.i.posthog.com
   var SUPPORT_EMAIL = 'support@atomicpay.cloud';
 
