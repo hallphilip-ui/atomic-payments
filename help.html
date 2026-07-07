@@ -207,12 +207,16 @@
       e.preventDefault();
       const btn = $('submit-btn'); const result = $('result');
       result.className = 'result'; btn.disabled = true; btn.textContent = 'Submitting…';
+      // Read values before any reset so the analytics event reflects the submission.
+      const category = $('category').value;
+      const title = $('title').value;
+      const hasContact = !!$('contact').value;
       try {
         const res = await fetch('/v1/bugs', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            category: $('category').value,
-            title: $('title').value,
+            category: category,
+            title: title,
             description: $('description').value,
             contact: $('contact').value || undefined,
             pageUrl: location.href
@@ -222,8 +226,13 @@
         if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
         result.className = 'result ok';
         result.innerHTML = 'Thanks — received. Your reference is <code>' + esc(data.reference) + '</code>. We\'ll take a look.';
+        try {
+          if (window.posthog) window.posthog.capture('bug_reported', {
+            reference: data.reference, category: category, title: title,
+            has_contact: hasContact, page: location.href
+          });
+        } catch (_) {}
         $('bug-form').reset();
-        try { if (window.posthog) window.posthog.capture('bug_reported', { reference: data.reference, category: $('category').value }); } catch (_) {}
       } catch (err) {
         result.className = 'result err';
         result.textContent = 'Could not submit: ' + err.message + '. You can also email support instead.';

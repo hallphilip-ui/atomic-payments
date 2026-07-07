@@ -14,6 +14,7 @@
         api_host: POSTHOG_HOST,
         capture_pageview: true,
         capture_pageleave: true,
+        capture_exceptions: true, // auto-capture JS errors → PostHog "Error tracking"
         person_profiles: 'identified_only'
         // session replay is enabled per-project in the PostHog dashboard
       });
