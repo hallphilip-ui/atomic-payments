@@ -575,7 +575,7 @@
     /* Connect Wallet modal (non-custodial) */
     .wallet-modal[hidden] { display: none; }
     .wallet-modal { position: fixed; inset: 0; z-index: 100; }
-    .wallet-modal-backdrop { position: absolute; inset: 0; background: rgba(3, 9, 16, 0.66); backdrop-filter: blur(2px); }
+    .wallet-modal-backdrop { position: absolute; inset: 0; background: rgba(3, 9, 16, 0.66); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
     .wallet-modal-panel {
       position: absolute; top: 0; right: 0; height: 100%; width: min(420px, 100%);
       background: #ffffff; border-left: 1px solid var(--line);
@@ -762,6 +762,29 @@
     };
 
     const el = (id) => document.getElementById(id);
+
+    // Global safety net. On some browsers (notably Safari) an uncaught error in a
+    // handler makes the UI look dead — e.g. "Connect Wallet does nothing" (bug B1).
+    // Surface it and send the stack to PostHog so browser-specific failures are
+    // diagnosable instead of silent.
+    function reportClientError(sourceLabel, err) {
+      const message = (err && (err.message || (err.reason && err.reason.message))) || String(err || 'Unknown error');
+      try { console.error('[atomic]', sourceLabel, err); } catch (_) {}
+      try {
+        if (window.posthog) window.posthog.capture('client_error', {
+          source: sourceLabel, message: message,
+          stack: (err && (err.stack || (err.reason && err.reason.stack))) || null,
+          ua: navigator.userAgent, page: location.href
+        });
+      } catch (_) {}
+      try {
+        const hint = document.getElementById('actionHint');
+        if (hint) { hint.className = 'alert bad'; hint.textContent = 'Something went wrong (' + message + '). It has been logged — please retry, or use Help to report it.'; }
+      } catch (_) {}
+    }
+    window.addEventListener('error', (e) => reportClientError('window.error', e.error || e));
+    window.addEventListener('unhandledrejection', (e) => reportClientError('unhandledrejection', e.reason || e));
+
     const t = (key, vars) => window.atomicI18n?.t(key, vars) || key;
     const statusLabel = (status) => window.atomicI18n?.statusLabel(status) || status;
     const riskLabel = (risk) => window.atomicI18n?.riskLabel(risk) || risk;
@@ -1286,7 +1309,13 @@
 
     el('quoteBtn').addEventListener('click', getQuote);
     el('executeBtn').addEventListener('click', executeSwap);
-    el('connectWalletBtn').addEventListener('click', openWalletModal);
+    el('connectWalletBtn').addEventListener('click', () => {
+      try { openWalletModal(); }
+      catch (e) {
+        reportClientError('openWalletModal', e);
+        setActionHint('bad', 'Could not open the wallet menu: ' + ((e && e.message) || e) + '. Please refresh, or report it from Help.');
+      }
+    });
 
     // ---- Connect Wallet modal (non-custodial: Atomic never holds funds) ----
     // WalletConnect project ID — get a free one at https://cloud.reown.com
@@ -1450,19 +1479,31 @@
         prepBox.innerHTML = '<div style="text-align:center;padding:44px 20px;"><div class="wc-spin"></div><strong>Generating secure QR…</strong><p class="subtle" style="margin:8px 0 0;font-size:13px;">Scan it with any wallet app on your phone.</p></div>';
       }
       if (!wcProvider) {
-        const { EthereumProvider } = await import('https://esm.sh/@walletconnect/ethereum-provider@2');
-        wcProvider = await EthereumProvider.init({
-          projectId: WC_PROJECT_ID,
-          chains: [1],
-          optionalChains: [8453, 42161, 10, 137, 56, 43114],
-          showQrModal: false, // we render the QR ourselves, in-drawer
-          metadata: {
-            name: 'Atomic',
-            description: 'Non-custodial cross-chain swaps',
-            url: 'https://atomicpay.cloud',
-            icons: ['https://atomicpay.cloud/assets/atomic-mark.png']
-          }
-        });
+        let EthereumProvider;
+        try {
+          ({ EthereumProvider } = await import('https://esm.sh/@walletconnect/ethereum-provider@2'));
+        } catch (e) {
+          reportClientError('wc.import', e);
+          throw new Error('Could not load WalletConnect. A content blocker, private-mode restriction, or network issue may be stopping it — try a normal (non-private) window or another browser.');
+        }
+        try {
+          wcProvider = await EthereumProvider.init({
+            projectId: WC_PROJECT_ID,
+            chains: [1],
+            optionalChains: [8453, 42161, 10, 137, 56, 43114],
+            showQrModal: false, // we render the QR ourselves, in-drawer
+            metadata: {
+              name: 'Atomic',
+              description: 'Non-custodial cross-chain swaps',
+              url: 'https://atomicpay.cloud',
+              icons: ['https://atomicpay.cloud/assets/atomic-mark.png']
+            }
+          });
+        } catch (e) {
+          reportClientError('wc.init', e);
+          // Safari Private Browsing blocks the IndexedDB/localStorage WalletConnect needs.
+          throw new Error('WalletConnect could not start in this browser. On Safari, turn off Private Browsing (it blocks the storage WalletConnect needs) and try again.');
+        }
       }
       if (wcProvider.accounts && wcProvider.accounts.length) {
         return { type: 'evm', address: wcProvider.accounts[0], provider: wcProvider };
