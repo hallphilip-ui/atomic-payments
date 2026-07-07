@@ -113,6 +113,20 @@ app.use('/transfers', (_req: Request, res: Response) => {
   return res.send(html);
 });
 
+app.use('/terms', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'terms.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
+app.use('/privacy', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'privacy.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
 app.use('/help', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'help.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');

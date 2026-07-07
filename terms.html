@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic — Terms of Service</title>
+  <link rel="icon" href="/assets/atomic-mark.png">
+  <style>
+    :root {
+      --ink: #14161c; --muted: #667085; --line: #e8e9f0;
+      --panel: #ffffff; --accent: #6d5cf5; --green: #16b364;
+      --shadow: 0 1px 2px rgba(16,18,30,0.04), 0 6px 20px rgba(16,18,30,0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(820px 440px at 85% -10%, rgba(109,92,245,0.07), transparent 60%), #fbfbfd;
+      color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .topbar {
+      height: 72px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 clamp(18px, 4vw, 40px); border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.82); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { width: 44px; height: 36px; object-fit: contain; }
+    .brand strong { display: block; font-size: 16px; line-height: 1.1; }
+    .brand span { display: block; font-size: 12px; color: var(--muted); }
+    .nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nav a {
+      min-height: 34px; display: inline-flex; align-items: center; padding: 0 14px;
+      border: 1px solid var(--line); border-radius: 10px; font-size: 13px; color: var(--muted); font-weight: 500; background: #fff;
+    }
+    .nav a.active { border-color: var(--accent); color: var(--accent); background: #f3f1fe; }
+    .wrap { max-width: 800px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 32px) 72px; }
+    h1 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 6px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 15px; margin: 0 0 6px; }
+    .updated { color: var(--muted); font-size: 13px; margin: 0 0 28px; }
+    .callout {
+      border: 1px solid #f4d7a8; background: #fdf6e9; border-radius: 12px; padding: 14px 16px; margin: 0 0 28px;
+      font-size: 13.5px; color: #7a5a12; line-height: 1.55;
+    }
+    h2 { font-size: 18px; margin: 30px 0 8px; letter-spacing: -0.01em; }
+    p, li { font-size: 14.5px; color: #344054; line-height: 1.65; }
+    p { margin: 0 0 12px; }
+    ul { margin: 0 0 12px; padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    strong { color: var(--ink); }
+    .toc { border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin: 0 0 30px; background: #fff; box-shadow: var(--shadow); }
+    .toc a { color: var(--accent); font-size: 13.5px; display: inline-block; margin: 3px 14px 3px 0; }
+    footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 24px clamp(16px,4vw,32px); color: var(--muted); font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'">
+      <span><strong>Atomic</strong><span>Payments &amp; Conversions</span></span>
+    </a>
+    <nav class="nav">
+      <a href="/defi-swap">Swap</a>
+      <a href="/transfers">Transfers</a>
+      <a href="/help">Help</a>
+      <a href="/releases">Releases</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <h1>Terms of Service</h1>
+    <p class="sub">The agreement between you and Atomic when you use our services.</p>
+    <p class="updated">Last updated: 7 July 2026 · Effective: 7 July 2026</p>
+
+    <div class="callout">
+      <strong>Plain-language summary.</strong> Atomic is a <strong>non-custodial</strong> tool that helps you swap crypto through third-party liquidity providers. We never take custody of your funds — your own wallet signs every transaction. Crypto transactions are irreversible and carry risk. You are responsible for your wallet, your taxes, and complying with the laws that apply to you. This summary is not part of the agreement; the full terms below govern.
+    </div>
+
+    <div class="toc">
+      <a href="#service">1. The service</a>
+      <a href="#noncustodial">2. Non-custodial</a>
+      <a href="#eligibility">3. Eligibility</a>
+      <a href="#compliance">4. Compliance &amp; sanctions</a>
+      <a href="#fees">5. Fees &amp; quotes</a>
+      <a href="#risks">6. Risks</a>
+      <a href="#prohibited">7. Prohibited use</a>
+      <a href="#thirdparty">8. Third parties</a>
+      <a href="#noadvice">9. No advice</a>
+      <a href="#disclaimer">10. Disclaimers</a>
+      <a href="#liability">11. Liability</a>
+      <a href="#indemnity">12. Indemnification</a>
+      <a href="#changes">13. Changes</a>
+      <a href="#law">14. Governing law</a>
+      <a href="#contact">15. Contact</a>
+    </div>
+
+    <h2 id="service">1. The Service</h2>
+    <p>Atomic ("<strong>Atomic</strong>," "we," "us," or "our") provides a software interface that lets you obtain quotes for and execute swaps and conversions of digital assets ("<strong>crypto</strong>") by routing your instructions to independent third-party liquidity providers, decentralized exchanges, and cross-chain protocols (collectively, "<strong>Providers</strong>"). The interface, website, APIs, and related tools are the "<strong>Service</strong>." By accessing or using the Service, you agree to these Terms of Service (the "<strong>Terms</strong>"). If you do not agree, do not use the Service.</p>
+
+    <h2 id="noncustodial">2. Non-Custodial Nature</h2>
+    <p>The Service is <strong>non-custodial</strong>. Atomic does not take possession, custody, or control of your crypto or your private keys at any time. You connect and control your own wallet, and <strong>you alone authorize and sign every transaction</strong>. We do not hold balances on your behalf, cannot move your funds, and cannot reverse, cancel, or recover a transaction once it is broadcast to a blockchain. You are solely responsible for securing your wallet, seed phrase, and private keys.</p>
+
+    <h2 id="eligibility">3. Eligibility</h2>
+    <p>To use the Service you represent and warrant that you: (a) are at least 18 years old and have legal capacity to enter into these Terms; (b) are not located in, a resident of, or accessing the Service from a jurisdiction subject to comprehensive sanctions or where use of the Service is prohibited; (c) are not identified on any sanctions or restricted-party list; and (d) will use the Service only in compliance with all laws that apply to you.</p>
+
+    <h2 id="compliance">4. Compliance &amp; Sanctions Screening</h2>
+    <p>To help keep the Service lawful and safe, we may — directly or through third-party vendors — screen connected wallet addresses and related on-chain activity against sanctions lists and known-illicit-address databases, and we may use your network information to restrict access from prohibited jurisdictions. <strong>We may refuse, delay, or block any quote or transaction, and restrict or terminate access, at our discretion</strong>, including where we detect sanctioned, high-risk, or prohibited activity. You must not use the Service to evade sanctions or any legal restriction.</p>
+
+    <h2 id="fees">5. Fees &amp; Quotes</h2>
+    <ul>
+      <li><strong>Platform fee.</strong> Atomic charges a platform fee (currently 2.5%) that is reflected in the quote you receive before you sign.</li>
+      <li><strong>Other costs.</strong> Provider fees, blockchain network ("gas") fees, and price spread/slippage also apply and are outside our control.</li>
+      <li><strong>Quotes are estimates.</strong> A quote is an estimate at a point in time. The amount you actually receive may differ due to price movement, slippage, network conditions, and Provider behavior. Quotes may expire; you are responsible for reviewing the details before you sign.</li>
+    </ul>
+
+    <h2 id="risks">6. Risks</h2>
+    <p>Using crypto and the Service involves significant risk, including: <strong>irreversibility</strong> of transactions; <strong>price volatility</strong>; <strong>smart-contract and protocol risk</strong>; <strong>Provider failure, downtime, or insolvency</strong>; failed, stuck, or partially completed swaps; incorrect addresses or network selection; and total loss of funds. You accept these risks. Do not transact with more than you can afford to lose.</p>
+
+    <h2 id="prohibited">7. Prohibited Use</h2>
+    <p>You agree not to use the Service to: violate any law or regulation; launder money or finance terrorism; evade sanctions; facilitate fraud, theft, or other illicit activity; infringe others' rights; interfere with, attack, or reverse-engineer the Service; or transact with proceeds of crime. We may report unlawful activity to authorities.</p>
+
+    <h2 id="thirdparty">8. Third-Party Services</h2>
+    <p>The Service relies on independent Providers, wallet software, blockchains, and other third parties that we do not control and do not endorse. Your use of them may be subject to their own terms. Atomic is not responsible for the acts, omissions, availability, security, pricing, or performance of any third party.</p>
+
+    <h2 id="noadvice">9. No Financial, Investment, Tax, or Legal Advice</h2>
+    <p>Nothing in the Service is financial, investment, tax, accounting, or legal advice, and nothing is a recommendation to buy, sell, or hold any asset. You are solely responsible for evaluating your transactions and for determining and paying any taxes that apply to you.</p>
+
+    <h2 id="disclaimer">10. Disclaimers</h2>
+    <p>THE SERVICE IS PROVIDED "<strong>AS IS</strong>" AND "<strong>AS AVAILABLE</strong>," WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, SECURE, OR THAT ANY QUOTE OR TRANSACTION WILL COMPLETE.</p>
+
+    <h2 id="liability">11. Limitation of Liability</h2>
+    <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, ATOMIC AND ITS OFFICERS, EMPLOYEES, AND AGENTS WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR EXEMPLARY DAMAGES, OR FOR ANY LOSS OF PROFITS, CRYPTO, DATA, OR GOODWILL, ARISING FROM OR RELATED TO YOUR USE OF (OR INABILITY TO USE) THE SERVICE. IN ALL CASES, OUR TOTAL AGGREGATE LIABILITY IS LIMITED TO THE GREATER OF THE PLATFORM FEES YOU PAID TO US IN THE 30 DAYS BEFORE THE EVENT GIVING RISE TO THE CLAIM, OR USD 100.</p>
+
+    <h2 id="indemnity">12. Indemnification</h2>
+    <p>You agree to indemnify and hold harmless Atomic from any claim, loss, liability, or expense (including reasonable legal fees) arising from your use of the Service, your violation of these Terms, or your violation of any law or third-party right.</p>
+
+    <h2 id="changes">13. Changes &amp; Availability</h2>
+    <p>We may modify the Service or these Terms at any time. Material changes take effect when we post the updated Terms with a new "Last updated" date. Your continued use after changes means you accept them. We may suspend or discontinue any part of the Service at any time.</p>
+
+    <h2 id="law">14. Governing Law &amp; Disputes</h2>
+    <p>These Terms are governed by the laws of the jurisdiction in which Atomic's operating entity is established, without regard to conflict-of-law rules. To the extent permitted by law, the courts of that jurisdiction will have exclusive jurisdiction over disputes. <em>(Operator: confirm your governing-law jurisdiction and dispute-resolution mechanism with counsel before public launch.)</em></p>
+
+    <h2 id="contact">15. Contact</h2>
+    <p>Questions about these Terms: <a href="mailto:support@atomicpay.cloud" style="color:var(--accent)">support@atomicpay.cloud</a>.</p>
+  </main>
+
+  <footer>
+    <a href="/">Home</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/help">Help</a>
+    <span>© 2026 Atomic</span>
+  </footer>
+  <script src="/assets/analytics.js" defer></script>
+</body>
+</html>
