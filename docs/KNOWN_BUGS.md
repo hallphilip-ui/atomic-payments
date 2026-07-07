@@ -6,7 +6,7 @@ Last updated: 2026-07-06.
 ## 🔴 Open bugs (fix before public launch)
 | # | Area | Issue | Notes |
 |---|---|---|---|
-| B1 | Wallet connect | **Safari: "Connect Wallet" does nothing** (works in Chrome). | Likely EIP-6963 discovery timing or `import()` behavior in Safari. Reproduce in Safari, add fallback. |
+| B1 | Wallet connect | **Safari: "Connect Wallet" does nothing** (works in Chrome). | Hardened 2026-07-07: global error net (visible msg + PostHog `client_error` w/ stack), wrapped connect handler, Safari-specific WalletConnect errors, `-webkit-backdrop-filter`. Root cause pending the captured Safari stack. |
 | B2 | Wallet connect | **WalletConnect QR** — reported "no QR shows"; switched to rendering our own QR from the `display_uri` event. | Verify the in-modal QR renders + a real mobile scan connects end-to-end. |
 | B3 | Execution | **End-to-end live swap never completed with real funds.** | The $10 EVM test (Base USDC → ETH USDC) is the Phase-0 gate; approval→send→settle→fee is built but unproven in prod. |
 
@@ -35,6 +35,7 @@ Last updated: 2026-07-06.
 | L6 | Infra | Live provider quotes only work from the VPS (external egress), not the local dev sandbox — expected. |
 
 ## Recently fixed (for reference)
+- **Site-wide 429** — app ran behind Cloudflare→nginx with no `trust proxy`, so all traffic keyed as `127.0.0.1` and shared one 100-req/15min bucket. Fixed: key on `CF-Connecting-IP`, skip static/pages, 1000/15min per real IP.
 - Multi-wallet connect silent failure → **EIP-6963** discovery + connecting spinner + 45s timeout.
 - Atomic-units amount input → **human amounts** (type "10", not "10000000").
 - EVM wallet + BTC source silently faked a quote → now **blocked with a clear message**.

@@ -17,7 +17,7 @@ const router = Router();
 export const KNOWN_ISSUES = [
   { id: 'B1', area: 'Wallet connect', severity: 'blocker', status: 'investigating',
     title: 'Safari: "Connect Wallet" does nothing (works in Chrome).',
-    note: 'Likely EIP-6963 discovery timing or dynamic import behavior in Safari. Reproducing and adding a fallback.' },
+    note: 'Hardened: errors no longer fail silently (visible message + captured to analytics), WalletConnect now gives Safari Private-Browsing guidance, and the Safari backdrop-filter prefix is fixed. Awaiting the captured Safari stack to land the root-cause fix.' },
   { id: 'B2', area: 'Wallet connect', severity: 'blocker', status: 'investigating',
     title: 'WalletConnect QR needs end-to-end verification.',
     note: 'We render our own QR from the display_uri event; verifying a real mobile scan connects fully.' },
@@ -52,7 +52,9 @@ export const KNOWN_ISSUES = [
   { id: 'F3', area: 'Fees', severity: 'minor', status: 'fixed',
     title: 'Fee over-gross-up corrected to net exactly 2.5% (LI.FI fee is additive).' },
   { id: 'F4', area: 'Infra', severity: 'major', status: 'fixed',
-    title: 'Cloudflare 525 (wrong origin A-record) resolved; site live over HTTPS.' }
+    title: 'Cloudflare 525 (wrong origin A-record) resolved; site live over HTTPS.' },
+  { id: 'F5', area: 'Infra', severity: 'blocker', status: 'fixed',
+    title: 'Site-wide rate limiting no longer 429s everyone — keyed on the real visitor IP behind Cloudflare, static/page requests excluded.' }
 ];
 
 const KNOWN_UPDATED_AT = '2026-07-07';
