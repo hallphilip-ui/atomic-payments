@@ -1419,6 +1419,14 @@
       if (!WC_PROJECT_ID || WC_PROJECT_ID === 'REPLACE_WITH_WC_PROJECT_ID') {
         throw new Error('WalletConnect isn’t configured yet — the operator needs to add a project ID.');
       }
+      // Instant feedback while the SDK + relay spin up (can take ~1-2s), so the
+      // click is never silently dead; showWcQr replaces this once the URI fires.
+      const prepBox = el('wcQr');
+      if (prepBox) {
+        el('walletList').style.display = 'none';
+        prepBox.style.display = 'block';
+        prepBox.innerHTML = '<div style="text-align:center;padding:44px 20px;"><div class="wc-spin"></div><strong>Generating secure QR…</strong><p class="subtle" style="margin:8px 0 0;font-size:13px;">Scan it with any wallet app on your phone.</p></div>';
+      }
       if (!wcProvider) {
         const { EthereumProvider } = await import('https://esm.sh/@walletconnect/ethereum-provider@2');
         wcProvider = await EthereumProvider.init({
@@ -1561,11 +1569,13 @@
       try { installed = w.detect(); } catch (_) {}
       // Mobile-first wallets (Trust, Rainbow, MetaMask mobile…) rarely exist as
       // extensions — fall back to the WalletConnect QR so one scan connects them.
-      const useQrFallback = !installed && w.qr;
-      if (!installed && !useQrFallback) { window.open(w.link, '_blank', 'noopener'); return; }
+      // WalletConnect (and mobile-first wallets with no extension) use the QR
+      // flow, which renders its own QR — never the injected "Connecting" spinner.
+      const useQr = w.id === 'walletconnect' || (!installed && w.qr);
+      if (!installed && !useQr) { window.open(w.link, '_blank', 'noopener'); return; }
       try {
         let result;
-        if (useQrFallback) {
+        if (useQr) {
           result = await connectWalletConnect();
         } else {
           showConnecting(w.name);

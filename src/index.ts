@@ -52,30 +52,35 @@ app.use(observabilityRoutes);
 app.get('/', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);
 });
 
 app.use('/defi-swap', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'defi-swap.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);
 });
 
 app.use('/checkout', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'checkout.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);
 });
 
 app.use('/admin-compliance', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'admin-compliance.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);
 });
 
 app.use('/transfers', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'transfers.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);
 });
 
