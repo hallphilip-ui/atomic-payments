@@ -236,3 +236,22 @@ model OperatorAuditLog {
   @@index([subjectType, subjectId])
   @@index([operatorRole, createdAt])
 }
+
+model BugReport {
+  id          String   @id @default(uuid())
+  reference   String   @unique
+  category    String   @default("bug")
+  title       String
+  description String
+  pageUrl     String?
+  contact     String?
+  userAgent   String?
+  severity    String   @default("unset")
+  status      String   @default("open")
+  source      String   @default("web")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([category, createdAt])
+}

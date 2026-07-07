@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic — Help & Bug Tracker</title>
+  <link rel="icon" href="/assets/atomic-mark.png">
+  <style>
+    :root {
+      --ink: #14161c; --muted: #667085; --line: #e8e9f0; --paper: #ffffff;
+      --panel: #ffffff; --panel-soft: #f7f7fb; --accent: #6d5cf5;
+      --green: #16b364; --amber: #d97706; --red: #e5484d;
+      --shadow: 0 1px 2px rgba(16,18,30,0.04), 0 6px 20px rgba(16,18,30,0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(820px 440px at 85% -10%, rgba(109,92,245,0.07), transparent 60%), #fbfbfd;
+      color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .topbar {
+      height: 72px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 clamp(18px, 4vw, 40px); border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.82); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { width: 44px; height: 36px; object-fit: contain; }
+    .brand strong { display: block; font-size: 16px; line-height: 1.1; color: var(--ink); }
+    .brand span { display: block; font-size: 12px; color: var(--muted); }
+    .nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nav a {
+      min-height: 34px; display: inline-flex; align-items: center; padding: 0 14px;
+      border: 1px solid var(--line); border-radius: 10px; font-size: 13px; color: var(--muted); font-weight: 500; background: #fff;
+    }
+    .nav a.active { border-color: var(--accent); color: var(--accent); background: #f3f1fe; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 32px) 72px; }
+    h1 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 6px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 15px; margin: 0 0 30px; max-width: 640px; }
+    h2 { font-size: 19px; margin: 40px 0 4px; letter-spacing: -0.01em; }
+    h2 .hint { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 8px; }
+    .section-sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .card { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); padding: 18px 20px; box-shadow: var(--shadow); }
+    .card h3 { margin: 0 0 6px; font-size: 15px; }
+    .card p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+    .card p a { color: var(--accent); font-weight: 500; }
+
+    /* Report form */
+    .form-card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); padding: 22px 24px; box-shadow: var(--shadow); }
+    .field { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    label .opt { color: var(--muted); font-weight: 400; }
+    input, textarea, select {
+      width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
+      font: inherit; font-size: 14px; color: var(--ink); background: #fff; outline: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(109,92,245,0.12); }
+    textarea { min-height: 120px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 200px 1fr; gap: 14px; }
+    .btn {
+      min-height: 44px; padding: 0 22px; border-radius: 11px; border: 0; cursor: pointer;
+      background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .form-note { color: var(--muted); font-size: 12.5px; margin: 10px 0 0; }
+    .result { margin-top: 14px; padding: 13px 15px; border-radius: 12px; font-size: 14px; display: none; }
+    .result.ok { display: block; background: #e7f7ef; color: #087443; border: 1px solid #b9e6cd; }
+    .result.err { display: block; background: #fdeaea; color: #c8323b; border: 1px solid #f4c6c8; }
+    .result code { font-weight: 700; }
+
+    /* Tracker */
+    .tracker { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); box-shadow: var(--shadow); overflow: hidden; }
+    .issue { display: flex; gap: 14px; padding: 16px 20px; border-bottom: 1px solid #f0f1f5; align-items: flex-start; }
+    .issue:last-child { border-bottom: 0; }
+    .issue .sev { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; }
+    .sev.blocker { background: var(--red); } .sev.major { background: var(--amber); }
+    .sev.minor { background: #eab308; } .sev.tracked { background: #94a3b8; }
+    .issue .body { flex: 1; min-width: 0; }
+    .issue .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+    .issue .id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--muted); }
+    .issue .area { font-size: 12px; color: var(--accent); background: #f3f1fe; border-radius: 7px; padding: 2px 8px; }
+    .issue .ttl { font-size: 14.5px; font-weight: 500; color: var(--ink); }
+    .issue .nt { font-size: 13px; color: var(--muted); margin: 4px 0 0; line-height: 1.5; }
+    .status-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 9px; border-radius: 999px; }
+    .status-badge.open { color: #b45309; background: #fef4e6; }
+    .status-badge.investigating { color: #6d5cf5; background: #f3f1fe; }
+    .status-badge.fixed { color: #087443; background: #e7f7ef; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .filters button {
+      min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px;
+      background: #fff; color: var(--muted); font-size: 13px; cursor: pointer; font-weight: 500;
+    }
+    .filters button.active { border-color: var(--accent); color: var(--accent); background: #f3f1fe; }
+    .tloading { padding: 40px; text-align: center; color: var(--muted); }
+    .legend { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'">
+      <span><strong>Atomic</strong><span>Payments &amp; Conversions</span></span>
+    </a>
+    <nav class="nav">
+      <a href="/defi-swap">Swap</a>
+      <a href="/transfers">Transfers</a>
+      <a href="/checkout">Checkout</a>
+      <a href="/help" class="active">Help</a>
+      <a href="/releases">Releases</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <h1>Help &amp; Bug Tracker</h1>
+    <p class="sub">Answers to common questions, the issues we're already tracking, and a place to report anything that's broken or confusing. We read every report.</p>
+
+    <!-- FAQ -->
+    <h2>Frequently asked</h2>
+    <p class="section-sub">The essentials — how Atomic works and what to do when something goes wrong.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>How does a swap work?</h3>
+        <p>Pick a from/to asset and amount, connect your wallet, and confirm. Your wallet signs the transaction — Atomic routes it across chains and settles to your destination address.</p>
+      </div>
+      <div class="card">
+        <h3>Is Atomic custodial?</h3>
+        <p>No. Funds move directly from your wallet through the swap route. Atomic never holds your balance — you sign every transaction yourself.</p>
+      </div>
+      <div class="card">
+        <h3>What are the fees?</h3>
+        <p>A flat platform fee of 2.5%. All-in cost is typically ~2.75% once the routing fee and network gas are included. The exact received amount is always shown before you confirm.</p>
+      </div>
+      <div class="card">
+        <h3>My wallet won't connect</h3>
+        <p>Use a Chrome-based browser for now (a Safari connect issue is being fixed — see the tracker below). Make sure only one wallet extension is set as default, or pick your wallet from the connect list.</p>
+      </div>
+      <div class="card">
+        <h3>Which assets are supported?</h3>
+        <p>15 assets are certified for live routing today — BTC, ETH, SOL, USDC, USDT, WBTC, DAI, UNI, LINK, ARB, OP, POL, BNB, AVAX. More are added as they're verified.</p>
+      </div>
+      <div class="card">
+        <h3>Still stuck?</h3>
+        <p>File a report below, or <a href="#" onclick="atomicSupport();return false;">email support</a>. Include what you were doing and your browser/wallet — it helps us reproduce fast.</p>
+      </div>
+    </div>
+
+    <!-- Report -->
+    <h2>Report a bug or send feedback</h2>
+    <p class="section-sub">Takes 20 seconds. You'll get a reference number to follow up.</p>
+    <div class="form-card">
+      <form id="bug-form">
+        <div class="row">
+          <div class="field">
+            <label for="category">Type</label>
+            <select id="category">
+              <option value="bug">🐞 Bug — something's broken</option>
+              <option value="feedback">💡 Feedback / idea</option>
+              <option value="question">❓ Question</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="title">Summary</label>
+            <input id="title" maxlength="140" placeholder="e.g. Connect wallet does nothing in Safari" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="description">Details</label>
+          <textarea id="description" maxlength="4000" placeholder="What happened, what you expected, and steps to reproduce. Include the assets/amount and your wallet if it's a swap issue." required></textarea>
+        </div>
+        <div class="field">
+          <label for="contact">Email <span class="opt">— optional, only if you want a reply</span></label>
+          <input id="contact" type="email" maxlength="200" placeholder="you@example.com">
+        </div>
+        <button class="btn" type="submit" id="submit-btn">Submit report</button>
+        <p class="form-note">We capture your browser/version automatically. Don't include seed phrases, private keys, or passwords — we never need them.</p>
+        <div class="result" id="result"></div>
+      </form>
+    </div>
+
+    <!-- Tracker -->
+    <h2>Known issues <span class="hint" id="updated"></span></h2>
+    <p class="section-sub">What we're already aware of and working on. Transparency first — if you hit one of these, you don't need to report it (but more detail always helps).</p>
+    <div class="filters" id="filters">
+      <button data-f="all" class="active">All</button>
+      <button data-f="open">Open</button>
+      <button data-f="investigating">Investigating</button>
+      <button data-f="fixed">Recently fixed</button>
+    </div>
+    <div class="tracker" id="tracker">
+      <div class="tloading">Loading known issues…</div>
+    </div>
+    <p class="legend">Severity: <span style="color:var(--red)">●</span> blocker &nbsp; <span style="color:var(--amber)">●</span> major &nbsp; <span style="color:#eab308">●</span> minor &nbsp; <span style="color:#94a3b8">●</span> tracked / by-design</p>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    function esc(v){ return String(v==null?'':v).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    // ---- Bug submission ----
+    $('bug-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = $('submit-btn'); const result = $('result');
+      result.className = 'result'; btn.disabled = true; btn.textContent = 'Submitting…';
+      try {
+        const res = await fetch('/v1/bugs', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            category: $('category').value,
+            title: $('title').value,
+            description: $('description').value,
+            contact: $('contact').value || undefined,
+            pageUrl: location.href
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        result.className = 'result ok';
+        result.innerHTML = 'Thanks — received. Your reference is <code>' + esc(data.reference) + '</code>. We\'ll take a look.';
+        $('bug-form').reset();
+        try { if (window.posthog) window.posthog.capture('bug_reported', { reference: data.reference, category: $('category').value }); } catch (_) {}
+      } catch (err) {
+        result.className = 'result err';
+        result.textContent = 'Could not submit: ' + err.message + '. You can also email support instead.';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Submit report';
+      }
+    });
+
+    // ---- Known-issues tracker ----
+    let ISSUES = []; let filter = 'all';
+    function renderTracker() {
+      const list = filter === 'all' ? ISSUES : ISSUES.filter((i) => i.status === filter);
+      if (!list.length) { $('tracker').innerHTML = '<div class="tloading">Nothing here right now.</div>'; return; }
+      $('tracker').innerHTML = list.map((i) => `
+        <div class="issue">
+          <span class="sev ${esc(i.severity)}" title="${esc(i.severity)}"></span>
+          <div class="body">
+            <div class="top">
+              <span class="id">${esc(i.id)}</span>
+              <span class="area">${esc(i.area)}</span>
+              <span class="status-badge ${esc(i.status)}">${esc(i.status)}</span>
+            </div>
+            <div class="ttl">${esc(i.title)}</div>
+            ${i.note ? `<p class="nt">${esc(i.note)}</p>` : ''}
+          </div>
+        </div>`).join('');
+    }
+    document.querySelectorAll('#filters button').forEach((b) => b.addEventListener('click', () => {
+      filter = b.dataset.f;
+      document.querySelectorAll('#filters button').forEach((x) => x.classList.toggle('active', x === b));
+      renderTracker();
+    }));
+    (async () => {
+      try {
+        const res = await fetch('/v1/bugs', { headers: { accept: 'application/json' } });
+        const data = await res.json();
+        ISSUES = data.issues || [];
+        if (data.updatedAt) $('updated').textContent = 'updated ' + data.updatedAt;
+        renderTracker();
+      } catch (e) {
+        $('tracker').innerHTML = '<div class="tloading">Could not load the tracker. Please refresh.</div>';
+      }
+    })();
+  </script>
+  <script src="/assets/analytics.js" defer></script>
+</body>
+</html>

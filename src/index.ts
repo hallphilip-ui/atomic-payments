@@ -14,6 +14,7 @@ import healthRoutes from './routes/health';
 import metricsRoutes from './routes/metrics';
 import projectRoutes from './routes/project';
 import buildRoutes from './routes/build';
+import bugRoutes from './routes/bugs';
 import observabilityRoutes from './routes/observability';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -47,6 +48,7 @@ app.use(healthRoutes);
 app.use(metricsRoutes);
 app.use(projectRoutes);
 app.use(buildRoutes);
+app.use(bugRoutes);
 app.use(observabilityRoutes);
 
 app.get('/', (_req: Request, res: Response) => {
@@ -79,6 +81,20 @@ app.use('/admin-compliance', (_req: Request, res: Response) => {
 
 app.use('/transfers', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'transfers.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
+app.use('/help', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'help.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
+app.use('/releases', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'releases.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);

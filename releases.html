@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic — Release Notes</title>
+  <link rel="icon" href="/assets/atomic-mark.png">
+  <style>
+    :root {
+      --ink: #14161c; --muted: #667085; --line: #e8e9f0;
+      --panel: #ffffff; --accent: #6d5cf5; --green: #16b364;
+      --shadow: 0 1px 2px rgba(16,18,30,0.04), 0 6px 20px rgba(16,18,30,0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(820px 440px at 85% -10%, rgba(109,92,245,0.07), transparent 60%), #fbfbfd;
+      color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .topbar {
+      height: 72px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 clamp(18px, 4vw, 40px); border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.82); position: sticky; top: 0; z-index: 10; backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { width: 44px; height: 36px; object-fit: contain; }
+    .brand strong { display: block; font-size: 16px; line-height: 1.1; }
+    .brand span { display: block; font-size: 12px; color: var(--muted); }
+    .nav { display: flex; gap: 6px; flex-wrap: wrap; }
+    .nav a {
+      min-height: 34px; display: inline-flex; align-items: center; padding: 0 14px;
+      border: 1px solid var(--line); border-radius: 10px; font-size: 13px; color: var(--muted); font-weight: 500; background: #fff;
+    }
+    .nav a.active { border-color: var(--accent); color: var(--accent); background: #f3f1fe; }
+    .wrap { max-width: 800px; margin: 0 auto; padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 32px) 72px; }
+    h1 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 6px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 15px; margin: 0 0 8px; }
+    .curbadge {
+      display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600;
+      color: #087443; background: #e7f7ef; border: 1px solid #b9e6cd; border-radius: 999px; padding: 4px 12px; margin-bottom: 30px;
+    }
+    .curbadge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .rel { position: relative; padding: 0 0 8px 26px; border-left: 2px solid var(--line); margin-left: 6px; }
+    .rel::before {
+      content: ""; position: absolute; left: -7px; top: 4px; width: 12px; height: 12px;
+      border-radius: 50%; background: #fff; border: 2px solid var(--accent);
+    }
+    .rel.latest::before { background: var(--accent); }
+    .rel-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+    .ver { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+    .tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); background: #f3f1fe; border-radius: 7px; padding: 2px 8px; }
+    .date { font-size: 13px; color: var(--muted); }
+    .headline { font-size: 14px; color: var(--ink); font-weight: 600; margin: 6px 0 12px; }
+    .rel ul { margin: 0 0 30px; padding-left: 18px; }
+    .rel li { font-size: 14px; color: #344054; line-height: 1.6; margin-bottom: 7px; }
+    .rel li b { color: var(--ink); }
+    .foot-link { margin-top: 10px; font-size: 14px; color: var(--muted); }
+    .foot-link a { color: var(--accent); font-weight: 500; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'">
+      <span><strong>Atomic</strong><span>Payments &amp; Conversions</span></span>
+    </a>
+    <nav class="nav">
+      <a href="/defi-swap">Swap</a>
+      <a href="/transfers">Transfers</a>
+      <a href="/checkout">Checkout</a>
+      <a href="/help">Help</a>
+      <a href="/releases" class="active">Releases</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <h1>Release Notes</h1>
+    <p class="sub">What's new in Atomic. We ship continuously — this is the human-readable log.</p>
+    <span class="curbadge" id="curbadge">Live version —</span>
+
+    <div class="rel latest">
+      <div class="rel-head"><span class="ver">1.2.0</span><span class="tag">Latest</span><span class="date">Jul 6, 2026</span></div>
+      <p class="headline">Live cross-chain swaps on atomicpay.cloud — real routing, analytics, and a full light redesign.</p>
+      <ul>
+        <li><b>Live swaps via LI.FI</b> — gatekeeper-free BTC + EVM cross-chain routing with a fail-closed asset map. Net platform fee 2.5% (customer all-in ~2.75%).</li>
+        <li><b>In-wallet execution</b> — your connected wallet signs the route directly; EVM approval + chain-switch handled, with Bitcoin and Solana paths.</li>
+        <li><b>Wallet connect overhaul</b> — EIP-6963 multi-wallet discovery, in-modal WalletConnect QR, 16 wallets incl. Bitcoin, connect spinner + timeout, and a guard that blocks swaps when your wallet can't send the source asset.</li>
+        <li><b>Human-readable amounts</b> — type "10", not "10000000".</li>
+        <li><b>New light design</b> across landing, swap, transfers, and checkout.</li>
+        <li><b>Public transfers explorer</b> — every conversion, filterable and paginated.</li>
+        <li><b>Daily P&amp;L email</b> — today / week / month / YTD, 7 AM ET.</li>
+        <li><b>Analytics + Help</b> — PostHog product analytics and session replay, plus this Help &amp; bug tracker.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-head"><span class="ver">1.1.0</span><span class="date">Jul 3, 2026</span></div>
+      <p class="headline">Build metadata, guarded broadcast adapters, and launch-readiness evidence.</p>
+      <ul>
+        <li>Runtime build metadata exposed via <code>/v1/build</code>, <code>/v1/health</code>, and project progress.</li>
+        <li>Guarded wallet broadcast adapters for EVM and Solana (simulation / live / live-with-fallback).</li>
+        <li>Swap broadcast route with transaction-proof capture and raw-transaction redaction.</li>
+        <li>Operator audit + settlement reconciliation evidence exports with SHA-256 digests.</li>
+        <li>Production readiness gates and expanded operator-protected smoke coverage.</li>
+      </ul>
+    </div>
+
+    <div class="rel">
+      <div class="rel-head"><span class="ver">1.0.0</span><span class="date">Jun 29, 2026</span></div>
+      <p class="headline">Initial Atomic Payments foundation.</p>
+      <ul>
+        <li>First MVP foundation — payment intents, merchant + wallet models, and the core API.</li>
+      </ul>
+    </div>
+
+    <p class="foot-link">Found something off? <a href="/help">Report it on the Help &amp; bug tracker →</a></p>
+  </main>
+
+  <script>
+    (async () => {
+      try {
+        const res = await fetch('/v1/build', { headers: { accept: 'application/json' } });
+        const data = await res.json();
+        const v = data.version || data.build?.version;
+        if (v) document.getElementById('curbadge').textContent = 'Live version v' + v;
+      } catch (_) {
+        document.getElementById('curbadge').textContent = 'Live version v1.2.0';
+      }
+    })();
+  </script>
+  <script src="/assets/analytics.js" defer></script>
+</body>
+</html>
