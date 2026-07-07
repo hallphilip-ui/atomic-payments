@@ -56,14 +56,21 @@ export async function screenAddressChainalysis(address: string): Promise<Sanctio
       headers: { 'X-API-Key': key, Accept: 'application/json' },
       signal: AbortSignal.timeout(4000)
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Surface — do NOT silently treat an oracle error as "clear". A bad/expired
+      // key returns 401/403 and would otherwise leave only the local list running
+      // while the system still reports live oracle coverage.
+      console.warn(`[sanctions] Chainalysis oracle HTTP ${res.status} — falling back to local OFAC list only.`);
+      return null;
+    }
     const data = (await res.json()) as { identifications?: Array<{ category?: string }> };
     const ids = Array.isArray(data.identifications) ? data.identifications : [];
     if (ids.length > 0) {
       return { listed: true, source: 'chainalysis_oracle', category: ids[0]?.category || 'sanctions', matchedAddress: address };
     }
     return null;
-  } catch {
+  } catch (error) {
+    console.warn('[sanctions] Chainalysis oracle unreachable — falling back to local OFAC list only:', (error as Error).message);
     return null;
   }
 }
@@ -77,17 +84,28 @@ export async function screenAddress(address: string): Promise<SanctionsHit | nul
 }
 
 // Screen every provided address; returns the first sanctions hit or null.
+// Checks the offline OFAC list for all addresses first (cheap, no network), then
+// queries the Chainalysis oracle for the remainder in parallel — so a quote never
+// blocks on sequential network calls.
 export async function screenAddresses(addresses: Array<string | undefined | null>): Promise<SanctionsHit | null> {
   const seen = new Set<string>();
+  const unique: string[] = [];
   for (const address of addresses) {
     if (!address) continue;
     const key = normalize(address);
     if (seen.has(key)) continue;
     seen.add(key);
-    const hit = await screenAddress(address);
-    if (hit) return hit;
+    unique.push(address);
   }
-  return null;
+  if (unique.length === 0) return null;
+
+  for (const address of unique) {
+    const local = screenAddressLocal(address);
+    if (local) return local;
+  }
+
+  const oracleResults = await Promise.all(unique.map((address) => screenAddressChainalysis(address)));
+  return oracleResults.find((hit) => hit) || null;
 }
 
 export function localListSize(): number {

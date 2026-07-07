@@ -1,9 +1,24 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { randomBytes } from 'crypto';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 const router = Router();
+
+// Dedicated tight limit for the public submit endpoint: each report writes a row
+// and emails the operator, so the generous global /v1 limit isn't enough to stop
+// an inbox/DB flood. Keyed on the real client IP (Cloudflare-aware).
+const submitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20, // reports per IP per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const cf = req.headers['cf-connecting-ip'];
+    return (typeof cf === 'string' && cf.length) ? cf : (req.ip || 'unknown');
+  }
+});
 
 /**
  * Curated public "Known Issues" register. This is the operator-maintained view
@@ -107,8 +122,8 @@ router.get('/v1/bugs', (_req, res) => {
   res.json({ updatedAt: KNOWN_UPDATED_AT, issues: KNOWN_ISSUES });
 });
 
-// Public: submit a bug report / feedback. Rate-limited by the global limiter.
-router.post('/v1/bugs', async (req, res) => {
+// Public: submit a bug report / feedback. Tightly rate-limited (see submitLimiter).
+router.post('/v1/bugs', submitLimiter, async (req, res) => {
   try {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const category = clip(body.category, 20).toLowerCase() || 'bug';
@@ -131,7 +146,7 @@ router.post('/v1/bugs', async (req, res) => {
       return res.status(400).json({ error: 'Contact must be a valid email (or leave it blank).' });
     }
 
-    const reference = 'BR-' + randomBytes(3).toString('hex').toUpperCase();
+    const reference = 'BR-' + randomBytes(5).toString('hex').toUpperCase();
     await prisma.bugReport.create({
       data: { reference, category, title, description, pageUrl, contact, userAgent }
     });

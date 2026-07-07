@@ -29,8 +29,8 @@ declare module 'express' {
   export type Handler = (req: Request, res: Response, next?: NextFunction) => unknown;
 
   export type Router = {
-    get(path: string, handler: Handler): Router;
-    post(path: string, handler: Handler): Router;
+    get(path: string, ...handlers: Handler[]): Router;
+    post(path: string, ...handlers: Handler[]): Router;
     use(handler: any): Router;
   };
 
@@ -42,6 +42,7 @@ declare module 'express' {
     get(path: string, handler: Handler): void;
     set(setting: string, value: unknown): void;
     listen(port: number, callback?: () => void): void;
+    listen(port: number, host: string, callback?: () => void): void;
   };
 
   type ExpressFactory = {

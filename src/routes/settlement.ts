@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { assessTransferCompliance } from '../compliance/complianceEngine';
+import { screenAddresses } from '../compliance/sanctions';
 import { recordOperatorAudit } from '../security/operatorAudit';
 import { findSettlementRoutes, listEnabledCurrencies, launchSettlementRoutes } from '../settlement/currencyBasket';
 import { createSimulatedTransferAdapter } from '../settlement/platformTransferAdapters';
@@ -101,7 +102,7 @@ function buildWithdrawalRequest(req: any) {
   };
 }
 
-function assessWithdrawalRequest(req: any) {
+async function assessWithdrawalRequest(req: any) {
   const withdrawalRequest = buildWithdrawalRequest(req);
   const compliance = assessTransferCompliance({
     connectorId: String(req.params.connectorId),
@@ -111,11 +112,23 @@ function assessWithdrawalRequest(req: any) {
     network: withdrawalRequest.network
   });
 
+  // Real OFAC / Chainalysis sanctions screen on the withdrawal destination. The
+  // keyword check in assessTransferCompliance never matches a real hex/base58
+  // sanctioned address, so screen the actual list here and force a hard block.
+  const sanctionsHit = await screenAddresses([withdrawalRequest.destinationAddress]);
+  if (sanctionsHit) {
+    compliance.status = 'BLOCKED';
+    compliance.riskScore = 100;
+    compliance.riskTier = 'CRITICAL';
+    compliance.checks = [...compliance.checks, 'ofac_sanctioned_address_screen'];
+    compliance.flags = [...compliance.flags, `sanctioned_address:${sanctionsHit.source}`];
+  }
+
   return { withdrawalRequest, compliance };
 }
 
-router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals/preview', (req, res) => {
-  const { withdrawalRequest, compliance } = assessWithdrawalRequest(req);
+router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals/preview', async (req, res) => {
+  const { withdrawalRequest, compliance } = await assessWithdrawalRequest(req);
   return res.json({
     preview: {
       connectorId: String(req.params.connectorId),
@@ -127,7 +140,7 @@ router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals/preview
 });
 
 router.post('/v1/settlement/platform-connectors/:connectorId/withdrawals', async (req, res) => {
-  const { withdrawalRequest, compliance } = assessWithdrawalRequest(req);
+  const { withdrawalRequest, compliance } = await assessWithdrawalRequest(req);
 
   if (compliance.status !== 'AUTO_CLEARED') {
     await recordOperatorAudit({

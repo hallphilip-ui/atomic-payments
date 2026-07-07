@@ -177,4 +177,8 @@ app.use('/assets/analytics.js', (_req: Request, res: Response) => {
   return res.send(script);
 });
 
-app.listen(port, () => console.log(`🚀 Atomic Admin Engine Live on ${port}`));
+// Bind to loopback by default so the app is only reachable through nginx, never
+// directly on the public IP (which would bypass Cloudflare's WAF + our CF-IP
+// controls). Override with ATOMIC_BIND_HOST if a different bind is ever needed.
+const bindHost = process.env.ATOMIC_BIND_HOST ?? '127.0.0.1';
+app.listen(port, bindHost, () => console.log(`🚀 Atomic Admin Engine Live on ${bindHost}:${port}`));
