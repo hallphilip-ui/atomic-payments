@@ -622,6 +622,7 @@
           <select data-atomic-language-select aria-label="Language"></select>
         </label>
         <div class="status-pill" id="apiStatus"><span class="dot"></span><span data-i18n="common.checkingApi">Checking API</span></div>
+        <button class="secondary" onclick="atomicSupport()" style="cursor:pointer;">Help</button>
       </div>
     </header>
 
@@ -1694,6 +1695,7 @@
     updateWalletMode();
     loadAssets().catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
   </script>
+  <script src="/assets/analytics.js" defer></script>
 
   <div id="walletModal" class="wallet-modal" hidden>
     <div class="wallet-modal-backdrop" data-wallet-close></div>

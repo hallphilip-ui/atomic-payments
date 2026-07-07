@@ -114,4 +114,10 @@ app.use('/assets/widget.js', (_req: Request, res: Response) => {
   return res.send(script);
 });
 
+app.use('/assets/analytics.js', (_req: Request, res: Response) => {
+  const script = readFileSync(join(process.cwd(), 'public', 'analytics.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  return res.send(script);
+});
+
 app.listen(port, () => console.log(`🚀 Atomic Admin Engine Live on ${port}`));
