@@ -192,6 +192,17 @@ app.use('/assets/analytics.js', (_req: Request, res: Response) => {
   return res.send(script);
 });
 
+// Vendored, integrity-pinned ethers. The funds path must never load key-touching
+// code from a public CDN (a compromised CDN = stolen private keys). Loaded via
+// <script integrity="sha384-..."> so the browser rejects any tampered bytes.
+// Read once at boot; filename is version-pinned so it can be cached immutably.
+const ETHERS_BUNDLE = readFileSync(join(process.cwd(), 'public', 'vendor', 'ethers-6.13.4.umd.min.js'), 'utf8');
+app.use('/assets/vendor/ethers-6.13.4.umd.min.js', (_req: Request, res: Response) => {
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  res.header('Cache-Control', 'public, max-age=31536000, immutable');
+  return res.send(ETHERS_BUNDLE);
+});
+
 app.use('/assets/passkey-wallet.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'passkey-wallet.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');

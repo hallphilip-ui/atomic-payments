@@ -13,7 +13,6 @@
 (function () {
   const MODE = window.ATOMIC_PASSKEY_MODE === 'mainnet' ? 'mainnet' : 'testnet';
   const PRF_SALT = new TextEncoder().encode('atomic-evm-wallet-v1');
-  const ETHERS_URL = 'https://esm.sh/ethers@6.13.4';
   const LS_KEY = 'atomic_passkey_wallets';
   const LS_LAST = 'atomic_passkey_last_email';
 
@@ -30,8 +29,14 @@
   };
   const DEFAULT_CHAIN = MODE === 'mainnet' ? 1 : 84532;
 
-  let ethersMod = null;
-  async function ethers() { if (!ethersMod) ethersMod = (await import(ETHERS_URL)).ethers; return ethersMod; }
+  // H2: ethers is served from OUR origin and pinned with an SRI integrity hash
+  // (see the <script integrity="sha384-..."> tag). Never load key-touching code
+  // from a public CDN — a compromised CDN would mean stolen private keys. If the
+  // integrity check fails the browser refuses to run it and window.ethers is absent.
+  async function ethers() {
+    if (!window.ethers) throw new Error('Atomic wallet could not load its crypto library (integrity check may have failed). Reload the page — do not enter your passkey.');
+    return window.ethers;
+  }
 
   // Pin the WebAuthn RP ID to the registrable domain so the SAME wallet is
   // derived from apex + www (and any subdomain). Using location.hostname would

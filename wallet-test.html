@@ -78,8 +78,13 @@
     </div>
   </div>
 
+  <!-- Self-hosted, integrity-pinned ethers (H2). The browser refuses to execute it
+       if a single byte differs — key-touching crypto never comes from a CDN. -->
+  <script src="/assets/vendor/ethers-6.13.4.umd.min.js"
+          integrity="sha384-6Zl0Pc8zjSz8KvmNeXRvUQgY4ryFb+BwDvKCmLYcBME0joAaru491tQgi9B7zsMM"></script>
   <script type="module">
-    import { ethers } from 'https://esm.sh/ethers@6.13.4';
+    const ethers = window.ethers;
+    if (!ethers) throw new Error('ethers failed its integrity check — refusing to run.');
 
     // ---- Base Sepolia testnet config ----
     const CHAIN = { id: 84532, hex: '0x14a34', name: 'Base Sepolia', rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org' };

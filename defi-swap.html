@@ -750,7 +750,11 @@
 
   <script src="/assets/i18n.js"></script>
   <script>window.ATOMIC_PASSKEY_MODE = 'testnet';</script>
-  <script src="/assets/passkey-wallet.js?v=sec2"></script>
+  <!-- Self-hosted, integrity-pinned ethers. The browser refuses to execute it if a
+       single byte differs, so key-touching crypto can't be swapped by a CDN/MITM. -->
+  <script src="/assets/vendor/ethers-6.13.4.umd.min.js"
+          integrity="sha384-6Zl0Pc8zjSz8KvmNeXRvUQgY4ryFb+BwDvKCmLYcBME0joAaru491tQgi9B7zsMM"></script>
+  <script src="/assets/passkey-wallet.js?v=sec3"></script>
   <script>
     const API_BASE = window.location.origin;
     const state = {
