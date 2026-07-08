@@ -93,7 +93,8 @@
     const LS_LAST = 'atomic_passkey_last_email';
 
     const $ = (id) => document.getElementById(id);
-    const provider = new ethers.JsonRpcProvider(CHAIN.rpc, CHAIN.id);
+    // RPC via our own origin proxy (L1) — no third-party RPC host in the client.
+    const provider = new ethers.JsonRpcProvider(`${location.origin}/v1/rpc/${CHAIN.id}`, CHAIN.id, { staticNetwork: true });
     let wallet = null; // ethers.Wallet (connected)
 
     function log(msg, cls = '') {

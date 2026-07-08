@@ -193,7 +193,10 @@
   function makeProvider(E, ctx) {
     let activeChain = DEFAULT_CHAIN;
     const providers = {};
-    const rpcProvider = (id) => (providers[id] ||= new E.JsonRpcProvider(CHAINS[id].rpc, id));
+    // L1: RPC goes through OUR origin (server-side proxy → trusted upstream). The
+    // client never talks to a third-party RPC, so no provider key is exposed and
+    // no external RPC host is needed in the CSP.
+    const rpcProvider = (id) => (providers[id] ||= new E.JsonRpcProvider(`${location.origin}/v1/rpc/${id}`, id, { staticNetwork: true }));
     const hex = (n) => '0x' + Number(n).toString(16);
 
     // Fresh Touch ID -> re-derive key -> run op(wallet) -> discard key.

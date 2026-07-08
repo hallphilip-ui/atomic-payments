@@ -16,6 +16,7 @@ import projectRoutes from './routes/project';
 import buildRoutes from './routes/build';
 import bugRoutes from './routes/bugs';
 import passkeyRoutes from './routes/passkey';
+import rpcRoutes from './routes/rpc';
 import observabilityRoutes from './routes/observability';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -78,7 +79,40 @@ app.use(projectRoutes);
 app.use(buildRoutes);
 app.use(bugRoutes);
 app.use(passkeyRoutes);
+app.use(rpcRoutes);
 app.use(observabilityRoutes);
+
+// Content-Security-Policy for the funds pages (M3). Locks script/connect sources
+// so an injected <script src=evil> or exfil to an unknown host is refused. Note:
+// 'unsafe-inline' is required for the pages' large inline scripts (nonce-ing them
+// is a bigger refactor); H1's per-transaction Touch ID is the primary defence
+// against inline injection, with CSP as defence-in-depth on external sources.
+const CSP_SWAP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://esm.sh https://*.posthog.com",
+  "connect-src 'self' https://esm.sh https://*.posthog.com https://*.walletconnect.com https://*.walletconnect.org https://*.walletconnect.network wss://*.walletconnect.com wss://*.walletconnect.org",
+  "worker-src 'self' blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "font-src 'self' data:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'self'"
+].join('; ');
+// The testnet wallet page loads nothing third-party (ethers is self-hosted, RPC
+// is proxied through our origin) — so it gets a strict, no-external-host policy.
+const CSP_WALLET_TEST = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "connect-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "form-action 'self'"
+].join('; ');
 
 app.get('/', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8');
@@ -91,9 +125,9 @@ app.use('/defi-swap', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'defi-swap.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   res.header('Cache-Control', 'no-cache, must-revalidate');
-  // Funds page (embedded wallet) — never allow framing (clickjacking defense).
+  // Funds page (embedded wallet) — never allow framing + lock external sources.
   res.header('X-Frame-Options', 'DENY');
-  res.header('Content-Security-Policy', "frame-ancestors 'none'");
+  res.header('Content-Security-Policy', CSP_SWAP);
   return res.send(html);
 });
 
@@ -136,9 +170,9 @@ app.use('/wallet-test', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'wallet-test.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   res.header('Cache-Control', 'no-cache, must-revalidate');
-  // Funds page (embedded wallet) — never allow framing (clickjacking defense).
+  // Testnet wallet page — strict, no third-party hosts.
   res.header('X-Frame-Options', 'DENY');
-  res.header('Content-Security-Policy', "frame-ancestors 'none'");
+  res.header('Content-Security-Policy', CSP_WALLET_TEST);
   return res.send(html);
 });
 
