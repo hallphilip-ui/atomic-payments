@@ -77,6 +77,31 @@ router.post('/v1/rpc/:chainId', rpcLimiter, async (req, res) => {
   return res.status(502).json({ error: 'Upstream RPC error.' });
 });
 
+// Server-side JSON-RPC call reusing the same trusted-upstream + fallback chain.
+// Used by balance lookups so they benefit from Alchemy when available.
+export async function rpcCall(chainId: number, method: string, params: unknown[]): Promise<any> {
+  const ups = upstreamsFor(chainId);
+  if (!ups.length) throw new Error(`Unsupported chain ${chainId}`);
+  const body = JSON.stringify({ jsonrpc: '2.0', id: 1, method, params });
+  for (let i = 0; i < ups.length; i++) {
+    const isLast = i === ups.length - 1;
+    try {
+      const r = await fetch(ups[i], {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body, signal: AbortSignal.timeout(12000)
+      });
+      const text = await r.text();
+      if (!isLast && (!r.ok || /is not enabled for this app/i.test(text))) continue;
+      const j = JSON.parse(text);
+      if (j.error) throw new Error(j.error.message || 'RPC error');
+      return j.result;
+    } catch (e) {
+      if (isLast) throw e;
+    }
+  }
+  throw new Error('No upstream available');
+}
+
 // Lets the client discover the active chains without hardcoding (and confirms proxy is up).
 router.get('/v1/rpc', (_req, res) => res.json({ chains: Object.keys(PUBLIC).map(Number), trusted: !!ALCHEMY }));
 

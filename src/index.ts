@@ -17,6 +17,7 @@ import buildRoutes from './routes/build';
 import bugRoutes from './routes/bugs';
 import passkeyRoutes from './routes/passkey';
 import rpcRoutes from './routes/rpc';
+import walletRoutes from './routes/wallet';
 import observabilityRoutes from './routes/observability';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -80,6 +81,7 @@ app.use(buildRoutes);
 app.use(bugRoutes);
 app.use(passkeyRoutes);
 app.use(rpcRoutes);
+app.use(walletRoutes);
 app.use(observabilityRoutes);
 
 // Content-Security-Policy for the funds pages (M3). Locks script/connect sources

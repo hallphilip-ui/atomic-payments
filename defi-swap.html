@@ -651,8 +651,16 @@
 
             <div class="swap-grid" style="margin-top: 14px;">
               <div class="field">
-                <label for="amount" data-i18n="defi.inputAmount">Amount</label>
+                <label for="amount" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                  <span data-i18n="defi.inputAmount">Amount</span>
+                  <button type="button" id="amtModeToggle" title="Switch between crypto units and USD"
+                    style="border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:8px;font-size:11px;font-weight:700;padding:3px 9px;cursor:pointer;">Enter in USD</button>
+                </label>
                 <input id="amount" class="amount-input" inputmode="decimal" value="10" placeholder="0.0" aria-label="Amount to swap">
+                <div id="amtMeta" style="display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;min-height:15px;color:var(--muted);">
+                  <span id="amtConvert"></span>
+                  <span id="amtBalance"></span>
+                </div>
               </div>
               <div></div>
               <div class="field">
@@ -1069,9 +1077,85 @@
       return ({ evm: 'an EVM wallet (MetaMask, Rabby…)', svm: 'a Solana wallet (Phantom, Solflare…)', tron: 'a Tron wallet (TronLink)', btc: 'a Bitcoin wallet (Unisat, Xverse, Leather)' })[sourceWalletType(asset)] || 'a compatible wallet';
     }
 
+    // ---- Balance display + fiat/crypto amount toggle ----
+    let amountMode = 'crypto';   // 'crypto' | 'fiat'
+    let fromPrice = null;        // USD price of the "from" asset (null = unknown)
+    let fromBalance = null;      // { formatted, symbol, usdValue } | null
+
+    const fmtUsd = (n) => '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const trimNum = (s, dp) => { const n = Number(s); return isFinite(n) ? n.toFixed(dp).replace(/\.?0+$/, '') : '0'; };
+
+    async function refreshFromMeta() {
+      const a = selectedAsset('fromAsset');
+      fromPrice = null; fromBalance = null; el('amtBalance').textContent = '';
+      const toggle = el('amtModeToggle');
+      if (!a) { updateConvertHint(); return; }
+      try {
+        const r = await fetch(`${API_BASE}/v1/wallet/price?assetId=${encodeURIComponent(a.assetId)}`);
+        if (r.ok) { const d = await r.json(); fromPrice = typeof d.priceUSD === 'number' ? d.priceUSD : null; }
+      } catch (_) {}
+      if (!fromPrice) { if (amountMode === 'fiat') setAmountMode('crypto'); toggle.style.display = 'none'; }
+      else { toggle.style.display = ''; }
+      const w = state.wallet;
+      if (w && w.type === 'evm' && w.address && a.chainFamily === 'evm') {
+        try {
+          const r = await fetch(`${API_BASE}/v1/wallet/balance?assetId=${encodeURIComponent(a.assetId)}&address=${encodeURIComponent(w.address)}`);
+          if (r.ok) { const d = await r.json(); if (d.supported) { fromBalance = d; renderBalance(); } }
+        } catch (_) {}
+      }
+      updateConvertHint();
+    }
+
+    function renderBalance() {
+      const box = el('amtBalance');
+      if (!fromBalance) { box.textContent = ''; return; }
+      const usd = fromBalance.usdValue != null ? ` · ${fmtUsd(fromBalance.usdValue)}` : '';
+      box.innerHTML = `Balance: ${trimNum(fromBalance.formatted, 6)} ${fromBalance.symbol}${usd} · <a href="#" id="amtMax" style="color:var(--accent);font-weight:600;">Max</a>`;
+      const max = el('amtMax');
+      if (max) max.onclick = (e) => { e.preventDefault(); setMax(); };
+    }
+
+    function setMax() {
+      if (!fromBalance) return;
+      if (amountMode === 'fiat' && fromPrice && fromBalance.usdValue != null) el('amount').value = trimNum(fromBalance.usdValue, 2);
+      else el('amount').value = trimNum(fromBalance.formatted, 8);
+      updateConvertHint();
+    }
+
+    function setAmountMode(mode) {
+      const prev = amountMode; amountMode = mode;
+      const raw = Number(el('amount').value);
+      if (fromPrice && isFinite(raw) && raw > 0 && prev !== mode) {
+        el('amount').value = mode === 'fiat' ? trimNum(raw * fromPrice, 2) : trimNum(raw / fromPrice, 8);
+      }
+      el('amtModeToggle').textContent = mode === 'fiat' ? 'Enter in crypto' : 'Enter in USD';
+      el('amount').placeholder = mode === 'fiat' ? '$0.00' : '0.0';
+      updateConvertHint();
+    }
+
+    function updateConvertHint() {
+      const a = selectedAsset('fromAsset'); const hint = el('amtConvert'); if (!hint) return;
+      const raw = Number(el('amount').value);
+      if (!fromPrice || !isFinite(raw) || raw <= 0 || !a) { hint.textContent = ''; return; }
+      hint.textContent = amountMode === 'fiat' ? `≈ ${trimNum(raw / fromPrice, 6)} ${a.symbol}` : `≈ ${fmtUsd(raw * fromPrice)}`;
+    }
+
+    // Crypto-unit amount string for quoting, honoring the current input mode.
+    function currentCryptoAmount() {
+      const a = selectedAsset('fromAsset');
+      const raw = (el('amount').value || '').trim();
+      if (amountMode === 'fiat') {
+        if (!fromPrice) throw new Error('USD price unavailable — switch to crypto units.');
+        const usd = Number(raw);
+        if (!isFinite(usd) || usd <= 0) throw new Error('Enter a valid USD amount.');
+        return (usd / fromPrice).toFixed(Math.min((a && a.decimals) || 8, 18));
+      }
+      return raw;
+    }
+
     async function getQuote() {
       let atomicAmount;
-      try { atomicAmount = toAtomicAmount(el('amount').value, selectedAsset('fromAsset')); }
+      try { atomicAmount = toAtomicAmount(currentCryptoAmount(), selectedAsset('fromAsset')); }
       catch (e) { setActionHint('bad', e.message); return; }
       // If a wallet is connected, make sure it can actually SEND the source asset
       // (an EVM wallet can't send BTC, etc.) — otherwise the quote can't execute.
@@ -1800,6 +1884,7 @@
       updateWalletMode();
       setActionHint('good', `${rec.wallet} connected: ${shortAddress(rec.address)}`);
       startWalletSession(rec.type, rec.address, rec.wallet);
+      refreshFromMeta(); // load balance for the connected wallet
     }
     function selectWallet(id) {
       const w = state.wallets.find((x) => x.id === id);
@@ -1808,6 +1893,7 @@
       closeWalletModal();
       renderWalletPicker(); fillConnectedDestination(); updateWalletMode();
       setActionHint('good', `Using ${w.wallet}: ${shortAddress(w.address)}`);
+      refreshFromMeta();
     }
     function disconnectWallet(id) {
       state.wallets = state.wallets.filter((x) => x.id !== id);
@@ -1937,6 +2023,9 @@
       updateAddressValidation();
     });
     el('destination').addEventListener('input', updateAddressValidation);
+    el('amtModeToggle').addEventListener('click', () => setAmountMode(amountMode === 'fiat' ? 'crypto' : 'fiat'));
+    el('amount').addEventListener('input', updateConvertHint);
+    el('fromAsset').addEventListener('change', refreshFromMeta);
 
     window.atomicI18n?.init();
     window.addEventListener('atomic-i18n-change', () => {
@@ -1947,7 +2036,7 @@
     });
 
     updateWalletMode();
-    loadAssets().catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
+    loadAssets().then(refreshFromMeta).catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
 
     // Safari support for some wallet features (WalletConnect QR, passkeys) is still
     // rough — nudge those users to Chrome. Dismissible, remembered.
