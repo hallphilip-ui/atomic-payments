@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getLifiAsset, getSwapAsset } from '../cryptoCore/tokens';
+import { getLifiAsset, getSwapAsset, listSwapAssets } from '../cryptoCore/tokens';
 import { rpcCall } from './rpc';
 
 const router = Router();
@@ -74,39 +74,57 @@ router.get('/v1/wallet/price', limiter, async (req, res) => {
   return res.json({ symbol: t.symbol, priceUSD: t.priceUSD, decimals: t.decimals });
 });
 
-// On-chain balance of `address` for `assetId`. EVM only (that's what our
-// browser wallets can actually spend today).
+// Core EVM balance read for one asset. Returns null if unreadable/unsupported.
+async function readEvmBalance(assetId: string, address: string) {
+  const asset = getSwapAsset(assetId);
+  if (!asset || asset.chainFamily !== 'evm') return null;
+  const t = await lifiToken(assetId);
+  if (!t || !t.address) return null;
+  let raw: string;
+  if (NATIVE_ADDRESS.test(t.address)) {
+    raw = await rpcCall(t.chainId, 'eth_getBalance', [address, 'latest']);
+  } else {
+    const data = '0x70a08231' + address.slice(2).toLowerCase().padStart(64, '0'); // balanceOf(address)
+    raw = await rpcCall(t.chainId, 'eth_call', [{ to: t.address, data }, 'latest']);
+  }
+  const value = BigInt(raw && raw !== '0x' ? raw : '0x0');
+  const formatted = formatUnits(value, t.decimals);
+  const usdValue = t.priceUSD !== null ? Number(formatted) * t.priceUSD : null;
+  return { assetId, symbol: t.symbol, chain: asset.chain, chainId: t.chainId, raw: value.toString(), formatted, decimals: t.decimals, priceUSD: t.priceUSD, usdValue };
+}
+
+// On-chain balance of `address` for one `assetId`. EVM only.
 router.get('/v1/wallet/balance', limiter, async (req, res) => {
   const assetId = clip(req.query.assetId, 64);
   const address = clip(req.query.address, 64);
   const asset = getSwapAsset(assetId);
   if (!asset) return res.status(400).json({ error: 'Unknown asset.' });
   if (!EVM_ADDRESS.test(address)) return res.status(400).json({ error: 'Valid EVM address required.' });
-  if (asset.chainFamily !== 'evm') {
-    return res.json({ supported: false, reason: `Balance display isn't available for ${asset.symbol} yet.` });
-  }
-  const t = await lifiToken(assetId);
-  if (!t || !t.address) return res.json({ supported: false, reason: 'Asset not certified for live routing.' });
-
+  if (asset.chainFamily !== 'evm') return res.json({ supported: false, reason: `Balance display isn't available for ${asset.symbol} yet.` });
   try {
-    let raw: string;
-    if (NATIVE_ADDRESS.test(t.address)) {
-      raw = await rpcCall(t.chainId, 'eth_getBalance', [address, 'latest']);
-    } else {
-      // ERC-20 balanceOf(address) — selector 0x70a08231 + 32-byte padded address
-      const data = '0x70a08231' + address.slice(2).toLowerCase().padStart(64, '0');
-      raw = await rpcCall(t.chainId, 'eth_call', [{ to: t.address, data }, 'latest']);
-    }
-    const value = BigInt(raw && raw !== '0x' ? raw : '0x0');
-    const formatted = formatUnits(value, t.decimals);
-    const usdValue = t.priceUSD !== null ? Number(formatted) * t.priceUSD : null;
-    return res.json({
-      supported: true, raw: value.toString(), formatted, symbol: t.symbol,
-      decimals: t.decimals, priceUSD: t.priceUSD, usdValue, chainId: t.chainId
-    });
+    const b = await readEvmBalance(assetId, address);
+    if (!b) return res.json({ supported: false, reason: 'Asset not certified for live routing.' });
+    return res.json({ supported: true, ...b });
   } catch {
     return res.status(502).json({ error: 'Could not read balance from the network.' });
   }
+});
+
+// Portfolio: scan the wallet across every supported EVM asset/chain and return
+// what it actually holds (non-zero), sorted by USD value. Wallet-first UX — the
+// user connects and sees their real holdings instead of guessing an asset.
+router.get('/v1/wallet/portfolio', limiter, async (req, res) => {
+  const address = clip(req.query.address, 64);
+  if (!EVM_ADDRESS.test(address)) return res.status(400).json({ error: 'Valid EVM address required.' });
+  const evmAssets = listSwapAssets().filter((a) => a.chainFamily === 'evm' && getLifiAsset(a.assetId));
+  const results = await Promise.all(evmAssets.map(async (a) => {
+    try { return await readEvmBalance(a.assetId, address); } catch { return null; }
+  }));
+  const holdings = results
+    .filter((b): b is NonNullable<typeof b> => !!b && b.raw !== '0')
+    .sort((x, y) => (y.usdValue ?? 0) - (x.usdValue ?? 0));
+  const totalUsd = holdings.reduce((s, h) => s + (h.usdValue ?? 0), 0);
+  return res.json({ address, holdings, totalUsd, scanned: evmAssets.length });
 });
 
 export default router;
