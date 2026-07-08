@@ -53,8 +53,9 @@
       <input type="email" id="email" placeholder="you@example.com" autocomplete="username" />
       <div class="row">
         <button class="primary" id="createBtn">Create wallet (passkey)</button>
-        <button class="ghost" id="signinBtn">Sign in</button>
+        <button class="ghost" id="signinBtn" disabled>Sign in</button>
       </div>
+      <p class="note" id="walletHint"></p>
       <p class="note" id="capNote"></p>
     </div>
 
@@ -84,6 +85,7 @@
     const CHAIN = { id: 84532, hex: '0x14a34', name: 'Base Sepolia', rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org' };
     const PRF_SALT = new TextEncoder().encode('atomic-evm-wallet-v1'); // domain-separation salt for PRF
     const LS_KEY = 'atomic_passkey_wallets'; // { [email]: { credentialId(b64url), address } }
+    const LS_LAST = 'atomic_passkey_last_email';
 
     const $ = (id) => document.getElementById(id);
     const provider = new ethers.JsonRpcProvider(CHAIN.rpc, CHAIN.id);
@@ -100,8 +102,28 @@
     const store = {
       all: () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; } },
       get: (email) => store.all()[email.toLowerCase()] || null,
-      set: (email, rec) => { const a = store.all(); a[email.toLowerCase()] = rec; localStorage.setItem(LS_KEY, JSON.stringify(a)); }
+      set: (email, rec) => { const a = store.all(); a[email.toLowerCase()] = rec; localStorage.setItem(LS_KEY, JSON.stringify(a)); localStorage.setItem(LS_LAST, email.toLowerCase()); }
     };
+
+    // Make the auth card wallet-aware: if a wallet already exists for the typed
+    // email, promote "Sign in" and warn before minting a duplicate (which would
+    // strand the existing wallet + funds).
+    function updateAuthUi() {
+      const email = $('email').value.trim();
+      const rec = email ? store.get(email) : null;
+      const hint = $('walletHint');
+      if (rec) {
+        hint.innerHTML = `✓ You already have a wallet for <b>${email}</b>: <span class="mono">${rec.address.slice(0,10)}…${rec.address.slice(-6)}</span> — use <b>Unlock</b>.`;
+        hint.style.color = 'var(--green)';
+        $('signinBtn').textContent = 'Unlock my wallet'; $('signinBtn').className = 'primary'; $('signinBtn').disabled = false;
+        $('createBtn').textContent = 'Create a different wallet'; $('createBtn').className = 'ghost';
+      } else {
+        hint.innerHTML = email ? 'No wallet yet for this email — create one.' : '';
+        hint.style.color = 'var(--muted)';
+        $('signinBtn').textContent = 'Sign in'; $('signinBtn').className = 'ghost'; $('signinBtn').disabled = !email;
+        $('createBtn').textContent = 'Create wallet (passkey)'; $('createBtn').className = 'primary';
+      }
+    }
 
     // Capability probe
     (async () => {
@@ -202,9 +224,20 @@
     }
 
     // ---- UI handlers ----
+    $('email').addEventListener('input', updateAuthUi);
+    // Prefill the last-used email so returning users land on "Unlock".
+    $('email').value = localStorage.getItem(LS_LAST) || '';
+    updateAuthUi();
+
     $('createBtn').onclick = async () => {
       const email = $('email').value.trim();
       if (!email) return log('Enter an email first.', 'err');
+      const existing = store.get(email);
+      if (existing && !confirm(
+        `You already have a wallet for ${email}:\n${existing.address}\n\n` +
+        `Creating a new one makes a SEPARATE wallet — the existing one (and any funds) stays behind and is not deleted.\n\n` +
+        `Use "Unlock my wallet" to access the existing one instead.\n\nCreate a new separate wallet anyway?`
+      )) { log('Cancelled — use "Unlock my wallet" to access your existing wallet.', 'warn'); return; }
       try {
         const { wallet: w, credentialId } = await deriveWallet({ create: true, email });
         await onSignedIn(w, email, credentialId);
