@@ -33,6 +33,15 @@
   let ethersMod = null;
   async function ethers() { if (!ethersMod) ethersMod = (await import(ETHERS_URL)).ethers; return ethersMod; }
 
+  // Pin the WebAuthn RP ID to the registrable domain so the SAME wallet is
+  // derived from apex + www (and any subdomain). Using location.hostname would
+  // make www.atomicpay.cloud and atomicpay.cloud derive DIFFERENT keys. Falls
+  // back to the raw hostname for localhost/dev.
+  function walletRpId() {
+    const h = location.hostname;
+    return (h === 'atomicpay.cloud' || h.endsWith('.atomicpay.cloud')) ? 'atomicpay.cloud' : h;
+  }
+
   const b64url = {
     enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
     dec: (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); }
@@ -66,12 +75,13 @@
   const rand = (n = 32) => crypto.getRandomValues(new Uint8Array(n));
 
   // Create a new passkey, or unlock an existing one, and derive the EOA.
-  async function createOrUnlock({ email, create, credentialId }) {
+  async function createOrUnlock({ email, create, credentialId, expectedAddress }) {
     email = (email || '').trim();
     if (!email) throw new Error('Email is required.');
     const E = await ethers();
-    const rpId = location.hostname;
+    const rpId = walletRpId();
     let credId;
+    let expectAddr = expectedAddress || null;
 
     if (create) {
       const cred = await navigator.credentials.create({ publicKey: {
@@ -83,7 +93,7 @@
       }});
       credId = new Uint8Array(cred.rawId);
     } else {
-      if (!credentialId) { const found = await lookup(email); credentialId = found.credentialId; }
+      if (!credentialId || !expectAddr) { const found = await lookup(email); credentialId = credentialId || found.credentialId; expectAddr = expectAddr || found.address; }
       if (!credentialId) throw new Error('No wallet found for this email.');
       credId = b64url.dec(credentialId);
     }
@@ -99,6 +109,13 @@
     const baseWallet = new E.Wallet(pk); // unconnected; provider set per active chain
     const credentialIdB64 = b64url.enc(credId);
     const address = baseWallet.address;
+
+    // On unlock, the derived address MUST match the known wallet — otherwise a
+    // credential/PRF anomaly would silently hand the user a different (empty)
+    // wallet and they could send funds from/to the wrong one. Fail loudly.
+    if (!create && expectAddr && address.toLowerCase() !== expectAddr.toLowerCase()) {
+      throw new Error(`Unlock produced an unexpected wallet address (${address.slice(0, 8)}…, expected ${expectAddr.slice(0, 8)}…). Aborting to protect funds — try again, or contact support.`);
+    }
 
     local.set(email, { credentialId: credentialIdB64, address });
     // Best-effort server sync for cross-device unlock (never blocks the wallet).

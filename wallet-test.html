@@ -140,7 +140,8 @@
 
     // Derive a deterministic EVM key from a passkey via WebAuthn PRF.
     async function deriveWallet({ create, email, credentialId }) {
-      const rpId = location.hostname;
+      // Pin RP ID to the registrable domain so apex + www derive the SAME wallet.
+      const rpId = (location.hostname === 'atomicpay.cloud' || location.hostname.endsWith('.atomicpay.cloud')) ? 'atomicpay.cloud' : location.hostname;
       let credId;
 
       if (create) {

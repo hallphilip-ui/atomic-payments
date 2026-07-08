@@ -1751,7 +1751,7 @@
       btn.disabled = true; const label = btn.textContent; btn.textContent = 'Approve on your device…';
       hint.style.color = 'var(--muted)'; hint.textContent = create ? 'Creating your Atomic wallet…' : 'Unlocking…';
       try {
-        const res = await window.atomicPasskey.createOrUnlock({ email, create, credentialId: pkExisting && pkExisting.credentialId });
+        const res = await window.atomicPasskey.createOrUnlock({ email, create, credentialId: pkExisting && pkExisting.credentialId, expectedAddress: pkExisting && pkExisting.address });
         state.wallet = { type: 'evm', address: res.address, provider: res.provider, wallet: 'Atomic (email)' };
         closeWalletModal();
         fillConnectedDestination(); updateWalletMode();

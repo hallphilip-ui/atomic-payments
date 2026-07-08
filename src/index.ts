@@ -91,6 +91,9 @@ app.use('/defi-swap', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'defi-swap.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   res.header('Cache-Control', 'no-cache, must-revalidate');
+  // Funds page (embedded wallet) — never allow framing (clickjacking defense).
+  res.header('X-Frame-Options', 'DENY');
+  res.header('Content-Security-Policy', "frame-ancestors 'none'");
   return res.send(html);
 });
 
@@ -133,6 +136,9 @@ app.use('/wallet-test', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'wallet-test.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   res.header('Cache-Control', 'no-cache, must-revalidate');
+  // Funds page (embedded wallet) — never allow framing (clickjacking defense).
+  res.header('X-Frame-Options', 'DENY');
+  res.header('Content-Security-Policy', "frame-ancestors 'none'");
   return res.send(html);
 });
 
