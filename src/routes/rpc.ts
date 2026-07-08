@@ -78,6 +78,6 @@ router.post('/v1/rpc/:chainId', rpcLimiter, async (req, res) => {
 });
 
 // Lets the client discover the active chains without hardcoding (and confirms proxy is up).
-router.get('/v1/rpc', (_req, res) => res.json({ chains: Object.keys(UPSTREAM).map(Number), trusted: !!ALCHEMY }));
+router.get('/v1/rpc', (_req, res) => res.json({ chains: Object.keys(PUBLIC).map(Number), trusted: !!ALCHEMY }));
 
 export default router;
