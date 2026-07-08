@@ -1135,35 +1135,53 @@
       return raw;
     }
 
-    // Wallet-first portfolio: scan the connected wallet and list what it holds.
+    // Wallet-first portfolio: scan EVERY connected EVM wallet and list what they
+    // hold, tagged by wallet. Tapping a coin swaps from it (and switches to the
+    // wallet that holds it).
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    let holdingsScanId = 0;
     async function loadHoldings() {
       const panel = el('holdingsPanel'); if (!panel) return;
-      const w = state.wallet;
-      if (!w || w.type !== 'evm' || !w.address) { panel.style.display = 'none'; return; }
+      const wallets = state.wallets.filter((w) => w.type === 'evm' && w.address);
+      if (!wallets.length) { panel.style.display = 'none'; return; }
       panel.style.display = 'block';
       el('holdingsTotal').textContent = '';
-      el('holdingsList').innerHTML = '<div class="subtle" style="font-size:13px;padding:6px 0;">Scanning your wallet across chains…</div>';
+      el('holdingsList').innerHTML = `<div class="subtle" style="font-size:13px;padding:6px 0;">Scanning ${wallets.length === 1 ? 'your wallet' : wallets.length + ' wallets'} across chains…</div>`;
+      const scan = ++holdingsScanId;
       try {
-        const r = await fetch(`${API_BASE}/v1/wallet/portfolio?address=${encodeURIComponent(w.address)}`);
-        const d = await r.json();
-        const holdings = d.holdings || [];
+        const perWallet = await Promise.all(wallets.map(async (w) => {
+          try {
+            const r = await fetch(`${API_BASE}/v1/wallet/portfolio?address=${encodeURIComponent(w.address)}`);
+            const d = await r.json();
+            return (d.holdings || []).map((h) => ({ ...h, walletId: w.id, walletName: w.wallet }));
+          } catch { return []; }
+        }));
+        if (scan !== holdingsScanId) return; // a newer scan superseded this one
+        const holdings = perWallet.flat().sort((a, b) => (b.usdValue ?? 0) - (a.usdValue ?? 0));
         if (!holdings.length) {
-          el('holdingsList').innerHTML = '<div class="subtle" style="font-size:13px;padding:6px 0;">No supported assets found in this wallet yet. Fund it (USDC, ETH…) on any supported chain, then reload.</div>';
+          el('holdingsList').innerHTML = '<div class="subtle" style="font-size:13px;padding:6px 0;">No supported assets found in your connected wallet(s). Fund one (USDC, ETH…) on any supported chain, then reload.</div>';
           return;
         }
-        el('holdingsTotal').textContent = d.totalUsd ? '$' + Number(d.totalUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '';
+        const total = holdings.reduce((s, h) => s + (h.usdValue ?? 0), 0);
+        el('holdingsTotal').textContent = total ? '$' + total.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '';
+        const multi = wallets.length > 1;
         el('holdingsList').innerHTML = holdings.map((h) => `
-          <button class="holding-row" data-asset="${h.assetId}" data-amt="${trimNum(h.formatted, 8)}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 6px;border:none;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left;">
-            <span><b style="font-size:14px;">${h.symbol}</b> <span style="font-size:11px;color:var(--muted);text-transform:uppercase;">${h.chain}</span></span>
+          <button class="holding-row" data-asset="${h.assetId}" data-amt="${trimNum(h.formatted, 8)}" data-wallet="${esc(h.walletId)}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 6px;border:none;border-bottom:1px solid var(--line);background:none;cursor:pointer;text-align:left;">
+            <span><b style="font-size:14px;">${h.symbol}</b> <span style="font-size:11px;color:var(--muted);text-transform:uppercase;">${h.chain}</span>${multi ? ` <span style="font-size:10px;color:var(--accent);background:#f3f1fe;border-radius:5px;padding:1px 6px;">${esc(h.walletName)}</span>` : ''}</span>
             <span style="text-align:right;line-height:1.3;"><span style="font-size:13px;">${trimNum(h.formatted, 6)}</span><br><span style="font-size:11px;color:var(--muted);">${h.usdValue != null ? '$' + Number(h.usdValue).toLocaleString(undefined, { maximumFractionDigits: 2 }) : ''}</span></span>
           </button>`).join('');
-        el('holdingsList').querySelectorAll('.holding-row').forEach((b) => b.addEventListener('click', () => selectHolding(b.dataset.asset, b.dataset.amt)));
+        el('holdingsList').querySelectorAll('.holding-row').forEach((b) => b.addEventListener('click', () => selectHolding(b.dataset.asset, b.dataset.amt, b.dataset.wallet)));
       } catch (_) {
-        el('holdingsList').innerHTML = '<div class="subtle" style="font-size:13px;">Couldn’t load balances — try again.</div>';
+        if (scan === holdingsScanId) el('holdingsList').innerHTML = '<div class="subtle" style="font-size:13px;">Couldn’t load balances — try again.</div>';
       }
     }
 
-    function selectHolding(assetId, amt) {
+    function selectHolding(assetId, amt, walletId) {
+      // Switch the source wallet to the one holding this coin, then set the asset.
+      if (walletId && (!state.wallet || state.wallet.id !== walletId)) {
+        const w = state.wallets.find((x) => x.id === walletId);
+        if (w) { state.wallet = w; renderWalletPicker(); fillConnectedDestination(); updateWalletMode(); }
+      }
       const sel = el('fromAsset');
       if ([...sel.options].some((o) => o.value === assetId)) { sel.value = assetId; sel.dispatchEvent(new Event('change')); }
       if (amt) { if (amountMode === 'fiat') setAmountMode('crypto'); el('amount').value = amt; }
