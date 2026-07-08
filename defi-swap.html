@@ -1469,6 +1469,23 @@
     // mobile wallets. Lazily loads the SDK from a CDN; returns an EIP-1193
     // provider the executeSwap flow already knows how to drive.
     let wcProvider = null;
+    // WalletConnect's storage needs IndexedDB. WebKit/Safari can leave
+    // indexedDB.open() PENDING forever rather than erroring — which is exactly the
+    // shape of the silent stall we see there. Probe it first (short timeout) so we
+    // fail fast with a precise reason instead of spinning on "Generating QR".
+    function probeIndexedDb() {
+      return withTimeout(new Promise((resolve, reject) => {
+        if (!('indexedDB' in window) || !window.indexedDB) {
+          return reject(new Error('This browser has no IndexedDB (Private Browsing?). WalletConnect needs it — use Google Chrome, or “Sign in with email”.'));
+        }
+        let req;
+        try { req = indexedDB.open('atomic-idb-probe', 1); } catch (e) { return reject(e); }
+        req.onsuccess = () => { try { req.result.close(); indexedDB.deleteDatabase('atomic-idb-probe'); } catch (_) {} resolve(true); };
+        req.onerror = () => reject(new Error('Browser storage (IndexedDB) is blocked. Turn off Private Browsing, or use Google Chrome / “Sign in with email”.'));
+        req.onblocked = () => reject(new Error('Browser storage (IndexedDB) is blocked.'));
+      }), 3000, 'Your browser’s storage (IndexedDB) isn’t responding — Safari stalls here. Use Google Chrome, or “Sign in with email”.');
+    }
+
     async function connectWalletConnect() {
       if (!WC_PROJECT_ID || WC_PROJECT_ID === 'REPLACE_WITH_WC_PROJECT_ID') {
         throw new Error('WalletConnect isn’t configured yet — the operator needs to add a project ID.');
@@ -1482,15 +1499,26 @@
         prepBox.innerHTML = '<div style="text-align:center;padding:44px 20px;"><div class="wc-spin"></div><strong>Generating secure QR…</strong><p class="subtle" style="margin:8px 0 0;font-size:13px;">Scan it with any wallet app on your phone.</p></div>';
       }
       if (!wcProvider) {
+        // Fail fast (with a reason) if storage is the problem — see probeIndexedDb.
+        try { await probeIndexedDb(); }
+        catch (e) { reportClientError('wc.idb', e); throw e; }
+
         let EthereumProvider;
         try {
-          ({ EthereumProvider } = await import('https://esm.sh/@walletconnect/ethereum-provider@2'));
+          // Pin the esm.sh build target. esm.sh serves DIFFERENT builds per browser
+          // (it sniffs the UA), so Safari was getting a different WalletConnect
+          // bundle than the Chrome one we've verified works. Pinning makes every
+          // browser load the same known-good build. Timeout so it can't hang.
+          ({ EthereumProvider } = await withTimeout(
+            import('https://esm.sh/@walletconnect/ethereum-provider@2?target=es2020'),
+            15000,
+            'Loading WalletConnect timed out. Use Google Chrome, or “Sign in with email”.'));
         } catch (e) {
           reportClientError('wc.import', e);
           throw new Error('Could not load WalletConnect. A content blocker, private-mode restriction, or network issue may be stopping it — try a normal (non-private) window or another browser.');
         }
         try {
-          wcProvider = await EthereumProvider.init({
+          wcProvider = await withTimeout(EthereumProvider.init({
             projectId: WC_PROJECT_ID,
             chains: [1],
             optionalChains: [8453, 42161, 10, 137, 56, 43114],
@@ -1501,11 +1529,12 @@
               url: 'https://atomicpay.cloud',
               icons: ['https://atomicpay.cloud/assets/atomic-mark.png']
             }
-          });
+          }), 15000, 'WalletConnect didn’t finish starting up (it stalls here in Safari). Use Google Chrome, or “Sign in with email”.');
         } catch (e) {
           reportClientError('wc.init', e);
-          // Safari Private Browsing blocks the IndexedDB/localStorage WalletConnect needs.
-          throw new Error('WalletConnect could not start in this browser. On Safari, turn off Private Browsing (it blocks the storage WalletConnect needs) and try again.');
+          throw e instanceof Error && /stalls here in Safari/.test(e.message)
+            ? e
+            : new Error('WalletConnect could not start in this browser. On Safari, turn off Private Browsing (it blocks the storage WalletConnect needs) and try again.');
         }
       }
       if (wcProvider.accounts && wcProvider.accounts.length) {
