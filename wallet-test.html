@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic — Passkey Wallet (Testnet)</title>
+  <link rel="icon" href="/assets/atomic-mark.png">
+  <style>
+    :root { --ink:#14161c; --muted:#667085; --line:#e8e9f0; --panel:#fff; --accent:#6d5cf5; --green:#16b364; --red:#e5484d; --amber:#f79009; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; background:#fbfbfd; color:var(--ink); -webkit-font-smoothing:antialiased; }
+    .wrap { max-width:620px; margin:0 auto; padding:28px 20px 80px; }
+    .brand { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .brand img { width:40px; height:32px; object-fit:contain; }
+    .brand strong { font-size:17px; }
+    .testnet { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:#8a5a00; background:#fdf3e2; border:1px solid #f4d7a8; border-radius:999px; padding:4px 12px; margin:6px 0 22px; }
+    .testnet::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--amber); }
+    h1 { font-size:24px; margin:0 0 4px; letter-spacing:-0.02em; }
+    .sub { color:var(--muted); font-size:14px; margin:0 0 22px; line-height:1.55; }
+    .card { border:1px solid var(--line); border-radius:16px; background:var(--panel); padding:20px; margin-bottom:16px; box-shadow:0 1px 2px rgba(16,18,30,.04),0 6px 20px rgba(16,18,30,.05); }
+    label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
+    input[type=email] { width:100%; height:44px; padding:0 14px; border:1px solid var(--line); border-radius:11px; font-size:15px; font-family:inherit; margin-bottom:14px; }
+    input[type=email]:focus { outline:none; border-color:var(--accent); }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    button { font-family:inherit; font-size:14px; font-weight:600; padding:11px 18px; border-radius:11px; border:1px solid transparent; cursor:pointer; transition:.15s; }
+    .primary { background:var(--accent); color:#fff; }
+    .primary:hover { background:#5c4be8; } .primary:disabled { opacity:.5; cursor:not-allowed; }
+    .ghost { background:#fff; border-color:var(--line); color:var(--ink); }
+    .ghost:hover { border-color:var(--accent); color:var(--accent); } .ghost:disabled { opacity:.4; cursor:not-allowed; }
+    .kv { display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
+    .kv:last-child { border-bottom:none; }
+    .kv span:first-child { color:var(--muted); }
+    .kv .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; word-break:break-all; text-align:right; }
+    a.mono { color:var(--accent); }
+    #status { display:none; }
+    .hidden { display:none !important; }
+    .log { background:#0e1116; color:#c9d4e0; border-radius:12px; padding:14px; font-family:ui-monospace,Menlo,monospace; font-size:12px; line-height:1.6; max-height:280px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
+    .log .ok { color:#4ade80; } .log .err { color:#f87171; } .log .warn { color:#fbbf24; } .log .dim { color:#64748b; }
+    .note { font-size:12.5px; color:var(--muted); line-height:1.55; margin-top:10px; }
+    .pill { font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; background:#eef2f7; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'"><strong>Atomic</strong></div>
+    <div class="testnet">TESTNET — Base Sepolia · no real funds</div>
+    <h1>Passkey Wallet</h1>
+    <p class="sub">Create an Atomic wallet secured by your device passkey (Face&nbsp;ID / Touch&nbsp;ID). Your private key is derived on-device from the passkey via WebAuthn PRF and never leaves this page or touches a server. This is a testnet proof of the email→wallet flow.</p>
+
+    <!-- Sign-in -->
+    <div class="card" id="authCard">
+      <label for="email">Email (your wallet identifier)</label>
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="username" />
+      <div class="row">
+        <button class="primary" id="createBtn">Create wallet (passkey)</button>
+        <button class="ghost" id="signinBtn">Sign in</button>
+      </div>
+      <p class="note" id="capNote"></p>
+    </div>
+
+    <!-- Wallet -->
+    <div class="card hidden" id="walletCard">
+      <div class="kv"><span>Address</span><a class="mono" id="addr" target="_blank"></a></div>
+      <div class="kv"><span>Network</span><span class="mono">Base Sepolia <span class="pill">84532</span></span></div>
+      <div class="kv"><span>Balance</span><span class="mono" id="bal">—</span></div>
+      <div class="row" style="margin-top:16px">
+        <button class="ghost" id="refreshBtn">Refresh balance</button>
+        <button class="ghost" id="signBtn">Sign message</button>
+        <button class="primary" id="sendBtn">Send test tx →</button>
+      </div>
+      <p class="note">Fund this address from a <b>Base Sepolia faucet</b> (e.g. coinbase / alchemy), then “Send test tx” self-sends a tiny amount to prove signing + broadcast. The EIP-1193 provider is exposed as <code>window.atomicWallet</code>.</p>
+    </div>
+
+    <div class="card" id="statusCard">
+      <label>Activity log</label>
+      <div class="log" id="log"><span class="dim">Ready. Enter an email and create or sign in to a passkey wallet.</span></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { ethers } from 'https://esm.sh/ethers@6.13.4';
+
+    // ---- Base Sepolia testnet config ----
+    const CHAIN = { id: 84532, hex: '0x14a34', name: 'Base Sepolia', rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org' };
+    const PRF_SALT = new TextEncoder().encode('atomic-evm-wallet-v1'); // domain-separation salt for PRF
+    const LS_KEY = 'atomic_passkey_wallets'; // { [email]: { credentialId(b64url), address } }
+
+    const $ = (id) => document.getElementById(id);
+    const provider = new ethers.JsonRpcProvider(CHAIN.rpc, CHAIN.id);
+    let wallet = null; // ethers.Wallet (connected)
+
+    function log(msg, cls = '') {
+      const el = $('log'); const line = document.createElement('div');
+      if (cls) line.className = cls; line.textContent = msg; el.appendChild(line); el.scrollTop = el.scrollHeight;
+    }
+    const b64url = {
+      enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),
+      dec: (s) => { s = s.replace(/-/g,'+').replace(/_/g,'/'); const bin = atob(s); return Uint8Array.from(bin, c=>c.charCodeAt(0)); }
+    };
+    const store = {
+      all: () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; } },
+      get: (email) => store.all()[email.toLowerCase()] || null,
+      set: (email, rec) => { const a = store.all(); a[email.toLowerCase()] = rec; localStorage.setItem(LS_KEY, JSON.stringify(a)); }
+    };
+
+    // Capability probe
+    (async () => {
+      const has = !!(window.PublicKeyCredential && navigator.credentials);
+      let uvpaa = false;
+      try { uvpaa = has && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); } catch {}
+      $('capNote').textContent = has
+        ? (uvpaa ? '✓ Platform passkey (Face ID / Touch ID) available. PRF support depends on your OS/browser.' : 'Passkeys available, but no platform authenticator detected — a security key with PRF will work.')
+        : '⚠ WebAuthn not available in this browser.';
+      if (!has) { $('createBtn').disabled = $('signinBtn').disabled = true; }
+    })();
+
+    function rand(n = 32) { return crypto.getRandomValues(new Uint8Array(n)); }
+
+    // Derive a deterministic EVM key from a passkey via WebAuthn PRF.
+    async function deriveWallet({ create, email, credentialId }) {
+      const rpId = location.hostname;
+      let credId;
+
+      if (create) {
+        log('Creating passkey… approve with Face ID / Touch ID.', 'warn');
+        const cred = await navigator.credentials.create({ publicKey: {
+          challenge: rand(), rp: { name: 'Atomic', id: rpId },
+          user: { id: rand(16), name: email, displayName: email },
+          pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+          authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
+          timeout: 60000, attestation: 'none',
+          extensions: { prf: {} }
+        }});
+        credId = new Uint8Array(cred.rawId);
+        const ext = cred.getClientExtensionResults();
+        if (!ext || !ext.prf || ext.prf.enabled === false) {
+          log('⚠ This authenticator did not enable PRF. On some platforms PRF only returns on assertion — continuing to sign-in step.', 'warn');
+        } else { log('✓ Passkey created, PRF enabled.', 'ok'); }
+      } else {
+        credId = b64url.dec(credentialId);
+        log('Authenticating passkey… approve with Face ID / Touch ID.', 'warn');
+      }
+
+      // Assertion with PRF eval — this returns the deterministic secret.
+      const assertion = await navigator.credentials.get({ publicKey: {
+        challenge: rand(), rpId,
+        allowCredentials: [{ id: credId, type: 'public-key' }],
+        userVerification: 'required', timeout: 60000,
+        extensions: { prf: { eval: { first: PRF_SALT } } }
+      }});
+      const prf = assertion.getClientExtensionResults()?.prf?.results?.first;
+      if (!prf) throw new Error('No PRF output — your OS/browser/authenticator does not support the WebAuthn PRF extension. (Chrome/Safari + platform passkey, or a PRF security key, required.)');
+
+      // secp256k1 private key = keccak256(prf_secret) for uniform distribution + domain separation.
+      const pk = ethers.keccak256(new Uint8Array(prf));
+      const w = new ethers.Wallet(pk, provider);
+      log('✓ Derived EOA from passkey PRF (key never stored).', 'ok');
+      return { wallet: w, credentialId: b64url.enc(credId) };
+    }
+
+    async function onSignedIn(w, email, credentialId) {
+      wallet = w;
+      store.set(email, { credentialId, address: w.address });
+      $('authCard').classList.add('hidden');
+      $('walletCard').classList.remove('hidden');
+      $('addr').textContent = w.address;
+      $('addr').href = `${CHAIN.explorer}/address/${w.address}`;
+      log(`Wallet ready: ${w.address}`, 'ok');
+      // Expose an EIP-1193 provider (drop-in for the swap console's executeSwap).
+      window.atomicWallet = makeEip1193(w);
+      log('EIP-1193 provider exposed as window.atomicWallet', 'dim');
+      await refreshBalance();
+    }
+
+    async function refreshBalance() {
+      try {
+        const bal = await provider.getBalance(wallet.address);
+        $('bal').textContent = `${ethers.formatEther(bal)} ETH`;
+        if (bal === 0n) log('Balance is 0 — fund the address from a Base Sepolia faucet to test sending.', 'warn');
+      } catch (e) { log('Balance check failed: ' + e.message, 'err'); }
+    }
+
+    // Minimal EIP-1193 shim over the ethers wallet — enough for the swap flow.
+    function makeEip1193(w) {
+      return { isAtomic: true, async request({ method, params = [] }) {
+        switch (method) {
+          case 'eth_requestAccounts': case 'eth_accounts': return [w.address];
+          case 'eth_chainId': return CHAIN.hex;
+          case 'net_version': return String(CHAIN.id);
+          case 'wallet_switchEthereumChain':
+            if (params[0]?.chainId !== CHAIN.hex) throw new Error('Testnet wallet is Base Sepolia only'); return null;
+          case 'personal_sign': return await w.signMessage(ethers.getBytes(params[0]));
+          case 'eth_sendTransaction': {
+            const p = params[0];
+            const tx = await w.sendTransaction({ to: p.to, data: p.data, value: p.value ?? 0n,
+              ...(p.gas ? { gasLimit: p.gas } : {}) });
+            return tx.hash;
+          }
+          default: return await provider.send(method, params); // reads: eth_call, getBalance, estimateGas…
+        }
+      }};
+    }
+
+    // ---- UI handlers ----
+    $('createBtn').onclick = async () => {
+      const email = $('email').value.trim();
+      if (!email) return log('Enter an email first.', 'err');
+      try {
+        const { wallet: w, credentialId } = await deriveWallet({ create: true, email });
+        await onSignedIn(w, email, credentialId);
+      } catch (e) { log('Create failed: ' + e.message, 'err'); }
+    };
+    $('signinBtn').onclick = async () => {
+      const email = $('email').value.trim();
+      if (!email) return log('Enter your email.', 'err');
+      const rec = store.get(email);
+      if (!rec) return log('No wallet on this device for that email — use “Create wallet”.', 'err');
+      try {
+        const { wallet: w, credentialId } = await deriveWallet({ create: false, email, credentialId: rec.credentialId });
+        if (w.address.toLowerCase() !== rec.address.toLowerCase())
+          log(`⚠ Derived address differs from stored (${rec.address}). PRF may be non-deterministic here.`, 'warn');
+        await onSignedIn(w, email, credentialId);
+      } catch (e) { log('Sign-in failed: ' + e.message, 'err'); }
+    };
+    $('refreshBtn').onclick = refreshBalance;
+    $('signBtn').onclick = async () => {
+      try { const sig = await wallet.signMessage('Atomic testnet passkey check'); log('✓ signed: ' + sig.slice(0, 26) + '…', 'ok'); }
+      catch (e) { log('Sign failed: ' + e.message, 'err'); }
+    };
+    $('sendBtn').onclick = async () => {
+      try {
+        const bal = await provider.getBalance(wallet.address);
+        if (bal === 0n) return log('Fund the address from a Base Sepolia faucet first.', 'err');
+        log('Sending 0.0001 ETH to self (proves sign + broadcast)…', 'warn');
+        const tx = await wallet.sendTransaction({ to: wallet.address, value: ethers.parseEther('0.0001') });
+        log('tx sent: ' + tx.hash, 'ok');
+        log('waiting for confirmation…', 'dim');
+        const rc = await tx.wait();
+        log(`✓ confirmed in block ${rc.blockNumber}. ${CHAIN.explorer}/tx/${tx.hash}`, 'ok');
+        await refreshBalance();
+      } catch (e) { log('Send failed: ' + e.message, 'err'); }
+    };
+  </script>
+</body>
+</html>
