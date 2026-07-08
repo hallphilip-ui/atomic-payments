@@ -17,15 +17,16 @@
   const LS_LAST = 'atomic_passkey_last_email';
 
   const CHAINS = MODE === 'mainnet' ? {
-    1:     { name: 'Ethereum',  symbol: 'ETH',  rpc: 'https://eth.llamarpc.com',          explorer: 'https://etherscan.io' },
-    8453:  { name: 'Base',      symbol: 'ETH',  rpc: 'https://mainnet.base.org',          explorer: 'https://basescan.org' },
-    42161: { name: 'Arbitrum',  symbol: 'ETH',  rpc: 'https://arb1.arbitrum.io/rpc',      explorer: 'https://arbiscan.io' },
-    10:    { name: 'Optimism',  symbol: 'ETH',  rpc: 'https://mainnet.optimism.io',       explorer: 'https://optimistic.etherscan.io' },
-    137:   { name: 'Polygon',   symbol: 'POL',  rpc: 'https://polygon-rpc.com',           explorer: 'https://polygonscan.com' },
-    56:    { name: 'BNB Chain', symbol: 'BNB',  rpc: 'https://bsc-dataseed.binance.org',  explorer: 'https://bscscan.com' },
-    43114: { name: 'Avalanche', symbol: 'AVAX', rpc: 'https://api.avax.network/ext/bc/C/rpc', explorer: 'https://snowtrace.io' }
+    // No rpc URL here — all RPC goes through our own origin proxy (/v1/rpc/:id).
+    1:     { name: 'Ethereum',  symbol: 'ETH',  explorer: 'https://etherscan.io' },
+    8453:  { name: 'Base',      symbol: 'ETH',  explorer: 'https://basescan.org' },
+    42161: { name: 'Arbitrum',  symbol: 'ETH',  explorer: 'https://arbiscan.io' },
+    10:    { name: 'Optimism',  symbol: 'ETH',  explorer: 'https://optimistic.etherscan.io' },
+    137:   { name: 'Polygon',   symbol: 'POL',  explorer: 'https://polygonscan.com' },
+    56:    { name: 'BNB Chain', symbol: 'BNB',  explorer: 'https://bscscan.com' },
+    43114: { name: 'Avalanche', symbol: 'AVAX', explorer: 'https://snowtrace.io' }
   } : {
-    84532: { name: 'Base Sepolia', symbol: 'ETH', rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org' }
+    84532: { name: 'Base Sepolia', symbol: 'ETH', explorer: 'https://sepolia.basescan.org' }
   };
   const DEFAULT_CHAIN = MODE === 'mainnet' ? 1 : 84532;
 
