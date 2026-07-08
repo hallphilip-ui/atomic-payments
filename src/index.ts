@@ -195,6 +195,8 @@ app.use('/assets/analytics.js', (_req: Request, res: Response) => {
 app.use('/assets/passkey-wallet.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'passkey-wallet.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');
+  // Security-critical (touches keys) — never let a CDN/browser serve a stale copy.
+  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
   return res.send(script);
 });
 
