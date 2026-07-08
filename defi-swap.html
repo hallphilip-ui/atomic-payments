@@ -1907,6 +1907,20 @@
 
     updateWalletMode();
     loadAssets().catch(() => setApiStatus(false, t('defi.startApi'), 'defi.startApi'));
+
+    // Safari support for some wallet features (WalletConnect QR, passkeys) is still
+    // rough — nudge those users to Chrome. Dismissible, remembered.
+    (function browserNotice() {
+      const ua = navigator.userAgent;
+      const isSafari = /safari/i.test(ua) && /apple computer/i.test(navigator.vendor || '') && !/chrome|crios|chromium|edg|android|fxios/i.test(ua);
+      if (!isSafari) return;
+      try { if (localStorage.getItem('atomic_browser_notice') === 'dismissed') return; } catch (_) {}
+      const bar = document.createElement('div');
+      bar.setAttribute('style', 'display:flex;align-items:center;gap:12px;justify-content:center;padding:10px 16px;background:#fdf3e2;border-bottom:1px solid #f4d7a8;color:#7a5a12;font-size:13px;line-height:1.4;font-family:Inter,system-ui,-apple-system,sans-serif;position:sticky;top:0;z-index:80;');
+      bar.innerHTML = '<span>⚠️ For the best experience — especially connecting a wallet — we recommend <b>Google Chrome</b>. Safari support is still in beta.</span><button aria-label="Dismiss" style="border:none;background:none;color:#7a5a12;cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;flex:0 0 auto;">✕</button>';
+      document.body.insertBefore(bar, document.body.firstChild);
+      bar.querySelector('button').onclick = () => { bar.remove(); try { localStorage.setItem('atomic_browser_notice', 'dismissed'); } catch (_) {} };
+    })();
   </script>
   <script src="/assets/analytics.js" defer></script>
 
