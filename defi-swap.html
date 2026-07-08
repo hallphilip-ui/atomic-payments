@@ -670,6 +670,7 @@
 
             <div class="actions">
               <button class="primary" id="quoteBtn" data-i18n="defi.getQuote">Get Quote</button>
+              <div id="walletPicker" style="position:relative;display:none;"></div>
               <button class="secondary" id="connectWalletBtn" data-i18n="defi.connectWallet">Connect Wallet</button>
               <button class="secondary" id="autofillBtn" data-i18n="defi.autofillWallet">Autofill Wallet</button>
             </div>
@@ -764,7 +765,8 @@
       eventSource: null,
       apiStatusOk: false,
       apiStatusKey: 'common.checkingApi',
-      wallet: null
+      wallet: null,     // the active wallet
+      wallets: []       // all connected wallets (for the picker)
     };
 
     const el = (id) => document.getElementById(id);
@@ -1388,12 +1390,7 @@
           connectDiscovered(rdns, name), 45000,
           `${name} didn’t respond — approve the popup in your wallet, or use “Scan QR code”.`
         );
-        state.wallet = { type: 'evm', address: result.address, provider: result.provider, wallet: name };
-        closeWalletModal();
-        fillConnectedDestination();
-        updateWalletMode();
-        setActionHint('good', `${name} connected: ${shortAddress(result.address)}`);
-        startWalletSession('evm', result.address, name);
+        addConnectedWallet({ type: 'evm', address: result.address, provider: result.provider, wallet: name });
       } catch (error) {
         const msg = (error && error.message) || 'Wallet connection failed.';
         if (!el('walletModal').hidden) showConnectError(msg); else setActionHint('bad', msg);
@@ -1590,43 +1587,78 @@
 
     function renderWalletList() {
       requestInjectedWallets(); // re-scan in case a wallet loaded late
+      const featuredRdns = new Set(FEATURED.map((f) => f.rdns).filter(Boolean));
       let html = '';
-      let lastGroup = '';
 
-      // 1) EIP-6963 discovered EVM wallets — the real installed wallets, each
-      //    with its own provider. Conflict-free and guaranteed to connect.
-      const discovered = [...eip6963.values()].sort((a, b) => a.info.name.localeCompare(b.info.name));
-      if (discovered.length) {
-        html += `<div class="wallet-group-label">Detected in this browser</div>`;
-        for (const d of discovered) {
-          const icon = d.info.icon ? `<img src="${d.info.icon}" alt="" style="width:30px;height:30px;border-radius:8px;">` : (d.info.name[0] || '?');
-          html += `<button class="wallet-item" data-eip6963="${d.info.rdns}" data-name="${d.info.name.replace(/"/g, '&quot;')}">
-            <span class="wallet-icon" style="background:#0e2233;padding:0;overflow:hidden;">${icon}</span>
-            <span class="wallet-name">${d.info.name}</span>
-            <span class="wallet-state installed">Ready</span>
+      // Already-connected wallets — select or disconnect.
+      if (state.wallets.length) {
+        html += `<div class="wallet-group-label">Your wallets</div>`;
+        for (const w of state.wallets) {
+          const active = state.wallet && state.wallet.id === w.id;
+          html += `<button class="wallet-item" data-select="${w.id}">
+            <span class="wallet-icon" style="background:#6d5cf5">${(w.wallet || 'W')[0]}</span>
+            <span class="wallet-name">${w.wallet}<br><small style="color:var(--muted);font-size:11px;font-family:ui-monospace,monospace;">${shortAddress(w.address)}</small></span>
+            <span class="wallet-state ${active ? 'installed' : ''}">${active ? '✓ Selected' : 'Use'}</span>
           </button>`;
         }
       }
 
-      // 2) Static entries: WalletConnect QR + Solana/BTC/Tron (own injection).
-      for (const w of WALLET_DEFS) {
-        let installed = false;
-        try { installed = w.detect(); } catch (_) {}
-        if (w.hideWhenUndetected && !installed) continue;
-        if (w.group !== lastGroup) { html += `<div class="wallet-group-label">${w.group}</div>`; lastGroup = w.group; }
-        const stateLabelText = w.id === 'walletconnect' ? '' : installed ? 'Installed' : w.qr ? 'Scan QR' : 'Not detected';
-        html += `<button class="wallet-item" data-wallet="${w.id}">
-          <span class="wallet-icon" style="background:${w.color}">${w.id === 'walletconnect' ? '▦' : w.name[0]}</span>
-          <span class="wallet-name">${w.name}${w.sub ? `<br><small style="color:var(--muted);font-size:11px;">${w.sub}</small>` : ''}</span>
-          <span class="wallet-state ${installed ? 'installed' : ''}">${stateLabelText}</span>
+      // Featured EVM wallets — Kraken first, then the big names.
+      html += `<div class="wallet-group-label">Connect a wallet</div>`;
+      for (const f of FEATURED) {
+        const detected = f.rdns && eip6963.has(f.rdns);
+        html += `<button class="wallet-item" data-featured="${f.id}">
+          <span class="wallet-icon" style="background:${f.color}">${f.name[0]}</span>
+          <span class="wallet-name">${f.name}${f.hint ? `<br><small style="color:var(--muted);font-size:11px;">${f.hint}</small>` : ''}</span>
+          <span class="wallet-state ${detected ? 'installed' : ''}">${detected ? 'Detected' : (f.rdns ? '' : 'Mobile')}</span>
         </button>`;
       }
+
+      // Any other detected EVM wallet not already featured.
+      for (const d of eip6963.values()) {
+        if (featuredRdns.has(d.info.rdns)) continue;
+        const icon = d.info.icon ? `<img src="${d.info.icon}" alt="" style="width:30px;height:30px;border-radius:8px;">` : (d.info.name[0] || '?');
+        html += `<button class="wallet-item" data-eip6963="${d.info.rdns}" data-name="${d.info.name.replace(/"/g, '&quot;')}">
+          <span class="wallet-icon" style="background:#0e2233;padding:0;overflow:hidden;">${icon}</span>
+          <span class="wallet-name">${d.info.name}</span>
+          <span class="wallet-state installed">Detected</span>
+        </button>`;
+      }
+
+      // Any wallet via WalletConnect QR.
+      html += `<button class="wallet-item" data-wallet="walletconnect">
+        <span class="wallet-icon" style="background:#3b99fc">▦</span>
+        <span class="wallet-name">Other wallet<br><small style="color:var(--muted);font-size:11px;">Scan a QR code with any wallet app</small></span>
+        <span class="wallet-state"></span>
+      </button>`;
+
+      // Collapsible: non-EVM networks (Solana / Bitcoin / Tron).
+      html += `<button class="wallet-item" id="moreNetToggle">
+        <span class="wallet-icon" style="background:#eef0f4;color:#667085;">⋯</span>
+        <span class="wallet-name">More networks<br><small style="color:var(--muted);font-size:11px;">Solana · Bitcoin · Tron</small></span>
+        <span class="wallet-state" id="moreNetCaret">▾</span>
+      </button><div id="moreNet" style="display:none;">`;
+      let lastGroup = '';
+      for (const w of WALLET_DEFS) {
+        if (w.id === 'walletconnect') continue;
+        let installed = false; try { installed = w.detect(); } catch (_) {}
+        if (w.group !== lastGroup) { html += `<div class="wallet-group-label">${w.group}</div>`; lastGroup = w.group; }
+        html += `<button class="wallet-item" data-wallet="${w.id}">
+          <span class="wallet-icon" style="background:${w.color}">${w.name[0]}</span>
+          <span class="wallet-name">${w.name}</span>
+          <span class="wallet-state ${installed ? 'installed' : ''}">${installed ? 'Installed' : 'Not detected'}</span>
+        </button>`;
+      }
+      html += `</div>`;
 
       el('walletList').innerHTML = html;
       el('walletList').querySelectorAll('.wallet-item').forEach((btn) => {
         btn.addEventListener('click', () => {
-          if (btn.dataset.eip6963) onDiscoveredChosen(btn.dataset.eip6963, btn.dataset.name);
-          else onWalletChosen(btn.dataset.wallet);
+          if (btn.id === 'moreNetToggle') { const m = el('moreNet'); const open = m.style.display === 'none'; m.style.display = open ? 'block' : 'none'; el('moreNetCaret').textContent = open ? '▴' : '▾'; return; }
+          if (btn.dataset.select) return selectWallet(btn.dataset.select);
+          if (btn.dataset.featured) return connectFeatured(FEATURED.find((f) => f.id === btn.dataset.featured));
+          if (btn.dataset.eip6963) return onDiscoveredChosen(btn.dataset.eip6963, btn.dataset.name);
+          if (btn.dataset.wallet) return onWalletChosen(btn.dataset.wallet);
         });
       });
     }
@@ -1653,12 +1685,7 @@
             `${w.name} didn’t respond. With several wallet extensions installed they can conflict — use “Scan QR code” (most reliable) or disable the other wallets.`
           );
         }
-        state.wallet = { type: result.type, address: result.address, provider: result.provider, wallet: w.name };
-        closeWalletModal();
-        fillConnectedDestination();
-        updateWalletMode();
-        setActionHint('good', `${w.name} connected: ${shortAddress(result.address)}`);
-        startWalletSession(result.type, result.address, w.name);
+        addConnectedWallet({ type: result.type, address: result.address, provider: result.provider, wallet: w.name });
       } catch (error) {
         const msg = (error && error.message) || 'Wallet connection failed.';
         if (!el('walletModal').hidden) showConnectError(msg); else setActionHint('bad', msg);
@@ -1714,6 +1741,95 @@
       } catch (_) {}
     })();
 
+    // ---- Multi-wallet: connect several, pick the active one ----
+    function walletBadge(w, big) {
+      const c = { evm: '#6d5cf5', svm: '#14b8a6', btc: '#f7931a', tron: '#d9042b' }[w.type] || '#6d5cf5';
+      const s = big ? 30 : 20, f = big ? 15 : 11;
+      return `<span style="width:${s}px;height:${s}px;border-radius:7px;background:${c};color:#fff;display:grid;place-items:center;font-size:${f}px;font-weight:700;flex:0 0 auto;">${(w.wallet || 'W')[0].toUpperCase()}</span>`;
+    }
+    function addConnectedWallet(w) {
+      const id = w.type + ':' + String(w.address || '').toLowerCase();
+      let rec = state.wallets.find((x) => x.id === id);
+      if (rec) { rec.provider = w.provider; rec.wallet = w.wallet || rec.wallet; }
+      else { rec = { id, type: w.type, address: w.address, provider: w.provider, wallet: w.wallet || 'Wallet' }; state.wallets.push(rec); }
+      state.wallet = rec;
+      closeWalletModal();
+      renderWalletPicker();
+      fillConnectedDestination();
+      updateWalletMode();
+      setActionHint('good', `${rec.wallet} connected: ${shortAddress(rec.address)}`);
+      startWalletSession(rec.type, rec.address, rec.wallet);
+    }
+    function selectWallet(id) {
+      const w = state.wallets.find((x) => x.id === id);
+      if (!w) return;
+      state.wallet = w;
+      closeWalletModal();
+      renderWalletPicker(); fillConnectedDestination(); updateWalletMode();
+      setActionHint('good', `Using ${w.wallet}: ${shortAddress(w.address)}`);
+    }
+    function disconnectWallet(id) {
+      state.wallets = state.wallets.filter((x) => x.id !== id);
+      if (!state.wallet || state.wallet.id === id) state.wallet = state.wallets[0] || null;
+      renderWalletPicker(); updateWalletMode(); renderWalletList();
+    }
+    let pickerOpen = false;
+    function renderWalletPicker() {
+      const box = el('walletPicker');
+      if (!state.wallets.length) { box.style.display = 'none'; box.innerHTML = ''; el('connectWalletBtn').style.display = ''; return; }
+      el('connectWalletBtn').style.display = 'none';
+      box.style.display = 'inline-flex';
+      const a = state.wallet || state.wallets[0];
+      const rows = state.wallets.map((w) => `
+        <div class="wp-row" data-select="${w.id}" style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;cursor:pointer;${w.id === a.id ? 'background:#f3f1fe;' : ''}">
+          ${walletBadge(w)}
+          <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:var(--ink);">${w.wallet}</div><div style="font-size:11px;color:var(--muted);font-family:ui-monospace,monospace;">${shortAddress(w.address)}</div></div>
+          ${w.id === a.id ? '<span style="color:var(--accent);font-size:13px;">✓</span>' : ''}
+          <span class="wp-disc" data-disc="${w.id}" title="Disconnect" style="color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;">✕</span>
+        </div>`).join('');
+      box.innerHTML = `
+        <button id="wpToggle" class="secondary" style="display:inline-flex;align-items:center;gap:8px;">
+          ${walletBadge(a)}<span style="font-size:13px;">${a.wallet}</span>
+          <span style="font-family:ui-monospace,monospace;font-size:12px;color:var(--muted);">${shortAddress(a.address)}</span><span style="font-size:9px;">▾</span>
+        </button>
+        <div id="wpMenu" style="display:${pickerOpen ? 'block' : 'none'};position:absolute;top:calc(100% + 6px);right:0;min-width:250px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 40px rgba(16,18,30,.16);padding:6px;z-index:60;">
+          ${rows}
+          <div style="border-top:1px solid var(--line);margin-top:4px;padding-top:4px;">
+            <div class="wp-row" data-connect="1" style="padding:9px 10px;border-radius:9px;cursor:pointer;color:var(--accent);font-weight:600;font-size:13px;">＋ Connect another wallet</div>
+          </div>
+        </div>`;
+      el('wpToggle').onclick = (e) => { e.stopPropagation(); pickerOpen = !pickerOpen; el('wpMenu').style.display = pickerOpen ? 'block' : 'none'; };
+      box.querySelectorAll('[data-select]').forEach((n) => n.addEventListener('click', (e) => { if (e.target.closest('[data-disc]')) return; pickerOpen = false; selectWallet(n.dataset.select); }));
+      box.querySelectorAll('[data-disc]').forEach((n) => n.addEventListener('click', (e) => { e.stopPropagation(); disconnectWallet(n.dataset.disc); }));
+      box.querySelector('[data-connect]').addEventListener('click', () => { pickerOpen = false; openWalletModal(); });
+    }
+    document.addEventListener('click', (e) => { if (pickerOpen && !e.target.closest('#walletPicker')) { pickerOpen = false; const m = el('wpMenu'); if (m) m.style.display = 'none'; } });
+
+    // Featured EVM wallets — named + prominent. Injected if detected (EIP-6963),
+    // otherwise WalletConnect QR (Kraken/Trust/Rainbow are mobile → scan the app).
+    const FEATURED = [
+      { id: 'kraken',   name: 'Kraken Wallet',   color: '#6f4bf6', rdns: null, hint: 'Scan with the Kraken app' },
+      { id: 'metamask', name: 'MetaMask',        color: '#f6851b', rdns: 'io.metamask' },
+      { id: 'coinbase', name: 'Coinbase Wallet', color: '#1652f0', rdns: 'com.coinbase.wallet' },
+      { id: 'trust',    name: 'Trust Wallet',    color: '#3375bb', rdns: 'com.trustwallet.app' },
+      { id: 'rainbow',  name: 'Rainbow',         color: '#ff5caa', rdns: 'me.rainbow' }
+    ];
+    async function connectFeatured(f) {
+      try {
+        let result;
+        if (f.rdns && eip6963.has(f.rdns)) {
+          showConnecting(f.name);
+          result = await withTimeout(connectDiscovered(f.rdns, f.name), 45000, `${f.name} didn’t respond — approve the popup, or use “Other wallet”.`);
+        } else {
+          result = await connectWalletConnect(); // QR — scan with the wallet app
+        }
+        addConnectedWallet({ type: 'evm', address: result.address, provider: result.provider, wallet: f.name });
+      } catch (error) {
+        const msg = (error && error.message) || 'Wallet connection failed.';
+        if (!el('walletModal').hidden) showConnectError(msg); else setActionHint('bad', msg);
+      }
+    }
+
     function openWalletModal() { renderWalletList(); setupEmailSignin(); el('walletModal').hidden = false; }
     function closeWalletModal() { hideWcQr(); el('walletModal').hidden = true; }
 
@@ -1760,11 +1876,7 @@
       hint.style.color = 'var(--muted)'; hint.textContent = create ? 'Creating your Atomic wallet…' : 'Unlocking…';
       try {
         const res = await window.atomicPasskey.createOrUnlock({ email, create, credentialId: pkExisting && pkExisting.credentialId, expectedAddress: pkExisting && pkExisting.address });
-        state.wallet = { type: 'evm', address: res.address, provider: res.provider, wallet: 'Atomic (email)' };
-        closeWalletModal();
-        fillConnectedDestination(); updateWalletMode();
-        setActionHint('good', `Atomic wallet connected: ${shortAddress(res.address)}`);
-        startWalletSession('evm', res.address, 'Atomic (email)');
+        addConnectedWallet({ type: 'evm', address: res.address, provider: res.provider, wallet: 'Atomic (email)' });
       } catch (e) {
         reportClientError('passkeySignin', e);
         hint.style.color = 'var(--red)'; hint.textContent = (e && e.message) || 'Sign-in failed.';
