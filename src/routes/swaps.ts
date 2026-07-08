@@ -18,7 +18,7 @@ import {
   listStoredSwapQuotes,
   listSwapExecutionEvents
 } from '../cryptoCore/swapStore';
-import { listSwapAssets } from '../cryptoCore/tokens';
+import { listSwapAssets, getLifiAsset } from '../cryptoCore/tokens';
 
 const router = Router();
 
@@ -29,7 +29,9 @@ router.get('/v1/swaps/assets', (_req, res) => {
       note: 'Launch registry is operational and should be refreshed against market-cap/liquidity data before production.',
       supportedRouting: ['RANGO', 'THORCHAIN']
     },
-    assets: listSwapAssets()
+    // liveSupported = certified for live LI.FI routing/pricing. The client shows
+    // only these in the swap dropdowns so every selectable asset actually works.
+    assets: listSwapAssets().map((a) => ({ ...a, liveSupported: !!getLifiAsset(a.assetId) }))
   });
 });
 

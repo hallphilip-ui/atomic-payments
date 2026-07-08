@@ -1054,7 +1054,9 @@
     async function loadAssets() {
       const response = await fetch(`${API_BASE}/v1/swaps/assets`);
       const data = await response.json();
-      state.assets = data.assets;
+      // Only show assets certified for live routing/pricing — so every asset a
+      // user can pick actually quotes, swaps, and shows a balance/price.
+      state.assets = (data.assets || []).filter((a) => a.liveSupported);
       for (const id of ['fromAsset', 'toAsset']) {
         el(id).innerHTML = state.assets.map((asset) => `<option value="${asset.assetId}">${assetLabel(asset)}</option>`).join('');
       }
