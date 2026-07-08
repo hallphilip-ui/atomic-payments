@@ -669,6 +669,14 @@
               </div>
             </div>
 
+            <!-- Shown only when the source is Bitcoin: no wallet signs BTC here —
+                 you send BTC to a deposit address we show after quoting. -->
+            <div class="field" id="btcRefundRow" style="display:none;margin-top:14px;">
+              <label for="btcRefund">Your Bitcoin refund address</label>
+              <input id="btcRefund" placeholder="bc1… (where BTC is returned if the swap can't complete)" aria-label="Bitcoin refund address">
+              <p class="subtle" style="font-size:12px;margin:6px 0 0;">You'll send BTC from any wallet or exchange to a deposit address we show after you get a quote — no Bitcoin wallet connection needed.</p>
+            </div>
+
             <div class="meta-row">
               <span class="metric"><span data-i18n="defi.quoteLock">Quote lock:</span> <strong id="quoteLock">30s</strong></span>
               <span class="metric warning"><span data-i18n="defi.slipTolerance">Slip tolerance:</span> <strong>1.0%</strong></span>
@@ -1089,6 +1097,9 @@
 
     async function refreshFromMeta() {
       const a = selectedAsset('fromAsset');
+      // BTC source uses the deposit flow → show the refund-address input.
+      const btcRow = el('btcRefundRow');
+      if (btcRow) btcRow.style.display = (sourceWalletType(a) === 'btc') ? 'block' : 'none';
       fromPrice = null; fromBalance = null; el('amtBalance').textContent = '';
       const toggle = el('amtModeToggle');
       if (!a) { updateConvertHint(); return; }
@@ -1163,18 +1174,29 @@
       // (an EVM wallet can't send BTC, etc.) — otherwise the quote can't execute.
       const fromA = selectedAsset('fromAsset');
       const need = sourceWalletType(fromA);
-      if (state.wallet && need && state.wallet.type !== need) {
-        setActionHint('bad', `Your connected wallet can’t send ${fromA.symbol} (${fromA.chain}). To swap from ${fromA.symbol}, connect ${sourceWalletLabel(fromA)} — or pick a source asset your wallet supports.`);
-        return;
+      let fromAddress;
+      if (need === 'btc') {
+        // Deposit flow: no wallet signs BTC. We quote against the user's BTC
+        // refund address and then show a deposit address to send BTC to.
+        const refund = el('btcRefund').value.trim();
+        if (!/^(bc1[a-z0-9]{20,}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(refund)) {
+          setActionHint('bad', 'Enter your Bitcoin refund address (bc1… or 1…/3…) to swap from BTC — it’s where BTC returns if the swap can’t complete.');
+          return;
+        }
+        fromAddress = refund;
+      } else {
+        if (state.wallet && need && state.wallet.type !== need) {
+          setActionHint('bad', `Your connected wallet can’t send ${fromA.symbol} (${fromA.chain}). To swap from ${fromA.symbol}, connect ${sourceWalletLabel(fromA)} — or pick a source asset your wallet supports.`);
+          return;
+        }
+        fromAddress = (state.wallet && state.wallet.address) || undefined;
       }
       const payload = {
         fromAsset: el('fromAsset').value,
         toAsset: el('toAsset').value,
         amount: atomicAmount,
         userAddress: el('destination').value.trim(),
-        // Source address = connected wallet, so live cross-chain quotes resolve
-        // and we get back a signable transaction to execute.
-        fromAddress: (state.wallet && state.wallet.address) || undefined
+        fromAddress
       };
       const response = await fetch(`${API_BASE}/v1/swaps/quote`, {
         method: 'POST',
@@ -1198,6 +1220,9 @@
       const q = state.quote;
       const ex = q && q.execution;
       if (!ex || !ex.transactionRequest) { setActionHint('bad', 'No live transaction on this quote. Connect a wallet and get a fresh quote.'); return; }
+      // BTC/UTXO deposit swap: the "to" is a Bitcoin address, not an EVM contract.
+      // No wallet signs — show the deposit address for a manual send from anywhere.
+      if (ex.transactionRequest.to && !String(ex.transactionRequest.to).startsWith('0x')) return showBtcDeposit(ex);
       const w = state.wallet;
       if (!w || !w.provider) { setActionHint('bad', 'Connect a wallet to execute.'); return; }
       if (w.type === 'btc') return executeBtcSwap(ex, w);
@@ -1249,9 +1274,28 @@
       }
     }
 
-    // BTC-source swaps: LI.FI returns { to: depositAddress, value: sats }. The
-    // wallet just sends that amount to the deposit address; the route handles
-    // the rest. Falls back to showing the address for manual send.
+    // BTC deposit swap (no connected BTC wallet): show the deposit address + exact
+    // amount for the user to send from any wallet or exchange.
+    function showBtcDeposit(ex) {
+      const tx = ex.transactionRequest;
+      const addr = tx.to; const sats = Number(tx.value);
+      if (!addr || !sats) { setActionHint('bad', 'BTC route is missing a deposit address — get a fresh quote.'); return; }
+      const btc = (sats / 1e8).toFixed(8).replace(/0+$/, '').replace(/\.$/, '');
+      const toSym = (selectedAsset('toAsset') || {}).symbol || 'tokens';
+      const hint = el('actionHint');
+      hint.className = 'alert good';
+      hint.innerHTML = `<div style="font-weight:600;margin-bottom:6px;">Send exactly <span style="font-family:ui-monospace,monospace">${btc} BTC</span> to this address to complete the swap:</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <code style="font-size:12px;word-break:break-all;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 8px;">${addr}</code>
+          <button id="btcCopy" class="secondary" style="font-size:12px;padding:6px 10px;">Copy</button>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:8px 0 0;">Send from any wallet or exchange (Kraken, Coinbase…) <b>before the quote expires</b>. Your ${toSym} arrives at your destination address after Bitcoin confirmations.</p>`;
+      const c = el('btcCopy');
+      if (c) c.onclick = () => { try { navigator.clipboard.writeText(addr); c.textContent = 'Copied ✓'; } catch (_) {} };
+    }
+
+    // BTC-source swaps via a connected Bitcoin wallet (Unisat/Xverse/Leather):
+    // LI.FI returns { to: depositAddress, value: sats }; the wallet sends it.
     async function executeBtcSwap(ex, w) {
       const tx = ex.transactionRequest;
       const depositAddress = tx.to;
