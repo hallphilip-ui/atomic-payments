@@ -15,6 +15,7 @@ import metricsRoutes from './routes/metrics';
 import projectRoutes from './routes/project';
 import buildRoutes from './routes/build';
 import bugRoutes from './routes/bugs';
+import passkeyRoutes from './routes/passkey';
 import observabilityRoutes from './routes/observability';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -76,6 +77,7 @@ app.use(metricsRoutes);
 app.use(projectRoutes);
 app.use(buildRoutes);
 app.use(bugRoutes);
+app.use(passkeyRoutes);
 app.use(observabilityRoutes);
 
 app.get('/', (_req: Request, res: Response) => {
@@ -180,6 +182,12 @@ app.use('/assets/widget.js', (_req: Request, res: Response) => {
 
 app.use('/assets/analytics.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'analytics.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  return res.send(script);
+});
+
+app.use('/assets/passkey-wallet.js', (_req: Request, res: Response) => {
+  const script = readFileSync(join(process.cwd(), 'public', 'passkey-wallet.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');
   return res.send(script);
 });

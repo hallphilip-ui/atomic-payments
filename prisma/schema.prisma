@@ -255,3 +255,19 @@ model BugReport {
   @@index([status, createdAt])
   @@index([category, createdAt])
 }
+
+// Cross-device lookup for the passkey (email) wallet. Stores only the WebAuthn
+// credential id (an identifier, NOT a secret) + the derived EOA address, so a
+// user can access the same wallet from any device. The private key is never
+// stored anywhere — it is re-derived on-device from the passkey via WebAuthn PRF.
+model PasskeyCredential {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  credentialId String
+  address      String
+  chainMode    String   @default("testnet")
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @updatedAt
+
+  @@index([address])
+}
