@@ -1233,6 +1233,13 @@
       const from = w.address;
       const btn = el('executeBtn');
       btn.disabled = true;
+      // Immediate feedback — with WalletConnect the approval prompt appears in the
+      // wallet APP (e.g. Kraken on your phone), not on this page, so a silent await
+      // looks like a hang. Tell the user where to look.
+      const viaQr = w.wallet && /walletconnect|kraken|scan/i.test(w.wallet);
+      setActionHint('good', viaQr
+        ? 'Open your wallet app (e.g. Kraken on your phone) to approve — the request was just sent there.'
+        : 'Approve the request in your wallet…');
       try {
         // 1. Make sure the wallet is on the source chain.
         if (tx.chainId) {
