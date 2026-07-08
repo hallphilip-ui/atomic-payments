@@ -754,7 +754,7 @@
        single byte differs, so key-touching crypto can't be swapped by a CDN/MITM. -->
   <script src="/assets/vendor/ethers-6.13.4.umd.min.js"
           integrity="sha384-6Zl0Pc8zjSz8KvmNeXRvUQgY4ryFb+BwDvKCmLYcBME0joAaru491tQgi9B7zsMM"></script>
-  <script src="/assets/passkey-wallet.js?v=sec3"></script>
+  <script src="/assets/passkey-wallet.js?v=sec4"></script>
   <script>
     const API_BASE = window.location.origin;
     const state = {
@@ -1741,7 +1741,11 @@
       pkExisting = await window.atomicPasskey.lookup(email);
       if (pkExisting.exists) {
         btn.textContent = 'Unlock my wallet';
-        hint.innerHTML = `✓ Existing wallet: <span style="font-family:ui-monospace,monospace">${pkExisting.address.slice(0,8)}…${pkExisting.address.slice(-6)}</span>`;
+        // Address is only known from the device-local record; on a new device the
+        // server tells us a wallet exists but never which address (M2).
+        hint.innerHTML = pkExisting.address
+          ? `✓ Existing wallet: <span style="font-family:ui-monospace,monospace">${pkExisting.address.slice(0,8)}…${pkExisting.address.slice(-6)}</span>`
+          : '✓ Wallet found — unlock with your passkey.';
         hint.style.color = 'var(--green)';
       } else {
         btn.textContent = 'Create Atomic wallet'; hint.textContent = 'New wallet — secured by your device passkey.'; hint.style.color = 'var(--muted)';

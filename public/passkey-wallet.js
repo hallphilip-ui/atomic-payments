@@ -65,16 +65,23 @@
     return { webauthn, platform, mode: MODE };
   }
 
-  // Find an existing wallet for an email: server first (cross-device), then local.
+  // Does a wallet exist for this email? (M2) The device-local record is the only
+  // source we trust for an address / credential id. The server contributes ONLY a
+  // boolean "exists" hint for the Unlock-vs-Create UX — it never returns an
+  // address or credential id, so a squatted or hostile row can neither reveal a
+  // user's wallet nor influence how we unlock it.
   async function lookup(email) {
     email = (email || '').trim().toLowerCase();
     if (!email) return { exists: false };
+    const l = local.get(email);
+    if (l) return { exists: true, address: l.address, credentialId: l.credentialId, local: true };
+    let serverExists = false;
     try {
       const r = await fetch(`/v1/passkey/lookup?email=${encodeURIComponent(email)}`, { headers: { accept: 'application/json' } });
-      if (r.ok) { const d = await r.json(); if (d.exists) return d; }
+      if (r.ok) serverExists = !!(await r.json()).exists;
     } catch {}
-    const l = local.get(email);
-    return l ? { exists: true, credentialId: l.credentialId, address: l.address, chainMode: MODE, local: true } : { exists: false };
+    // Known on another device: unlock via a discoverable passkey (platform picker).
+    return { exists: serverExists, local: false };
   }
 
   const rand = (n = 32) => crypto.getRandomValues(new Uint8Array(n));
@@ -98,15 +105,24 @@
       }});
       credId = new Uint8Array(cred.rawId);
     } else {
-      if (!credentialId || !expectAddr) { const found = await lookup(email); credentialId = credentialId || found.credentialId; expectAddr = expectAddr || found.address; }
-      if (!credentialId) throw new Error('No wallet found for this email.');
-      credId = b64url.dec(credentialId);
+      // M2: only ever trust the DEVICE-LOCAL credential id. If this device has
+      // none (a new device), credId stays null and we do a discoverable get() —
+      // the platform shows the user's own synced passkeys for this RP. We never
+      // let the server tell us which credential to use.
+      const l = local.get(email);
+      credentialId = credentialId || (l && l.credentialId) || null;
+      expectAddr = expectAddr || (l && l.address) || null;
+      credId = credentialId ? b64url.dec(credentialId) : null;
     }
 
-    const assertion = await navigator.credentials.get({ publicKey: {
-      challenge: rand(), rpId, allowCredentials: [{ id: credId, type: 'public-key' }],
-      userVerification: 'required', timeout: 60000, extensions: { prf: { eval: { first: PRF_SALT } } }
-    }});
+    // With a known local credential we target it directly; otherwise omit
+    // allowCredentials so the authenticator offers the user's DISCOVERABLE
+    // passkeys for this RP (cross-device unlock, no server trust required).
+    const pub = { challenge: rand(), rpId, userVerification: 'required', timeout: 60000, extensions: { prf: { eval: { first: PRF_SALT } } } };
+    if (credId) pub.allowCredentials = [{ id: credId, type: 'public-key' }];
+    const assertion = await navigator.credentials.get({ publicKey: pub });
+    if (!credId && assertion.rawId) credId = new Uint8Array(assertion.rawId); // learn it from the picker
+    if (!credId) throw new Error('No passkey selected.');
     const prf = assertion.getClientExtensionResults()?.prf?.results?.first;
     if (!prf) throw new Error('Your device/browser does not support the WebAuthn PRF extension (need Chrome/Safari + a platform passkey).');
 
