@@ -40,8 +40,15 @@
     .brand img { width: 44px; height: 36px; object-fit: contain; }
     .brand strong { font-size: 17px; color: var(--ink); letter-spacing: -0.01em; }
     .nav { display: flex; align-items: center; gap: 4px; }
-    .nav a { padding: 8px 14px; font-size: 14px; color: var(--muted); border-radius: 10px; font-weight: 500; }
-    .nav a:hover { color: var(--ink); background: #f2f2f7; }
+    /* :not(.btn) — otherwise `.nav a` (0,1,1) beats `.btn-primary` (0,1,0) and the
+       Launch App button renders grey-on-purple, losing its background on hover. */
+    .nav a:not(.btn) { padding: 8px 14px; font-size: 14px; color: var(--muted); border-radius: 10px; font-weight: 500; }
+    .nav a:not(.btn):hover { color: var(--ink); background: #f2f2f7; }
+    .language-control select {
+      height: 34px; padding: 0 8px; margin-left: 6px; border: 1px solid var(--line); border-radius: 10px;
+      background: #fff; color: var(--muted); font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; max-width: 130px;
+    }
+    .language-control select:hover { color: var(--ink); border-color: var(--accent); }
     .btn {
       display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;
       padding: 11px 20px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: 0.15s;
@@ -101,61 +108,62 @@
     @media (max-width: 640px) { .nav a:not(.btn) { display: none; } }
   </style>
 </head>
-<body>
+<body data-i18n-title="landing.title">
   <header class="topbar">
     <a class="brand" href="/"><img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'"><strong>Atomic</strong></a>
     <nav class="nav">
-      <a href="#features">Features</a>
-      <a href="#how">How it works</a>
-      <a href="/transfers">Explorer</a>
-      <a href="/help">Help</a>
-      <a class="btn btn-primary" href="/defi-swap">Launch App</a>
+      <a href="#features" data-i18n="landing.nav.features">Features</a>
+      <a href="#how" data-i18n="landing.nav.how">How it works</a>
+      <a href="/transfers" data-i18n="landing.nav.explorer">Explorer</a>
+      <a href="/help" data-i18n="landing.nav.help">Help</a>
+      <a class="btn btn-primary" href="/defi-swap" data-i18n="landing.launchApp">Launch App</a>
+      <label class="language-control"><select data-atomic-language-select aria-label="Language"></select></label>
     </nav>
   </header>
 
   <main>
     <section class="hero wrap">
-      <span class="pill"><span class="dot"></span> Non-custodial · live on mainnet-ready rails</span>
-      <h1>Swap crypto <span class="grad">across chains</span>, without giving up your keys</h1>
-      <p class="lede">Atomic routes Bitcoin, Ethereum, Solana and more between chains and settles on-chain straight to your wallet. No account, no custody — you sign every trade yourself.</p>
+      <span class="pill"><span class="dot"></span> <span data-i18n="landing.pill">Non-custodial · live on mainnet-ready rails</span></span>
+      <h1 data-i18n-html="landing.h1">Swap crypto <span class="grad">across chains</span>, without giving up your keys</h1>
+      <p class="lede" data-i18n="landing.lede">Atomic routes Bitcoin, Ethereum, Solana and more between chains and settles on-chain straight to your wallet. No account, no custody — you sign every trade yourself.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="/defi-swap">Launch App →</a>
-        <a class="btn btn-ghost" href="/transfers">View live transfers</a>
+        <a class="btn btn-primary" href="/defi-swap"><span data-i18n="landing.launchApp">Launch App</span> <span aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost" href="/transfers" data-i18n="landing.viewTransfers">View live transfers</a>
       </div>
       <div class="trust">
-        <div><div class="n">25+</div><div class="l">Assets</div></div>
-        <div><div class="n">75+</div><div class="l">Chains routed</div></div>
-        <div><div class="n">0</div><div class="l">Custody of funds</div></div>
-        <div><div class="n">BTC</div><div class="l">Native, not wrapped</div></div>
+        <div><div class="n">25+</div><div class="l" data-i18n="landing.trust.assets">Assets</div></div>
+        <div><div class="n">75+</div><div class="l" data-i18n="landing.trust.chains">Chains routed</div></div>
+        <div><div class="n">0</div><div class="l" data-i18n="landing.trust.custody">Custody of funds</div></div>
+        <div><div class="n">BTC</div><div class="l" data-i18n="landing.trust.btc">Native, not wrapped</div></div>
       </div>
     </section>
 
     <section class="block wrap" id="features">
-      <div class="eyebrow">Why Atomic</div>
-      <h2>An exchange that never touches your funds</h2>
-      <p class="sub">Trades route through decentralized cross-chain liquidity. Your assets go from your wallet to the protocol to your destination — Atomic only ever earns a transparent spread.</p>
+      <div class="eyebrow" data-i18n="landing.why">Why Atomic</div>
+      <h2 data-i18n="landing.whyH2">An exchange that never touches your funds</h2>
+      <p class="sub" data-i18n="landing.whySub">Trades route through decentralized cross-chain liquidity. Your assets go from your wallet to the protocol to your destination — Atomic only ever earns a transparent spread.</p>
       <div class="grid">
-        <div class="card"><div class="ic">🔑</div><h3>Non-custodial by design</h3><p>You connect your own wallet and sign every swap. Atomic holds no balances and can never move your funds.</p></div>
-        <div class="card"><div class="ic">₿</div><h3>Native Bitcoin</h3><p>Swap real BTC to ETH, USDC and more — no wrapped tokens, no bridges you have to trust.</p></div>
-        <div class="card"><div class="ic">⚡</div><h3>Cross-chain routing</h3><p>Aggregated liquidity across Bitcoin, Ethereum, Solana, Tron and major L2s, with a locked quote before you sign.</p></div>
-        <div class="card"><div class="ic">🛡️</div><h3>Screened &amp; transparent</h3><p>Every route runs compliance screening, and your exact spread is shown up front before you sign — no hidden fees.</p></div>
+        <div class="card"><div class="ic">🔑</div><h3 data-i18n="landing.f1.title">Non-custodial by design</h3><p data-i18n="landing.f1.body">You connect your own wallet and sign every swap. Atomic holds no balances and can never move your funds.</p></div>
+        <div class="card"><div class="ic">₿</div><h3 data-i18n="landing.f2.title">Native Bitcoin</h3><p data-i18n="landing.f2.body">Swap real BTC to ETH, USDC and more — no wrapped tokens, no bridges you have to trust.</p></div>
+        <div class="card"><div class="ic">⚡</div><h3 data-i18n="landing.f3.title">Cross-chain routing</h3><p data-i18n="landing.f3.body">Aggregated liquidity across Bitcoin, Ethereum, Solana, Tron and major L2s, with a locked quote before you sign.</p></div>
+        <div class="card"><div class="ic">🛡️</div><h3 data-i18n="landing.f4.title">Screened &amp; transparent</h3><p data-i18n="landing.f4.body">Every route runs compliance screening, and your exact spread is shown up front before you sign — no hidden fees.</p></div>
       </div>
     </section>
 
     <section class="block wrap" id="how">
-      <div class="eyebrow">How it works</div>
-      <h2>Three steps, funds never leave your control</h2>
+      <div class="eyebrow" data-i18n="landing.nav.how">How it works</div>
+      <h2 data-i18n="landing.howH2">Three steps, funds never leave your control</h2>
       <div class="steps">
-        <div class="step"><h3>Connect your wallet</h3><p>MetaMask, Phantom, Unisat and 12+ more across Ethereum, Solana, Tron and Bitcoin.</p></div>
-        <div class="step"><h3>Get a locked quote</h3><p>Pick your pair and amount. See the rate, spread, and price impact before anything is signed.</p></div>
-        <div class="step"><h3>Sign &amp; settle</h3><p>You approve in your wallet; the swap routes on-chain and lands in your destination address.</p></div>
+        <div class="step"><h3 data-i18n="landing.s1.title">Connect your wallet</h3><p data-i18n="landing.s1.body">MetaMask, Phantom, Unisat and 12+ more across Ethereum, Solana, Tron and Bitcoin.</p></div>
+        <div class="step"><h3 data-i18n="landing.s2.title">Get a locked quote</h3><p data-i18n="landing.s2.body">Pick your pair and amount. See the rate, spread, and price impact before anything is signed.</p></div>
+        <div class="step"><h3 data-i18n="landing.s3.title">Sign &amp; settle</h3><p data-i18n="landing.s3.body">You approve in your wallet; the swap routes on-chain and lands in your destination address.</p></div>
       </div>
     </section>
 
     <section class="block wrap">
-      <div class="eyebrow">Supported</div>
-      <h2>Trade the assets people actually use</h2>
-      <p class="sub">A curated set of the most liquid assets across chains, expanding over time.</p>
+      <div class="eyebrow" data-i18n="landing.supported">Supported</div>
+      <h2 data-i18n="landing.supportedH2">Trade the assets people actually use</h2>
+      <p class="sub" data-i18n="landing.supportedSub">A curated set of the most liquid assets across chains, expanding over time.</p>
       <div class="assets">
         <span class="asset"><b>BTC</b> Bitcoin</span>
         <span class="asset"><b>ETH</b> Ethereum</span>
@@ -167,15 +175,15 @@
         <span class="asset"><b>AVAX</b></span>
         <span class="asset"><b>LTC</b></span>
         <span class="asset"><b>ATOM</b></span>
-        <span class="asset">+ more</span>
+        <span class="asset" data-i18n="landing.more">+ more</span>
       </div>
     </section>
 
     <section class="block wrap">
       <div class="final">
-        <h2 style="margin-top:0">Ready to swap?</h2>
-        <p class="sub" style="margin-bottom:26px">Connect a wallet and get a quote in seconds. No sign-up, no custody.</p>
-        <a class="btn btn-primary" href="/defi-swap">Launch App →</a>
+        <h2 style="margin-top:0" data-i18n="landing.readyH2">Ready to swap?</h2>
+        <p class="sub" style="margin-bottom:26px" data-i18n="landing.readySub">Connect a wallet and get a quote in seconds. No sign-up, no custody.</p>
+        <a class="btn btn-primary" href="/defi-swap"><span data-i18n="landing.launchApp">Launch App</span> <span aria-hidden="true">→</span></a>
       </div>
     </section>
   </main>
@@ -184,18 +192,20 @@
     <div class="foot">
       <a class="brand" href="/"><img src="/assets/atomic-mark.png" alt="Atomic" style="width:38px;height:30px" onerror="this.style.display='none'"><strong>Atomic</strong></a>
       <div class="foot-links">
-        <a href="/defi-swap">Swap</a>
-        <a href="/transfers">Explorer</a>
-        <a href="/checkout">Checkout</a>
-        <a href="/help">Help</a>
-        <a href="/releases">Releases</a>
-        <a href="/terms">Terms</a>
-        <a href="/privacy">Privacy</a>
+        <a href="/defi-swap" data-i18n="landing.foot.swap">Swap</a>
+        <a href="/transfers" data-i18n="landing.nav.explorer">Explorer</a>
+        <a href="/checkout" data-i18n="landing.foot.checkout">Checkout</a>
+        <a href="/help" data-i18n="landing.nav.help">Help</a>
+        <a href="/releases" data-i18n="landing.foot.releases">Releases</a>
+        <a href="/terms" data-i18n="landing.foot.terms">Terms</a>
+        <a href="/privacy" data-i18n="landing.foot.privacy">Privacy</a>
       </div>
       <div>© 2026 Atomic · v1.2.0</div>
     </div>
-    <p class="disclaimer">Atomic is a non-custodial interface to decentralized cross-chain liquidity. It does not take custody of user funds. Digital assets are volatile and swaps are irreversible; use at your own risk and comply with the laws of your jurisdiction. Currently in beta.</p>
+    <p class="disclaimer" data-i18n="landing.disclaimer">Atomic is a non-custodial interface to decentralized cross-chain liquidity. It does not take custody of user funds. Digital assets are volatile and swaps are irreversible; use at your own risk and comply with the laws of your jurisdiction. Currently in beta.</p>
   </footer>
+  <script src="/assets/i18n.js"></script>
+  <script>window.atomicI18n?.init();</script>
   <script src="/assets/analytics.js" defer></script>
 </body>
 </html>
