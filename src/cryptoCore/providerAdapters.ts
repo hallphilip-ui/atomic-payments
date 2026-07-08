@@ -322,7 +322,16 @@ export async function getProviderQuote(input: SimulationInput): Promise<Provider
     // hand back a misleading simulation quote. Only fall back to simulation on
     // transport/server failures (timeouts, 5xx, network) — graceful degradation.
     const status = error?.httpStatus;
-    if (typeof status === 'number' && status >= 400 && status < 500) throw error;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      const pm: string = error?.providerMessage || '';
+      if (/address/i.test(pm)) {
+        throw new Error('That address isn’t valid for this route — check the destination address (and your Bitcoin refund address, if swapping from BTC) and try again.');
+      }
+      if (/no route|not.*found|unsupported|no available/i.test(pm)) {
+        throw new Error('No route available for this pair/amount right now — try a different amount or asset.');
+      }
+      throw new Error(pm ? `This swap can’t be routed right now: ${pm}` : error.message);
+    }
     return simulationQuote(input, [`provider_fallback:${error.message}`]);
   }
 }
