@@ -227,7 +227,10 @@ async function fetchProviderJson(
     } catch {
       // non-JSON error body — status alone is the signal
     }
-    throw new Error(`Provider returned HTTP ${response.status}${detail}`);
+    const err: any = new Error(`Provider returned HTTP ${response.status}${detail}`);
+    err.httpStatus = response.status;
+    err.providerMessage = detail ? detail.replace(/^: /, '') : '';
+    throw err;
   }
 
   return response.json();
@@ -314,6 +317,12 @@ export async function getProviderQuote(input: SimulationInput): Promise<Provider
     return await liveQuote(input);
   } catch (error: any) {
     if (LIVE_MODE) throw error;
+    // live_with_fallback: a CLIENT error (bad/invalid address, unsupported route,
+    // fee misconfig — HTTP 4xx) is the user's to fix, so surface it rather than
+    // hand back a misleading simulation quote. Only fall back to simulation on
+    // transport/server failures (timeouts, 5xx, network) — graceful degradation.
+    const status = error?.httpStatus;
+    if (typeof status === 'number' && status >= 400 && status < 500) throw error;
     return simulationQuote(input, [`provider_fallback:${error.message}`]);
   }
 }
