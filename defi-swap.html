@@ -1505,10 +1505,12 @@
 
         let EthereumProvider;
         try {
-          // Pin the esm.sh build target. esm.sh serves DIFFERENT builds per browser
-          // (it sniffs the UA), so Safari was getting a different WalletConnect
-          // bundle than the Chrome one we've verified works. Pinning makes every
-          // browser load the same known-good build. Timeout so it can't hang.
+          // Pin the esm.sh build target to es2020. NOTE: verified experimentally that
+          // esm.sh serves the SAME es2022 bundle to Chrome and Safari (it does NOT
+          // vary by UA here) — so this is NOT the cause of the Safari stall. We keep
+          // the pin only as a conservative floor: es2022 syntax can fail to parse on
+          // older Safari, and a parse failure would surface as an import rejection.
+          // Timeout so a hung import can't spin forever.
           ({ EthereumProvider } = await withTimeout(
             import('https://esm.sh/@walletconnect/ethereum-provider@2?target=es2020'),
             15000,
