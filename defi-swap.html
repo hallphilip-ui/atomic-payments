@@ -1511,12 +1511,22 @@
       if (wcProvider.accounts && wcProvider.accounts.length) {
         return { type: 'evm', address: wcProvider.accounts[0], provider: wcProvider };
       }
-      const onUri = (uri) => { showWcQr(uri); };
+      let gotUri = false;
+      const onUri = (uri) => { gotUri = true; showWcQr(uri); };
       wcProvider.on('display_uri', onUri);
+      // Watchdog: if the relay never produces a pairing URI, WalletConnect has
+      // stalled (a silent failure we've seen in Safari). Fail loudly + capture it,
+      // rather than spinning forever. Harmless once the QR has shown (gotUri).
+      const relayWatchdog = new Promise((_, reject) => setTimeout(() => {
+        if (!gotUri) reject(new Error('WalletConnect couldn’t reach its relay — this often fails in Safari. Try Google Chrome, or use “Sign in with email”.'));
+      }, 12000));
       try {
-        const accounts = await wcProvider.enable();
+        const accounts = await Promise.race([wcProvider.enable(), relayWatchdog]);
         if (!accounts || !accounts.length) throw new Error('No account authorized.');
         return { type: 'evm', address: accounts[0], provider: wcProvider };
+      } catch (e) {
+        reportClientError('walletconnect', e); // surfaces to PostHog for diagnosis
+        throw e;
       } finally {
         if (wcProvider.removeListener) wcProvider.removeListener('display_uri', onUri);
         hideWcQr();
