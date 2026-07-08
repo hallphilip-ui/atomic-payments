@@ -14,19 +14,28 @@ const router = Router();
 const ALCHEMY = (process.env.ATOMIC_ALCHEMY_KEY || '').trim();
 const alchemy = (net: string) => (ALCHEMY ? `https://${net}.g.alchemy.com/v2/${ALCHEMY}` : null);
 
-// Fallbacks use publicnode.com (Allnodes) — free and markedly more reliable than
-// llamarpc/chain-default endpoints. Still: set ATOMIC_ALCHEMY_KEY for production
-// (a paid provider is the real "trusted RPC" — public nodes rate-limit and drop).
-const UPSTREAM: Record<number, string> = {
-  1:     alchemy('eth-mainnet')     ?? 'https://ethereum-rpc.publicnode.com',
-  8453:  alchemy('base-mainnet')    ?? 'https://base-rpc.publicnode.com',
-  42161: alchemy('arb-mainnet')     ?? 'https://arbitrum-one-rpc.publicnode.com',
-  10:    alchemy('opt-mainnet')     ?? 'https://optimism-rpc.publicnode.com',
-  137:   alchemy('polygon-mainnet') ?? 'https://polygon-bor-rpc.publicnode.com',
-  56:    'https://bsc-rpc.publicnode.com', // Alchemy has no BNB Chain — public
-  43114: alchemy('avax-mainnet')    ?? 'https://avalanche-c-chain-rpc.publicnode.com',
-  84532: alchemy('base-sepolia')    ?? 'https://base-sepolia-rpc.publicnode.com'
+// Reliable public fallbacks (publicnode.com / Allnodes).
+const PUBLIC: Record<number, string> = {
+  1:     'https://ethereum-rpc.publicnode.com',
+  8453:  'https://base-rpc.publicnode.com',
+  42161: 'https://arbitrum-one-rpc.publicnode.com',
+  10:    'https://optimism-rpc.publicnode.com',
+  137:   'https://polygon-bor-rpc.publicnode.com',
+  56:    'https://bsc-rpc.publicnode.com',
+  43114: 'https://avalanche-c-chain-rpc.publicnode.com',
+  84532: 'https://base-sepolia-rpc.publicnode.com'
 };
+// Alchemy endpoint per chain (null where Alchemy has no coverage, e.g. BNB).
+const ALCHEMY_NET: Record<number, string | null> = {
+  1: alchemy('eth-mainnet'), 8453: alchemy('base-mainnet'), 42161: alchemy('arb-mainnet'),
+  10: alchemy('opt-mainnet'), 137: alchemy('polygon-mainnet'), 56: null,
+  43114: alchemy('avax-mainnet'), 84532: alchemy('base-sepolia')
+};
+// Try Alchemy first (trusted), then the public node. So a chain the user hasn't
+// enabled on their Alchemy app — or a transient Alchemy hiccup — transparently
+// falls back and keeps working, and upgrades to Alchemy once enabled.
+const upstreamsFor = (chainId: number): string[] =>
+  [ALCHEMY_NET[chainId], PUBLIC[chainId]].filter((u): u is string => !!u);
 
 // Read-heavy but cheap; generous per-IP cap keeps a single client fast while
 // preventing the proxy from being abused as an open relay against our quota.
@@ -43,19 +52,29 @@ const methodsAllowed = (body: any): boolean => {
 };
 
 router.post('/v1/rpc/:chainId', rpcLimiter, async (req, res) => {
-  const upstream = UPSTREAM[Number(req.params.chainId)];
-  if (!upstream) return res.status(400).json({ error: 'Unsupported chain.' });
+  const upstreams = upstreamsFor(Number(req.params.chainId));
+  if (!upstreams.length) return res.status(400).json({ error: 'Unsupported chain.' });
   if (!methodsAllowed(req.body)) return res.status(400).json({ error: 'Method not permitted.' });
-  try {
-    const r = await fetch(upstream, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body), signal: AbortSignal.timeout(15000)
-    });
-    const text = await r.text();
-    return res.status(r.status).header('Content-Type', 'application/json').send(text);
-  } catch {
-    return res.status(502).json({ error: 'Upstream RPC error.' });
+
+  const body = JSON.stringify(req.body);
+  for (let i = 0; i < upstreams.length; i++) {
+    const isLast = i === upstreams.length - 1;
+    try {
+      const r = await fetch(upstreams[i], {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body, signal: AbortSignal.timeout(15000)
+      });
+      const text = await r.text();
+      // Fall back on a provider-level failure: non-2xx, or Alchemy reporting the
+      // network isn't enabled for this app. A valid JSON-RPC error (e.g. a revert)
+      // is HTTP 200 without that marker, so it passes straight through.
+      if (!isLast && (!r.ok || /is not enabled for this app/i.test(text))) continue;
+      return res.status(r.status).header('Content-Type', 'application/json').send(text);
+    } catch {
+      if (isLast) return res.status(502).json({ error: 'Upstream RPC error.' });
+    }
   }
+  return res.status(502).json({ error: 'Upstream RPC error.' });
 });
 
 // Lets the client discover the active chains without hardcoding (and confirms proxy is up).
