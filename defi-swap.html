@@ -1142,7 +1142,7 @@
     let holdingsScanId = 0;
     async function loadHoldings() {
       const panel = el('holdingsPanel'); if (!panel) return;
-      const wallets = state.wallets.filter((w) => w.type === 'evm' && w.address);
+      const wallets = state.wallets.filter((w) => (w.type === 'evm' || w.type === 'btc') && w.address);
       if (!wallets.length) { panel.style.display = 'none'; return; }
       panel.style.display = 'block';
       el('holdingsTotal').textContent = '';
@@ -1151,6 +1151,13 @@
       try {
         const perWallet = await Promise.all(wallets.map(async (w) => {
           try {
+            if (w.type === 'btc') {
+              // Native BTC wallet: read its Bitcoin balance + auto-fill the refund address.
+              const r = await fetch(`${API_BASE}/v1/wallet/btc-balance?address=${encodeURIComponent(w.address)}`);
+              const d = await r.json();
+              if (!el('btcRefund').value) el('btcRefund').value = w.address;
+              return d && d.supported && d.raw !== '0' ? [{ ...d, walletId: w.id, walletName: w.wallet }] : [];
+            }
             const r = await fetch(`${API_BASE}/v1/wallet/portfolio?address=${encodeURIComponent(w.address)}`);
             const d = await r.json();
             return (d.holdings || []).map((h) => ({ ...h, walletId: w.id, walletName: w.wallet }));

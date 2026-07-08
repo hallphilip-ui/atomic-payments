@@ -110,6 +110,39 @@ router.get('/v1/wallet/balance', limiter, async (req, res) => {
   }
 });
 
+// Bitcoin balance for a BTC address (native Bitcoin wallets: Unisat/Xverse/Leather).
+// EVM wallets can't expose a BTC address, so this only applies when a BTC wallet
+// is connected. Uses public block explorers (no key); mempool.space then blockstream.
+const BTC_ADDRESS = /^(bc1[a-z0-9]{20,}|[13][a-km-zA-HJ-NP-Z1-9]{25,62})$/;
+async function btcSats(address: string): Promise<bigint> {
+  const sources = [`https://mempool.space/api/address/${address}`, `https://blockstream.info/api/address/${address}`];
+  for (const url of sources) {
+    try {
+      const r = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(9000) });
+      if (!r.ok) continue;
+      const d: any = await r.json();
+      const cs = d.chain_stats || {};
+      return BigInt(cs.funded_txo_sum || 0) - BigInt(cs.spent_txo_sum || 0);
+    } catch { /* try next source */ }
+  }
+  throw new Error('No BTC explorer available');
+}
+
+router.get('/v1/wallet/btc-balance', limiter, async (req, res) => {
+  const address = clip(req.query.address, 128);
+  if (!BTC_ADDRESS.test(address)) return res.status(400).json({ error: 'Valid Bitcoin address required.' });
+  try {
+    const sats = await btcSats(address);
+    const formatted = formatUnits(sats, 8);
+    const t = await lifiToken('BITCOIN.BTC');
+    const priceUSD = t?.priceUSD ?? null;
+    const usdValue = priceUSD !== null ? Number(formatted) * priceUSD : null;
+    return res.json({ supported: true, assetId: 'BITCOIN.BTC', symbol: 'BTC', chain: 'BITCOIN', raw: sats.toString(), formatted, decimals: 8, priceUSD, usdValue });
+  } catch {
+    return res.status(502).json({ error: 'Could not read BTC balance.' });
+  }
+});
+
 // Portfolio: scan the wallet across every supported EVM asset/chain and return
 // what it actually holds (non-zero), sorted by USD value. Wallet-first UX — the
 // user connects and sees their real holdings instead of guessing an asset.
