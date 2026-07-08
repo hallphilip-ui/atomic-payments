@@ -629,148 +629,107 @@
     <main>
       <div class="shell">
         <div class="workspace">
-          <section class="section">
-            <div class="section-head">
-              <div>
-                <h1 data-i18n="defi.heading">Unified Swap Matrix</h1>
-                <p class="subtle" data-i18n="defi.description">Select source and destination networks, get a locked quote, and keep AML/compliance visible before signature.</p>
-              </div>
+          <style>
+            .swaphead { text-align:center; margin-bottom:22px; }
+            .swaphead h1 { font-size:clamp(26px,4vw,34px); margin:0 0 6px; letter-spacing:-0.02em; }
+            .swaphead p { color:var(--muted); margin:0; font-size:15px; }
+            .scard { border:1px solid var(--line); background:var(--panel); border-radius:18px; padding:15px 18px; box-shadow:var(--shadow); }
+            .scard-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+            .scard-top label { font-size:13px; color:var(--muted); font-weight:600; }
+            .scard-row { display:flex; align-items:center; gap:12px; }
+            .bigamt { flex:1 1 auto; min-width:60px; border:none; background:none; font-size:32px; font-weight:600; color:var(--ink); outline:none; padding:0; letter-spacing:-0.01em; }
+            .assetpick { flex:0 0 176px; width:176px; height:46px; border:1px solid var(--line); border-radius:999px; background:#fff; font-size:13.5px; font-weight:600; font-family:inherit; padding:0 12px; cursor:pointer; text-overflow:ellipsis; }
+            .scard-meta { display:flex; justify-content:space-between; gap:8px; font-size:12.5px; color:var(--muted); margin-top:8px; min-height:16px; }
+            .flip { width:36px; height:36px; border-radius:11px; border:1px solid var(--line); background:#fff; display:grid; place-items:center; margin:-10px auto; position:relative; z-index:2; cursor:pointer; font-size:16px; color:var(--muted); }
+            .flip:hover { border-color:var(--accent); color:var(--accent); }
+            .recip { margin:14px 2px 0; font-size:13px; }
+            .recip label { color:var(--muted); font-weight:600; }
+            .recip input { width:100%; height:42px; border:1px solid var(--line); border-radius:11px; padding:0 12px; margin-top:6px; font-family:inherit; font-size:13px; }
+            .bigbtn { width:100%; height:52px; border:none; border-radius:14px; font-size:16px; font-weight:700; cursor:pointer; }
+            .bigbtn.go { background:var(--accent); color:#fff; }
+            .bigbtn.go:disabled { opacity:.45; cursor:not-allowed; }
+            .holding-row:hover { background:#f7f6ff; }
+          </style>
+          <section class="section" style="max-width:560px;margin:0 auto;background:none;border:none;box-shadow:none;padding:0;">
+            <div class="swaphead">
+              <h1>Swap crypto across chains</h1>
+              <p>Any coin, any chain — you keep your keys. Fast &amp; non-custodial.</p>
             </div>
 
-            <div class="swap-grid">
-              <div class="field">
-                <label for="fromAsset" data-i18n="defi.from">From</label>
-                <select id="fromAsset"></select>
+            <!-- Wallet-first: your real holdings. Tap a coin to swap it. -->
+            <div id="holdingsPanel" style="display:none;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:2px;">
+                <strong style="font-size:15px;">Your wallet</strong>
+                <span id="holdingsTotal" style="font-size:13px;color:var(--muted);font-weight:600;"></span>
               </div>
-              <div class="swap-icon" aria-hidden="true">⇄</div>
-              <div class="field">
-                <label for="toAsset" data-i18n="defi.to">To</label>
-                <select id="toAsset"></select>
-              </div>
+              <p class="subtle" style="margin:0 0 8px;font-size:12px;">Tap a coin to swap it.</p>
+              <div id="holdingsList"></div>
             </div>
 
-            <div class="swap-grid" style="margin-top: 14px;">
-              <div class="field">
-                <label for="amount" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                  <span data-i18n="defi.inputAmount">Amount</span>
-                  <button type="button" id="amtModeToggle" title="Switch between crypto units and USD"
-                    style="border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:8px;font-size:11px;font-weight:700;padding:3px 9px;cursor:pointer;">Enter in USD</button>
-                </label>
-                <input id="amount" class="amount-input" inputmode="decimal" value="10" placeholder="0.0" aria-label="Amount to swap">
-                <div id="amtMeta" style="display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;min-height:15px;color:var(--muted);">
-                  <span id="amtConvert"></span>
-                  <span id="amtBalance"></span>
-                </div>
+            <!-- FROM -->
+            <div class="scard">
+              <div class="scard-top">
+                <label for="amount">You send</label>
+                <button type="button" id="amtModeToggle" title="Switch between crypto units and USD" style="border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:8px;font-size:11px;font-weight:700;padding:3px 9px;cursor:pointer;">Enter in USD</button>
               </div>
-              <div></div>
-              <div class="field">
-                <label for="destination" data-i18n="defi.destinationAddress">Destination Address</label>
-                <input id="destination" value="0x742d35Cc6634C0532925a3b844Bc454e4438f44e" aria-label="Destination wallet address">
+              <div class="scard-row">
+                <input id="amount" class="bigamt" inputmode="decimal" value="10" placeholder="0.0" aria-label="Amount to send">
+                <select id="fromAsset" class="assetpick"></select>
               </div>
+              <div class="scard-meta"><span id="amtConvert"></span><span id="amtBalance"></span></div>
             </div>
 
-            <!-- Shown only when the source is Bitcoin: no wallet signs BTC here —
-                 you send BTC to a deposit address we show after quoting. -->
-            <div class="field" id="btcRefundRow" style="display:none;margin-top:14px;">
-              <label for="btcRefund">Your Bitcoin refund address</label>
-              <input id="btcRefund" placeholder="bc1… (where BTC is returned if the swap can't complete)" aria-label="Bitcoin refund address">
-              <p class="subtle" style="font-size:12px;margin:6px 0 0;">You'll send BTC from any wallet or exchange to a deposit address we show after you get a quote — no Bitcoin wallet connection needed.</p>
+            <div class="flip" id="flipBtn" title="Flip direction" role="button" aria-label="Flip direction">⇅</div>
+
+            <!-- TO -->
+            <div class="scard">
+              <div class="scard-top"><label>You receive (estimated)</label></div>
+              <div class="scard-row">
+                <div id="reviewOutput" class="bigamt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">–</div>
+                <select id="toAsset" class="assetpick"></select>
+              </div>
+              <div class="scard-meta"><span id="reviewFee">Fee shown after quote</span><span id="reviewImpact"></span></div>
             </div>
 
-            <div class="meta-row">
-              <span class="metric"><span data-i18n="defi.quoteLock">Quote lock:</span> <strong id="quoteLock">30s</strong></span>
-              <span class="metric warning"><span data-i18n="defi.slipTolerance">Slip tolerance:</span> <strong>1.0%</strong></span>
-              <span class="metric good"><span data-i18n="defi.spread">Spread:</span> <strong>2.5%</strong></span>
-              <span class="metric" id="walletMode" data-i18n="defi.walletDetecting">Wallet: detecting</span>
+            <!-- Recipient (auto-filled to your wallet on connect) -->
+            <div class="recip">
+              <label for="destination">Recipient <span style="font-weight:400;">— defaults to your connected wallet</span></label>
+              <input id="destination" value="" placeholder="0x… (or leave blank to use your wallet)" aria-label="Recipient address">
             </div>
 
-            <div class="actions">
-              <button class="primary" id="quoteBtn" data-i18n="defi.getQuote">Get Quote</button>
+            <!-- Shown only when the source is Bitcoin (deposit-address flow). -->
+            <div id="btcRefundRow" style="display:none;margin-top:12px;">
+              <label for="btcRefund" style="font-size:13px;color:var(--muted);font-weight:600;">Your Bitcoin refund address</label>
+              <input id="btcRefund" placeholder="bc1… (BTC returned here if the swap can't complete)" style="width:100%;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 12px;margin-top:6px;font-family:inherit;font-size:13px;" aria-label="Bitcoin refund address">
+              <p class="subtle" style="font-size:12px;margin:6px 0 0;">You'll send BTC from any wallet/exchange to a deposit address we show after quoting — no Bitcoin wallet needed.</p>
+            </div>
+
+            <!-- ACTION -->
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px;">
               <div id="walletPicker" style="position:relative;display:none;"></div>
-              <button class="secondary" id="connectWalletBtn" data-i18n="defi.connectWallet">Connect Wallet</button>
-              <button class="secondary" id="autofillBtn" data-i18n="defi.autofillWallet">Autofill Wallet</button>
+              <button class="bigbtn go" id="connectWalletBtn">Connect Wallet</button>
+              <button class="bigbtn go" id="quoteBtn">Get Quote</button>
+              <button class="bigbtn go" id="executeBtn" disabled title="Signs and submits the real swap">Execute Swap</button>
             </div>
-          </section>
-
-          <section class="section">
-            <div class="section-head">
-              <div>
-                <h2 data-i18n="defi.validationTitle">Destination Address Validation</h2>
-                <p class="subtle" data-i18n="defi.validationDesc">Format checks run before quote creation and AML screening runs during quote creation.</p>
-              </div>
-            </div>
-            <div class="validation">
-              <div class="alert" id="addressValidation" data-i18n="defi.enterAddress">Enter a destination address to validate its network format.</div>
-              <div class="alert" id="complianceStatus" data-i18n="defi.compliancePending">Compliance status will appear after quote creation.</div>
-            </div>
-          </section>
-
-          <section class="section">
-            <div class="section-head">
-              <div>
-                <h2 data-i18n="defi.reviewTitle">Review Swap Parameters</h2>
-                <p class="subtle" data-i18n="defi.reviewDesc">The order breakdown exposes provider, platform fee, price impact, and approval readiness.</p>
-              </div>
-            </div>
-            <div class="review-grid">
-              <div class="review-item"><span data-i18n="defi.provider">Provider</span><strong id="reviewProvider">-</strong></div>
-              <div class="review-item"><span data-i18n="defi.estimatedReceived">Estimated Received</span><strong id="reviewOutput">-</strong></div>
-              <div class="review-item"><span data-i18n="defi.platformFee">Platform Fee</span><strong id="reviewFee">-</strong></div>
-              <div class="review-item"><span data-i18n="defi.priceImpact">Price Impact</span><strong id="reviewImpact">-</strong></div>
-            </div>
-            <div class="review-grid three">
-              <div class="review-item"><span data-i18n="defi.providerMode">Provider Mode</span><strong id="providerMode">-</strong></div>
-              <div class="review-item"><span data-i18n="defi.providerQuote">Provider Quote</span><strong id="providerQuoteId">-</strong></div>
-              <div class="review-item"><span data-i18n="defi.latency">Latency</span><strong id="providerLatency">-</strong></div>
-            </div>
-            <div class="actions">
-              <button class="primary" id="executeBtn" disabled title="Signs and submits the real swap through your connected wallet">Execute Swap (Live)</button>
-              <button class="secondary" id="approveBtn" disabled data-i18n="defi.approveBroadcast">Approve &amp; Broadcast (sim)</button>
-              <button class="secondary" id="advanceBtn" disabled data-i18n="defi.advanceTracker">Advance Tracker</button>
-            </div>
-            <div class="alert" id="actionHint" style="margin-top: 12px;" data-i18n="defi.createQuote">Create a quote to unlock the next action.</div>
-            <div id="myActivity" style="margin-top: 14px; display: none;">
-              <div class="section-head" style="margin-bottom: 8px;"><div><h2 style="font-size:15px;margin:0">Your recent swaps</h2><p class="subtle" id="myActivityMeta" style="margin:2px 0 0"></p></div></div>
+            <div class="alert" id="actionHint" style="margin-top:12px;">Connect your wallet to begin.</div>
+            <div class="alert" id="complianceStatus" style="margin-top:8px;display:none;"></div>
+            <div id="myActivity" style="margin-top:14px;display:none;">
+              <div style="margin-bottom:6px;"><strong style="font-size:14px;">Your recent swaps</strong><p class="subtle" id="myActivityMeta" style="margin:2px 0 0;"></p></div>
               <div id="myActivityList"></div>
             </div>
-          </section>
-        </div>
 
-        <aside class="side-panel">
-          <!-- Wallet-first: your real holdings across chains. Click one to swap it. -->
-          <div id="holdingsPanel" style="display:none;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:16px 18px;box-shadow:var(--shadow);margin-bottom:16px;">
-            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px;">
-              <h2 style="margin:0;font-size:16px;">Your wallet</h2>
-              <span id="holdingsTotal" style="font-size:13px;color:var(--muted);font-weight:600;"></span>
+            <!-- Engine elements kept for the swap logic; not shown in the simple view. -->
+            <div style="display:none;" aria-hidden="true">
+              <span id="addressValidation"></span><span id="quoteLock">30s</span><span id="walletMode"></span>
+              <span id="reviewProvider"></span><span id="reviewImpactHidden"></span>
+              <span id="providerMode"></span><span id="providerQuoteId"></span><span id="providerLatency"></span>
+              <span id="quoteId"></span><span id="quoteStatus"></span><span id="currentState"></span><span id="expiresAt"></span>
+              <div id="providerDiagnostics"></div><div id="timeline"></div><div id="eventLog"></div>
+              <button id="approveBtn" disabled></button><button id="advanceBtn" disabled></button><button id="autofillBtn"></button>
             </div>
-            <p class="subtle" style="margin:0 0 10px;font-size:12.5px;">Tap a coin to swap it. Balances across all supported chains.</p>
-            <div id="holdingsList"></div>
-          </div>
+          </section>
 
-          <div>
-            <h2 data-i18n="defi.quoteState">Quote State</h2>
-            <p class="subtle" data-i18n="defi.quoteStateDesc">Live state and compliance trail for the current swap.</p>
-          </div>
-
-          <div class="quote-box">
-            <div class="quote-line"><span data-i18n="defi.quoteId">Quote ID</span><strong id="quoteId">-</strong></div>
-            <div class="quote-line"><span data-i18n="defi.status">Status</span><strong id="quoteStatus">-</strong></div>
-            <div class="quote-line"><span data-i18n="defi.currentState">Current State</span><strong id="currentState">-</strong></div>
-            <div class="quote-line"><span data-i18n="defi.expires">Expires</span><strong id="expiresAt">-</strong></div>
-          </div>
-
-          <div>
-            <h3 data-i18n="defi.providerDiagnostics">Provider Diagnostics</h3>
-            <div class="diagnostics" id="providerDiagnostics"><span data-i18n="defi.noProviderQuote">No provider quote yet.</span></div>
-          </div>
-
-          <div class="timeline" id="timeline"></div>
-
-          <div>
-            <h3 data-i18n="defi.eventLog">Event Log</h3>
-            <div class="event-log" id="eventLog"><span class="empty" data-i18n="defi.noEvents">No swap events yet.</span></div>
-          </div>
-        </aside>
+        </div>
       </div>
     </main>
   </div>
@@ -1076,7 +1035,7 @@
       // user can pick actually quotes, swaps, and shows a balance/price.
       state.assets = (data.assets || []).filter((a) => a.liveSupported);
       for (const id of ['fromAsset', 'toAsset']) {
-        el(id).innerHTML = state.assets.map((asset) => `<option value="${asset.assetId}">${assetLabel(asset)}</option>`).join('');
+        el(id).innerHTML = state.assets.map((asset) => `<option value="${asset.assetId}">${asset.symbol} · ${asset.chain}</option>`).join('');
       }
       el('fromAsset').value = 'BITCOIN.BTC';
       el('toAsset').value = 'ETH.USDC';
@@ -2126,6 +2085,12 @@
     });
     el('destination').addEventListener('input', updateAddressValidation);
     el('amtModeToggle').addEventListener('click', () => setAmountMode(amountMode === 'fiat' ? 'crypto' : 'fiat'));
+    el('flipBtn') && el('flipBtn').addEventListener('click', () => {
+      const f = el('fromAsset').value, t = el('toAsset').value;
+      el('fromAsset').value = t; el('toAsset').value = f;
+      el('fromAsset').dispatchEvent(new Event('change'));
+      el('toAsset').dispatchEvent(new Event('change'));
+    });
     el('amount').addEventListener('input', updateConvertHint);
     el('fromAsset').addEventListener('change', refreshFromMeta);
 
