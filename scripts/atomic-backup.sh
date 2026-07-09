@@ -30,4 +30,10 @@ docker exec ofmysql sh -c 'exec mysqldump --all-databases -uroot -p"$MYSQL_ROOT_
   && echo "[$(date -Is)] mysql ok" >> "$LOG" || echo "[$(date -Is)] MYSQL FAIL" >> "$LOG"
 
 find "$DEST" -name "*.gz" -mtime +14 -delete
+# OFF-BOX replication to the old box (82.165.150.96) via a receive-only forced-rrsync
+# key (/root/.ssh/offsite_backup). Append-only (no --delete) so a wiped/compromised
+# local box cannot erase the remote copies; the old box prunes its own copies at 30d
+# (/etc/cron.d/atomic-offsite-prune). Survives total loss of this box.
+rsync -az -e "ssh -i /root/.ssh/offsite_backup -o ConnectTimeout=20 -o BatchMode=yes" "$DEST"/ root@82.165.150.96:./ >>"$LOG" 2>&1 \
+  && echo "[$(date -Is)] offsite ok" >>"$LOG" || echo "[$(date -Is)] OFFSITE FAIL" >>"$LOG"
 echo "[$(date -Is)] backup done" >> "$LOG"
