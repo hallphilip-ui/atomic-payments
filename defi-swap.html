@@ -1074,7 +1074,16 @@
       const a = selectedAsset('fromAsset');
       // BTC source uses the deposit flow → show the refund-address input.
       const btcRow = el('btcRefundRow');
-      if (btcRow) btcRow.style.display = (sourceWalletType(a) === 'btc') ? 'block' : 'none';
+      if (btcRow) {
+        const isBtc = sourceWalletType(a) === 'btc';
+        btcRow.style.display = isBtc ? 'block' : 'none';
+        // Default the refund to the sender's wallet — a connected Bitcoin wallet's
+        // address — unless the user has already set/scanned one.
+        if (isBtc && !el('btcRefund').value) {
+          const btcW = state.wallets.find((w) => w.type === 'btc' && w.address);
+          if (btcW) el('btcRefund').value = btcW.address;
+        }
+      }
       fromPrice = null; fromBalance = null; el('amtBalance').textContent = '';
       const toggle = el('amtModeToggle');
       if (!a) { updateConvertHint(); return; }
