@@ -702,12 +702,12 @@
 
             <!-- Shown only when the source is Bitcoin (deposit-address flow). -->
             <div id="btcRefundRow" style="display:none;margin-top:12px;">
-              <label for="btcRefund" style="font-size:13px;color:var(--muted);font-weight:600;">Your Bitcoin refund address</label>
+              <label for="btcRefund" style="font-size:13px;color:var(--muted);font-weight:600;">Your Bitcoin address (must hold the BTC you're swapping)</label>
               <div style="display:flex;gap:8px;margin-top:6px;">
-                <input id="btcRefund" placeholder="bc1… (BTC returned here if the swap can't complete)" style="flex:1;min-width:0;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 12px;font-family:inherit;font-size:13px;" aria-label="Bitcoin refund address">
+                <input id="btcRefund" placeholder="bc1… (the address that currently holds your BTC)" style="flex:1;min-width:0;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 12px;font-family:inherit;font-size:13px;" aria-label="Bitcoin source address">
                 <button type="button" class="scan-btn" data-scan="btcRefund" title="Scan a QR code" style="flex:0 0 auto;height:42px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:#fff;cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;white-space:nowrap;">⤢ Scan</button>
               </div>
-              <p class="subtle" style="font-size:12px;margin:6px 0 0;">You'll send BTC from any wallet/exchange to a deposit address we show after quoting — no Bitcoin wallet needed.</p>
+              <p class="subtle" style="font-size:12px;margin:6px 0 0;">Bitcoin swaps are built from this address's balance, so it must already hold the amount you're swapping. You'll then send from it to the deposit address we show.</p>
             </div>
 
             <!-- ACTION -->
