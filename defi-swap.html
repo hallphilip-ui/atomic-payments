@@ -694,13 +694,19 @@
             <!-- Recipient (auto-filled to your wallet on connect) -->
             <div class="recip">
               <label for="destination">Recipient <span style="font-weight:400;">— defaults to your connected wallet</span></label>
-              <input id="destination" value="" placeholder="0x… (or leave blank to use your wallet)" aria-label="Recipient address">
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <input id="destination" value="" placeholder="0x… (or leave blank to use your wallet)" aria-label="Recipient address" style="flex:1;min-width:0;margin-top:0;">
+                <button type="button" class="scan-btn" data-scan="destination" title="Scan a QR code" style="flex:0 0 auto;height:42px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:#fff;cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;white-space:nowrap;">⤢ Scan</button>
+              </div>
             </div>
 
             <!-- Shown only when the source is Bitcoin (deposit-address flow). -->
             <div id="btcRefundRow" style="display:none;margin-top:12px;">
               <label for="btcRefund" style="font-size:13px;color:var(--muted);font-weight:600;">Your Bitcoin refund address</label>
-              <input id="btcRefund" placeholder="bc1… (BTC returned here if the swap can't complete)" style="width:100%;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 12px;margin-top:6px;font-family:inherit;font-size:13px;" aria-label="Bitcoin refund address">
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <input id="btcRefund" placeholder="bc1… (BTC returned here if the swap can't complete)" style="flex:1;min-width:0;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 12px;font-family:inherit;font-size:13px;" aria-label="Bitcoin refund address">
+                <button type="button" class="scan-btn" data-scan="btcRefund" title="Scan a QR code" style="flex:0 0 auto;height:42px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:#fff;cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;white-space:nowrap;">⤢ Scan</button>
+              </div>
               <p class="subtle" style="font-size:12px;margin:6px 0 0;">You'll send BTC from any wallet/exchange to a deposit address we show after quoting — no Bitcoin wallet needed.</p>
             </div>
 
@@ -1195,6 +1201,54 @@
       updateConvertHint();
       try { el('amount').focus(); } catch (_) {}
       setActionHint('good', `Swapping from your ${assetId.split('.').pop()} — set the destination address and Get Quote.`);
+    }
+
+    // Scan a wallet QR (recipient / BTC refund) with the device camera. Native
+    // BarcodeDetector (Chrome) with a jsQR fallback. Strips any URI scheme.
+    function parseScannedAddress(text) {
+      let t = String(text || '').trim();
+      t = t.replace(/^[a-zA-Z]+:/, '');            // strip scheme: bitcoin:, ethereum:…
+      t = t.split('?')[0].split('@')[0].trim();     // strip params / @chainId
+      return t;
+    }
+    async function scanAddressInto(inputId) {
+      const wrap = document.createElement('div');
+      wrap.setAttribute('style', 'position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:rgba(10,12,20,.75);font-family:Inter,system-ui,sans-serif;');
+      wrap.innerHTML = `<div style="background:#fff;border-radius:16px;padding:18px;width:min(360px,92vw);text-align:center;">
+        <div style="font-weight:700;font-size:15px;margin-bottom:8px;">Scan a wallet QR code</div>
+        <video playsinline muted style="width:100%;border-radius:12px;background:#000;aspect-ratio:1;object-fit:cover;"></video>
+        <div data-status style="font-size:12.5px;color:#667085;margin:10px 0;min-height:16px;">Point your camera at the address QR…</div>
+        <button data-cancel style="width:100%;height:42px;border:1px solid #e8e9f0;background:#fff;border-radius:11px;font-weight:600;cursor:pointer;">Cancel</button>
+      </div>`;
+      document.body.appendChild(wrap);
+      const video = wrap.querySelector('video'), status = wrap.querySelector('[data-status]');
+      let stream = null, stop = false, raf = null;
+      const cleanup = () => { stop = true; if (raf) cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach((t) => t.stop()); wrap.remove(); };
+      wrap.querySelector('[data-cancel]').onclick = cleanup;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = stream; await video.play();
+        let detector = null, jsQR = null;
+        if ('BarcodeDetector' in window) { try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (_) {} }
+        if (!detector) { try { jsQR = (await import('https://esm.sh/jsqr@1.4.0')).default; } catch (_) {} }
+        if (!detector && !jsQR) { status.textContent = 'QR scanning isn’t supported here — paste the address instead.'; return; }
+        const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const tick = async () => {
+          if (stop) return;
+          try {
+            if (video.readyState >= 2) {
+              let text = null;
+              if (detector) { const codes = await detector.detect(video); if (codes && codes.length) text = codes[0].rawValue; }
+              else { canvas.width = video.videoWidth; canvas.height = video.videoHeight; ctx.drawImage(video, 0, 0); const im = ctx.getImageData(0, 0, canvas.width, canvas.height); const res = jsQR(im.data, im.width, im.height); if (res) text = res.data; }
+              if (text) { const addr = parseScannedAddress(text); if (addr) { const inp = el(inputId); inp.value = addr; inp.dispatchEvent(new Event('input')); setActionHint('good', 'Scanned: ' + shortAddress(addr)); cleanup(); return; } }
+            }
+          } catch (_) {}
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      } catch (e) {
+        status.textContent = 'Camera unavailable (' + ((e && e.message) || e) + '). Paste the address instead.';
+      }
     }
 
     async function getQuote() {
@@ -2116,6 +2170,7 @@
       el('fromAsset').dispatchEvent(new Event('change'));
       el('toAsset').dispatchEvent(new Event('change'));
     });
+    document.querySelectorAll('.scan-btn').forEach((b) => b.addEventListener('click', () => scanAddressInto(b.dataset.scan)));
     el('amount').addEventListener('input', updateConvertHint);
     el('fromAsset').addEventListener('change', refreshFromMeta);
 
