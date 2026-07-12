@@ -1,6 +1,6 @@
 import { TokenRegistryEntry } from '../cryptoCore/tokens';
 import { ComplianceAssessment, assessSwapCompliance } from './complianceEngine';
-import { screenAddresses, screenCountry, isChainalysisConfigured, localListSize, SanctionsHit } from './sanctions';
+import { screenAddresses, screenCountry, isChainalysisConfigured, isLiveSanctionsAvailable, localListSize, SanctionsHit } from './sanctions';
 
 export type ComplianceProviderMode = 'simulation' | 'live' | 'live_with_fallback';
 
@@ -19,8 +19,12 @@ type ComplianceScreenInput = {
   amount: string;
   userAddress: string;
   priceImpactPct: number;
+  amountUsd?: number;
   sourceAddress?: string;
   countryCode?: string;
+  // False only when an edge secret is configured AND the request didn't present it
+  // (i.e. it bypassed our Cloudflare edge) — jurisdiction then can't be trusted.
+  jurisdictionTrusted?: boolean;
 };
 
 // Redact a matched address in logs/evidence: keep enough to reconcile, not the whole thing.
@@ -45,8 +49,13 @@ export async function screenSwapCompliance(input: ComplianceScreenInput): Promis
   // oracle (if configured) on the destination and source addresses, plus an OFAC
   // jurisdiction block from the request country. Any hit forces a hard BLOCK.
   const sanctionsHit: SanctionsHit | null = await screenAddresses([input.userAddress, input.sourceAddress]);
-  const jurisdictionBlocked = screenCountry(input.countryCode);
+  // Fail safe: if the caller told us the jurisdiction signal is untrusted (request
+  // bypassed our edge while an edge secret is configured), treat it as blocked — we
+  // can't verify the visitor isn't in an embargoed country.
+  const jurisdictionUntrusted = input.jurisdictionTrusted === false;
+  const jurisdictionBlocked = jurisdictionUntrusted || screenCountry(input.countryCode);
   const chainalysisOn = isChainalysisConfigured();
+  const liveScreen = isLiveSanctionsAvailable(); // keyless on-chain oracle → live by default
 
   const checks = [...assessment.checks, 'ofac_sanctioned_address_screen', 'jurisdiction_screen'];
   const flags = [...assessment.flags];
@@ -64,16 +73,21 @@ export async function screenSwapCompliance(input: ComplianceScreenInput): Promis
     status = 'BLOCKED';
     riskScore = 100;
     riskTier = 'CRITICAL';
-    flags.push(`sanctioned_jurisdiction:${(input.countryCode || '').toUpperCase()}`);
+    flags.push(jurisdictionUntrusted
+      ? 'jurisdiction_unverifiable_untrusted_edge'
+      : `sanctioned_jurisdiction:${(input.countryCode || '').toUpperCase()}`);
   }
 
   const decision = status === 'BLOCKED' ? 'deny' : status === 'MANUAL_REVIEW' ? 'review' : 'clear';
-  // Live when the Chainalysis oracle is wired; otherwise the offline OFAC list +
-  // jurisdiction block still run — so screening is never fully "simulation".
-  const vendorMode = chainalysisOn ? 'live' : mode === 'live' ? 'live_with_fallback' : mode;
-  const vendorProvider = sanctionsHit
-    ? sanctionsHit.source === 'chainalysis_oracle' ? 'chainalysis-sanctions-oracle' : 'ofac-sdn-local'
-    : chainalysisOn ? 'chainalysis-sanctions-oracle' : 'ofac-sdn-local';
+  // Screening is LIVE by default now: the keyless Chainalysis on-chain oracle runs
+  // on every EVM address (no key needed), on top of the offline OFAC list + the
+  // jurisdiction block. The HTTP API adds extra coverage only when a key is set.
+  const vendorMode = liveScreen ? 'live' : mode;
+  const providerFor = (s: SanctionsHit['source']) =>
+    s === 'ofac_sdn_local' ? 'ofac-sdn-local'
+      : s === 'chainalysis_oracle_onchain' ? 'chainalysis-sanctions-oracle-onchain'
+        : 'chainalysis-sanctions-oracle';
+  const vendorProvider = sanctionsHit ? providerFor(sanctionsHit.source) : 'chainalysis-sanctions-oracle-onchain';
 
   return {
     status,
@@ -87,8 +101,9 @@ export async function screenSwapCompliance(input: ComplianceScreenInput): Promis
     vendorDecision: decision,
     vendorLatencyMs: Date.now() - startedAt,
     vendorMetadata: {
-      screeningModel: 'ofac_address_and_jurisdiction_v1',
-      chainalysisConfigured: chainalysisOn,
+      screeningModel: 'ofac_address_and_jurisdiction_v2_onchain_oracle',
+      liveSanctionsOnchain: liveScreen,
+      chainalysisHttpConfigured: chainalysisOn,
       ofacLocalListSize: localListSize(),
       countryScreened: (input.countryCode || 'unknown').toUpperCase(),
       jurisdictionBlocked,

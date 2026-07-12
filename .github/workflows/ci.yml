@@ -56,9 +56,15 @@ jobs:
       - name: Run isolated core smoke test
         run: npm run smoke:core:isolated
 
+      # Generate an ephemeral operator key per run rather than committing a static,
+      # guessable fixture value into the workflow (it's only used to exercise the
+      # operator-auth path in the smoke test).
+      - name: Generate ephemeral operator key
+        run: echo "CI_OPERATOR_KEY=op_ci_$(openssl rand -hex 16)" >> "$GITHUB_ENV"
+
       - name: Run isolated operator-protected smoke test
         run: npm run smoke:core:isolated
         env:
-          ATOMIC_OPERATOR_API_KEY: ci_operator_secret_1234567890
+          ATOMIC_OPERATOR_API_KEY: ${{ env.CI_OPERATOR_KEY }}
           ATOMIC_SMOKE_PORT: 3106
           ATOMIC_SMOKE_DB_FILE: smoke-operator-ci.db

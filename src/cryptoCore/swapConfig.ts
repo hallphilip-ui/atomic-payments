@@ -1,8 +1,27 @@
 export const PLATFORM_SPREAD_PERCENT = '2.5';
 export const PLATFORM_SPREAD_BPS = 250;
+// Partner Swap API economics (model B + capped markup):
+//   * The partner earns a fixed 50 bps SHARE out of our 250 bps base (revenue
+//     share — does NOT increase customer cost; we net 200 bps).
+//   * The partner may ALSO stack up to 50 bps of markup, which IS added on top
+//     (customer pays 250 + markup). That markup accrues entirely to the partner.
+//   * So partner earns (50 + markup) bps; we always net 200 bps; customer pays
+//     (250 + markup) bps, capped at 300.
+export const PARTNER_REVENUE_SHARE_BPS = 50;
+export const PARTNER_MAX_MARKUP_BPS = 50;
+// Hard ceiling on a single automated payout run (USD). A larger balance owed is
+// held for manual operator review rather than swept in one transfer — a circuit
+// breaker against a mis-attribution or verification bug ever draining the treasury.
+export const PARTNER_MAX_PAYOUT_USD = Number(process.env.ATOMIC_PARTNER_MAX_PAYOUT_USD) || 25000;
 export const PLATFORM_TREASURY_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
 export const THOR_AFFILIATE_NAME = 'ATOMIC_MOBILE_PROD';
-export const QUOTE_TTL_SECONDS = 30;
+// Quote lifetime. 30s was too tight for a hand-driven test (re-quote churn, B9);
+// default 90s and allow tuning via env without a redeploy. LI.FI's own tx carries
+// its slippage/deadline, so a slightly longer UI window doesn't loosen execution.
+export const QUOTE_TTL_SECONDS = (() => {
+  const n = Number(process.env.ATOMIC_QUOTE_TTL_SECONDS);
+  return Number.isFinite(n) && n >= 15 && n <= 600 ? Math.floor(n) : 90;
+})();
 export const PRICE_IMPACT_LIMIT_PCT = 1.5;
 
 // Live provider endpoints and credentials are environment-configurable so the

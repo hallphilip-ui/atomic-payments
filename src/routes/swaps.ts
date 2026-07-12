@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   PLATFORM_SPREAD_BPS,
   PLATFORM_SPREAD_PERCENT,
@@ -7,7 +8,7 @@ import {
   QUOTE_TTL_SECONDS,
   THOR_AFFILIATE_NAME,
 } from '../cryptoCore/routing';
-import { getProviderModeLabel } from '../cryptoCore/providerAdapters';
+import { getProviderModeLabel, probeRouteMinimum } from '../cryptoCore/providerAdapters';
 import { getWalletBroadcastModeLabel } from '../cryptoCore/walletBroadcastAdapters';
 import {
   advanceStoredSwapQuote,
@@ -18,9 +19,35 @@ import {
   listStoredSwapQuotes,
   listSwapExecutionEvents
 } from '../cryptoCore/swapStore';
-import { listSwapAssets, getLifiAsset } from '../cryptoCore/tokens';
+import { listSwapAssets, getLifiAsset, getSwapAsset } from '../cryptoCore/tokens';
+import { resolveJurisdiction } from '../security/edgeTrust';
 
 const router = Router();
+
+// Route-minimum probing fires up to 3 live LI.FI quotes per call — meter it.
+const clip = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
+const routeMinLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req: any) => { const cf = req.headers['cf-connecting-ip']; return typeof cf === 'string' && cf.length ? cf : req.ip || 'unknown'; }
+});
+
+// Smallest amount that actually quotes for a pair (there's no LI.FI "minimum"
+// field — see probeRouteMinimum). Feeds the "Min" button.
+router.get('/v1/swaps/route-min', routeMinLimiter, async (req, res) => {
+  const fromAsset = clip(req.query.fromAsset, 64);
+  const toAsset = clip(req.query.toAsset, 64);
+  const userAddress = clip(req.query.userAddress, 128);
+  const fromAddress = clip(req.query.fromAddress, 128) || undefined;
+  if (!getSwapAsset(fromAsset) || !getSwapAsset(toAsset)) return res.status(400).json({ supported: false, reason: 'Unknown asset.' });
+  if (fromAsset === toAsset) return res.status(400).json({ supported: false, reason: 'Pick two different assets.' });
+  if (userAddress.length < 8) return res.status(400).json({ supported: false, reason: 'A destination address is required.' });
+  try {
+    const result = await probeRouteMinimum({ fromAsset, toAsset, amount: '0', userAddress, fromAddress });
+    return res.json(result);
+  } catch {
+    return res.status(502).json({ supported: false, reason: 'Could not reach the routing provider.' });
+  }
+});
 
 router.get('/v1/swaps/assets', (_req, res) => {
   return res.json({
@@ -51,10 +78,23 @@ router.get('/v1/swaps/config', (_req, res) => {
 
 router.post('/v1/swaps/quote', async (req, res) => {
   try {
-    // Cloudflare sets CF-IPCountry to the visitor's ISO country for jurisdiction screening.
-    const cfCountry = req.headers['cf-ipcountry'];
-    const countryCode = typeof cfCountry === 'string' ? cfCountry : undefined;
-    const result = await createStoredSwapQuote(req.body, { countryCode });
+    // Cloudflare sets CF-IPCountry to the visitor's ISO country for jurisdiction
+    // screening. resolveJurisdiction also reports whether the request actually came
+    // through our edge (see edgeTrust) so a forged header from a direct-origin
+    // request can be failed safe rather than trusted.
+    const { countryCode, trusted: jurisdictionTrusted } = resolveJurisdiction(req);
+    // Build the request from an ALLOW-LIST of client fields. feeBps is deliberately
+    // NOT read from the consumer body — the platform fee is server-controlled and
+    // defaults to PLATFORM_SPREAD_BPS; only the authenticated partner API may set it.
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const request = {
+      fromAsset: String(body.fromAsset ?? ''),
+      toAsset: String(body.toAsset ?? ''),
+      amount: String(body.amount ?? ''),
+      userAddress: String(body.userAddress ?? ''),
+      fromAddress: body.fromAddress != null ? String(body.fromAddress) : undefined
+    };
+    const result = await createStoredSwapQuote(request, { countryCode, jurisdictionTrusted });
     const quote = result.quote;
     const statusCode = quote.status === 'HALTED' ? 409 : quote.status === 'BLOCKED' ? 403 : 201;
 
@@ -76,9 +116,26 @@ router.get('/v1/swaps/quotes', async (_req, res) => {
   return res.json({ quotes: await listStoredSwapQuotes() });
 });
 
+// Public (UUID-gated) single-quote read. Truncate addresses — the owner already
+// knows their own address, and this endpoint shouldn't hand full addresses to
+// anyone who has (or guesses) a quote id.
+function truncateAddr(a: string | null | undefined): string | null {
+  const s = (a ?? '').trim();
+  if (!s) return s || null;
+  return s.length <= 14 ? s : `${s.slice(0, 8)}…${s.slice(-6)}`;
+}
 router.get('/v1/swaps/quotes/:id', async (req, res) => {
   try {
-    return res.json({ quote: await getStoredSwapQuote(req.params.id) });
+    const quote = await getStoredSwapQuote(req.params.id);
+    const redacted = {
+      ...quote,
+      userAddress: truncateAddr(quote.userAddress),
+      walletAuthorization: {
+        ...quote.walletAuthorization,
+        walletAddress: truncateAddr(quote.walletAuthorization.walletAddress)
+      }
+    };
+    return res.json({ quote: redacted });
   } catch (error: any) {
     return res.status(404).json({ error: error.message });
   }

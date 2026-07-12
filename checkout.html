@@ -6,7 +6,20 @@
   <meta name="theme-color" content="#06111d">
   <link rel="icon" href="/assets/atomic-mark.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/atomic-mark.png">
-  <title>Atomic Payments Checkout</title>
+  <title>Crypto Checkout — Accept Cross-Chain Payments | Atomic Pay</title>
+  <meta name="description" content="Accept crypto payments with Atomic Pay checkout — non-custodial settlement across chains, no wallet lock-in for your customers.">
+  <link rel="canonical" href="https://atomicpay.cloud/checkout">
+  <meta name="theme-color" content="#6d5cf5">
+  <meta property="og:site_name" content="Atomic Pay">
+  <meta property="og:title" content="Crypto Checkout | Atomic Pay">
+  <meta property="og:description" content="Accept crypto payments with non-custodial cross-chain settlement.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://atomicpay.cloud/checkout">
+  <meta property="og:image" content="https://atomicpay.cloud/assets/atomic-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Crypto Checkout | Atomic Pay">
+  <meta name="twitter:description" content="Accept crypto payments with non-custodial cross-chain settlement.">
+  <meta name="twitter:image" content="https://atomicpay.cloud/assets/atomic-og.png">
   <script>
     (function() {
       const storedMode = localStorage.getItem('atomic-theme-mode') || 'light';
@@ -836,6 +849,19 @@
             </button>
           </div>
         </div>
+
+        <style>
+          .mininav { display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
+          .mininav a { min-height:32px; display:inline-flex; align-items:center; padding:0 12px; border:1px solid var(--line); border-radius:9px; font-size:12.5px; color:var(--muted); font-weight:500; background:transparent; text-decoration:none; }
+          .mininav a:hover, .mininav a.active { border-color:var(--accent); color:var(--accent); }
+        </style>
+        <nav class="mininav" aria-label="Site">
+          <a href="/defi-swap">Swap</a>
+          <a href="/transfers">Transfers</a>
+          <a href="/checkout" class="active">Checkout</a>
+          <a href="/help">Help</a>
+          <a href="/releases">Releases</a>
+        </nav>
 
         <div class="intro">
           <h1>Checkout built for every screen.</h1>

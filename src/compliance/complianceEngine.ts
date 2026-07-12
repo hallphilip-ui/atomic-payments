@@ -67,6 +67,7 @@ export function assessSwapCompliance(input: {
   amount: string;
   userAddress: string;
   priceImpactPct: number;
+  amountUsd?: number;
 }): ComplianceAssessment {
   const checks: string[] = ['sanctions_keyword_screen', 'destination_address_format', 'travel_rule_threshold_screen'];
   const flags: string[] = [];
@@ -95,9 +96,15 @@ export function assessSwapCompliance(input: {
     flags.push('elevated_price_impact');
   }
 
-  if (BigInt(input.amount) >= 10_000_000_000n) {
-    riskScore += 20;
-    flags.push('large_atomic_amount_threshold');
+  // Large-value flag — USD-denominated so it's meaningful across assets. A raw
+  // atomic threshold is nonsense: 10^10 units is $10k of a 6-decimal stablecoin but
+  // $0.00002 of 18-decimal ETH (which false-flagged every ETH swap). Prefer the
+  // provider's USD figure; fall back to a decimals-aware human amount.
+  if (typeof input.amountUsd === 'number' && Number.isFinite(input.amountUsd)) {
+    if (input.amountUsd >= 10000) { riskScore += 20; flags.push('large_notional_over_10k_usd'); }
+  } else {
+    const human = Number(BigInt(input.amount)) / 10 ** input.fromAsset.decimals;
+    if (Number.isFinite(human) && human >= 100000) { riskScore += 20; flags.push('large_human_amount_fallback'); }
   }
 
   riskScore = Math.min(100, riskScore);

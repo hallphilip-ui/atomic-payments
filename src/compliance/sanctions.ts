@@ -1,11 +1,42 @@
 import { OFAC_SANCTIONED_ADDRESSES } from './ofacSanctionedAddresses';
+import { rpcCall } from '../routes/rpc';
 
 export type SanctionsHit = {
   listed: boolean;
-  source: 'ofac_sdn_local' | 'chainalysis_oracle';
+  source: 'ofac_sdn_local' | 'chainalysis_oracle' | 'chainalysis_oracle_onchain';
   category: string;
   matchedAddress: string;
 };
+
+// Chainalysis ON-CHAIN sanctions oracle — a public smart contract, KEYLESS (no
+// registration/API key). isSanctioned(address)->bool, screens US/EU/UN lists.
+// EVM addresses only. Called via our own RPC proxy (Ethereum mainnet is canonical;
+// the list is the same across the chains it's deployed on). Fail-open on RPC error.
+const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const SANCTIONS_ORACLE = '0x40C57923924B5c5c5455c48D93317139ADDaC8fb';
+const IS_SANCTIONED_SELECTOR = '0xdf592f7d'; // keccak256('isSanctioned(address)')[:4]
+
+export async function screenAddressOracle(address: string): Promise<SanctionsHit | null> {
+  const a = (address || '').trim();
+  if (!EVM_ADDRESS.test(a)) return null; // oracle screens EVM addresses only
+  try {
+    const data = IS_SANCTIONED_SELECTOR + a.toLowerCase().slice(2).padStart(64, '0');
+    const res: string = await rpcCall(1, 'eth_call', [{ to: SANCTIONS_ORACLE, data }, 'latest']);
+    if (res && res !== '0x' && BigInt(res) === 1n) {
+      return { listed: true, source: 'chainalysis_oracle_onchain', category: 'sanctions', matchedAddress: address };
+    }
+    return null;
+  } catch (error) {
+    console.warn('[sanctions] on-chain oracle unreachable — local OFAC list remains authoritative:', (error as Error).message);
+    return null;
+  }
+}
+
+// The on-chain oracle is always available (keyless) for EVM addresses — so live
+// sanctions coverage no longer depends on the (optional) Chainalysis HTTP key.
+export function isLiveSanctionsAvailable(): boolean {
+  return true;
+}
 
 // Comprehensively embargoed jurisdictions (OFAC). Country-level only — sub-national
 // sanctioned regions (Crimea, Donetsk, Luhansk) cannot be resolved from a country
@@ -80,7 +111,9 @@ export async function screenAddressChainalysis(address: string): Promise<Sanctio
 export async function screenAddress(address: string): Promise<SanctionsHit | null> {
   const local = screenAddressLocal(address);
   if (local) return local;
-  return screenAddressChainalysis(address);
+  const oracle = await screenAddressOracle(address); // keyless live layer
+  if (oracle) return oracle;
+  return screenAddressChainalysis(address); // extra coverage when a key is set
 }
 
 // Screen every provided address; returns the first sanctions hit or null.
@@ -104,8 +137,12 @@ export async function screenAddresses(addresses: Array<string | undefined | null
     if (local) return local;
   }
 
-  const oracleResults = await Promise.all(unique.map((address) => screenAddressChainalysis(address)));
-  return oracleResults.find((hit) => hit) || null;
+  // Live layers in parallel per address: the keyless on-chain oracle, then the
+  // HTTP oracle if a key is configured. First hit wins; all fail-open.
+  const results = await Promise.all(unique.map(async (address) =>
+    (await screenAddressOracle(address)) || (await screenAddressChainalysis(address))
+  ));
+  return results.find((hit) => hit) || null;
 }
 
 export function localListSize(): number {

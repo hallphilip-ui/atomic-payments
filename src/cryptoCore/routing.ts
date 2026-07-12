@@ -29,6 +29,9 @@ export type UnifiedSwapQuoteRequest = {
   // cross-chain quotes where the source and destination are different chains/
   // address types (e.g. BTC->ETH). Falls back to userAddress for same-chain.
   fromAddress?: string;
+  // Total platform fee bps to charge (base + any partner markup). Defaults to
+  // PLATFORM_SPREAD_BPS. Set by the partner API to add a partner's stacked markup.
+  feeBps?: number;
 };
 
 export type SwapRoutingProvider = 'RANGO' | 'THORCHAIN' | 'LIFI';
@@ -46,6 +49,7 @@ export type UnifiedSwapQuote = {
   platformFeeAmount: string;
   priceImpactPct: number;
   priceImpactLimitPct: number;
+  amountUsd?: number;
   providerMode?: string;
   providerQuoteId?: string;
   providerLatencyMs?: number;
@@ -117,10 +121,11 @@ export async function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest)
     toAsset,
     amount: amount.toString(),
     estimatedOutputAmount: providerQuote.estimatedOutputAmount,
-    platformFeeBps: PLATFORM_SPREAD_BPS,
+    platformFeeBps: request.feeBps ?? PLATFORM_SPREAD_BPS,
     platformFeeAmount: providerQuote.platformFeeAmount,
     priceImpactPct,
     priceImpactLimitPct,
+    amountUsd: providerQuote.amountUsd,
     providerMode: providerQuote.mode,
     providerQuoteId: providerQuote.providerQuoteId,
     providerLatencyMs: providerQuote.latencyMs,
@@ -131,7 +136,7 @@ export async function getEnforcedPlatformQuote(request: UnifiedSwapQuoteRequest)
     executionStates: ['SOURCING', 'ESCROW_ESCORTING', 'MULTI_BRIDGE_ROUTING', 'TREASURY_CLEARING', 'DISTRIBUTION_COMPLETE'],
     execution: providerQuote.execution,
     guardrails: [
-      'immutable_30_second_quote_ttl',
+      `immutable_${QUOTE_TTL_SECONDS}_second_quote_ttl`,
       'price_impact_halt_above_1_5_pct',
       'platform_fee_embedded_in_provider_payload',
       'self_custodial_user_signature_required'

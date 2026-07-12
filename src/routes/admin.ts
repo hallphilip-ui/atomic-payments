@@ -6,15 +6,21 @@ import { getOperatorAuditExport, listOperatorAuditLogs, recordOperatorAudit } fr
 const prisma = new PrismaClient();
 const router = Router();
 
-// Set/Update Platform Fee (e.g., 0.015 for 1.5%)
+// Set/Update Platform Fee (e.g., 0.015 for 1.5%). NOTE: the LIVE swap fee is
+// PLATFORM_SPREAD_BPS in swapConfig.ts — this Configuration.feeRate row is not read
+// by the swap/settlement engine yet; kept for future admin-tunable pricing. Validate
+// the input so a bad value can't persist a NaN/negative/absurd rate.
 router.post('/v1/admin/config/fee', async (req, res) => {
-  const { feeRate } = req.body;
+  const feeRate = Number(req.body?.feeRate);
+  if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate > 0.1) {
+    return res.status(400).json({ error: 'feeRate must be a number between 0 and 0.1 (0–10%).' });
+  }
   const config = await prisma.configuration.upsert({
     where: { id: 'global_settings' },
-    update: { feeRate: parseFloat(feeRate) },
-    create: { id: 'global_settings', feeRate: parseFloat(feeRate) }
+    update: { feeRate },
+    create: { id: 'global_settings', feeRate }
   });
-  res.json({ message: "Fee updated", config });
+  res.json({ message: 'Fee updated', config });
 });
 
 router.get('/v1/admin/compliance/reviews', async (req, res) => {

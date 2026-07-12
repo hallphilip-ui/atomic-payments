@@ -1,65 +1,28 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 const router = Router();
 
+// wallet_session echoes an address's recent swap activity, so throttle it per-IP to
+// stop bulk harvesting of who-swapped-what across the user base. (The address itself
+// is public on-chain; this caps automated correlation of platform activity to it.)
+const walletSessionLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req: any) => { const cf = req.headers['cf-connecting-ip']; return typeof cf === 'string' && cf.length ? cf : req.ip || 'unknown'; }
+});
+
 // Validation regex helpers
 const ETH_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const SOL_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
-router.post('/v1/users', async (req, res) => {
-  try {
-    const { username, email } = req.body;
-    const user = await prisma.user.create({ data: { username, email } });
-    return res.json({ message: "🎉 User profile activated!", user });
-  } catch (error: any) {
-    return res.status(400).json({ error: error.message });
-  }
-});
-
-// Guarded address endpoint with cryptographic string matching checking
-router.post('/v1/users/:id/wallets', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { chain, address } = req.body;
-
-    if (chain === 'ETHEREUM' && !ETH_REGEX.test(address)) {
-      return res.status(400).json({ error: "Malformatted Ethereum or EVM address pattern detected." });
-    }
-    if (chain === 'SOLANA' && !SOL_REGEX.test(address)) {
-      return res.status(400).json({ error: "Malformatted Solana base58 address pattern detected." });
-    }
-
-    const wallet = await prisma.wallet.upsert({
-      where: { userId_chain: { userId: id, chain } },
-      update: { address },
-      create: { userId: id, chain, address }
-    });
-
-    return res.json({ message: `✅ Verified and saved ${chain} path.`, wallet });
-  } catch (error: any) {
-    return res.status(400).json({ error: error.message });
-  }
-});
-
-router.post('/v1/users/:id/connections', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { linkToUsername } = req.body;
-
-    const targetUser = await prisma.user.findUnique({ where: { username: linkToUsername } });
-    if (!targetUser) return res.status(404).json({ error: 'Target peer not found.' });
-
-    const connection = await prisma.connection.create({
-      data: { userId: id, linkedUserId: targetUser.id }
-    });
-
-    return res.json({ message: `🔗 Linked to @${linkToUsername}!`, connection });
-  } catch (error: any) {
-    return res.status(400).json({ error: "Connection anomaly or link already exists." });
-  }
-});
+// NOTE: The legacy "social directory" endpoints (POST /v1/users, POST
+// /v1/users/:id/wallets, POST /v1/users/:id/connections, GET
+// /v1/users/:id/network_directory) were removed. They were unauthenticated and
+// keyed only on a caller-supplied user id, so anyone could overwrite another
+// user's wallet address (IDOR) or harvest other users' addresses. Nothing in the
+// client called them. The wallet-native session below is the only user endpoint.
 
 // Wallet-first session: connecting a wallet creates/recognizes a user with no
 // signup form. Username/email are derived deterministically from the address
@@ -71,7 +34,7 @@ const CHAIN_BY_WALLET_TYPE: Record<string, string> = {
   tron: 'TRON'
 };
 
-router.post('/v1/users/wallet_session', async (req, res) => {
+router.post('/v1/users/wallet_session', walletSessionLimiter, async (req, res) => {
   try {
     const address = String(req.body.address ?? '').trim();
     const walletType = String(req.body.walletType ?? 'evm').toLowerCase();
@@ -120,31 +83,6 @@ router.post('/v1/users/wallet_session', async (req, res) => {
     });
   } catch (error: any) {
     return res.status(400).json({ error: error.message });
-  }
-});
-
-router.get('/v1/users/:id/network_directory', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userDirectory = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        connections: {
-          include: { linkedUser: { include: { wallets: true } } }
-        }
-      }
-    });
-
-    if (!userDirectory) return res.status(404).json({ error: 'Identity not found.' });
-    
-    const cleanDirectory = userDirectory.connections.map(c => ({
-      username: c.linkedUser.username,
-      availableAddresses: c.linkedUser.wallets.map(w => ({ chain: w.chain, address: w.address }))
-    }));
-
-    return res.json({ connections: cleanDirectory });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
   }
 });
 

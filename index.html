@@ -3,12 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Atomic — Swap crypto across chains, non-custodially</title>
-  <meta name="description" content="Atomic is a non-custodial cross-chain swap exchange. Convert Bitcoin, Ethereum, Solana and more — you keep your keys, trades settle on-chain to your wallet.">
+  <title>Atomic Pay — Swap Crypto With Just Email + Face ID</title>
+  <meta name="description" content="Swap crypto across chains with just email and Face ID — no seed phrase, no wallet app, no gas token. Non-custodial: your keys, your coins.">
+  <meta name="keywords" content="cross chain swap, swap crypto without wallet, no seed phrase wallet, swap BTC to ETH, non-custodial swap, gasless swap, swap crypto with email">
+  <link rel="canonical" href="https://atomicpay.cloud/">
+  <meta name="theme-color" content="#6d5cf5">
+  <meta name="robots" content="index, follow">
+  <!-- Google Search Console: replace CONTENT with your verification token, then redeploy -->
+  <meta name="google-site-verification" content="REPLACE_WITH_GOOGLE_VERIFICATION_TOKEN">
   <link rel="icon" href="/assets/atomic-mark.png">
-  <meta property="og:title" content="Atomic — Non-custodial cross-chain crypto swaps">
-  <meta property="og:description" content="Swap Bitcoin, Ethereum, Solana and more across chains. Non-custodial: your keys, your coins.">
+  <!-- Open Graph (Facebook, LinkedIn, Telegram, Discord link previews) -->
+  <meta property="og:site_name" content="Atomic Pay">
+  <meta property="og:title" content="Atomic Pay — Swap Crypto With Just Email + Face ID">
+  <meta property="og:description" content="Non-custodial cross-chain swaps — no seed phrase, no wallet app, no gas token. Your keys, your coins.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://atomicpay.cloud/">
+  <meta property="og:image" content="https://atomicpay.cloud/assets/atomic-og.png">
+  <meta property="og:image:alt" content="Atomic Pay — non-custodial cross-chain crypto swaps">
+  <!-- Twitter / X card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Atomic Pay — Swap Crypto With Just Email + Face ID">
+  <meta name="twitter:description" content="Non-custodial cross-chain swaps — no seed phrase, no wallet app, no gas token. Your keys, your coins.">
+  <meta name="twitter:image" content="https://atomicpay.cloud/assets/atomic-og.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://atomicpay.cloud/#organization",
+        "name": "Atomic Pay",
+        "url": "https://atomicpay.cloud/",
+        "logo": "https://atomicpay.cloud/assets/atomic-logo.png",
+        "description": "Non-custodial cross-chain crypto swap platform."
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://atomicpay.cloud/#website",
+        "url": "https://atomicpay.cloud/",
+        "name": "Atomic Pay",
+        "publisher": { "@id": "https://atomicpay.cloud/#organization" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "Atomic Pay",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "url": "https://atomicpay.cloud/defi-swap",
+        "description": "Swap any cryptocurrency across chains with just an email and Face ID. Non-custodial, no seed phrase, no gas token required.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    ]
+  }
+  </script>
   <style>
     :root {
       --ink: #14161c; --muted: #667085; --line: #e8e9f0;
@@ -190,10 +237,28 @@
   </main>
 
   <footer class="wrap">
+    <nav class="foot-swaps" aria-label="Popular swaps" style="padding:20px 0 4px;border-top:1px solid var(--line);">
+      <div style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Popular swaps</div>
+      <div class="foot-links" style="flex-wrap:wrap;gap:8px 16px;">
+        <a href="/swap/btc-to-eth">BTC to ETH</a>
+        <a href="/swap/eth-to-usdc">ETH to USDC</a>
+        <a href="/swap/btc-to-usdc">BTC to USDC</a>
+        <a href="/swap/eth-to-usdt">ETH to USDT</a>
+        <a href="/swap/sol-to-usdc">SOL to USDC</a>
+        <a href="/swap/eth-to-sol">ETH to SOL</a>
+        <a href="/swap/usdc-to-eth">USDC to ETH</a>
+        <a href="/swap/btc-to-sol">BTC to SOL</a>
+        <a href="/swap/bnb-to-eth">BNB to ETH</a>
+        <a href="/swap/sol-to-usdt">SOL to USDT</a>
+        <a href="/swap/avax-to-usdc">AVAX to USDC</a>
+        <a href="/swap" style="font-weight:600;color:var(--accent);">All swap pairs →</a>
+      </div>
+    </nav>
     <div class="foot">
       <a class="brand" href="/"><img src="/assets/atomic-mark.png" alt="Atomic" style="width:38px;height:30px" onerror="this.style.display='none'"><strong>Atomic</strong></a>
       <div class="foot-links">
         <a href="/defi-swap" data-i18n="landing.foot.swap">Swap</a>
+        <a href="/swap">Swap pairs</a>
         <a href="/transfers" data-i18n="landing.nav.explorer">Explorer</a>
         <a href="/checkout" data-i18n="landing.foot.checkout">Checkout</a>
         <a href="/help" data-i18n="landing.nav.help">Help</a>
@@ -201,7 +266,7 @@
         <a href="/terms" data-i18n="landing.foot.terms">Terms</a>
         <a href="/privacy" data-i18n="landing.foot.privacy">Privacy</a>
       </div>
-      <div>© 2026 Atomic · v1.2.0</div>
+      <div>© 2026 Atomic · v2.0.0</div>
     </div>
     <p class="disclaimer" data-i18n="landing.disclaimer">Atomic is a non-custodial interface to decentralized cross-chain liquidity. It does not take custody of user funds. Digital assets are volatile and swaps are irreversible; use at your own risk and comply with the laws of your jurisdiction. Currently in beta.</p>
   </footer>

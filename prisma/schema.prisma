@@ -172,9 +172,64 @@ model SwapQuote {
   updatedAt             DateTime             @updatedAt
   events                SwapExecutionEvent[]
   complianceReviews     ComplianceReview[]
+  partnerId             String?
+  partner               ApiPartner?          @relation(fields: [partnerId], references: [id])
+  partnerFeeBps         Int                  @default(0)
+  partnerEarnedUsd      Float                @default(0)
+  partnerPaidAt         DateTime?
+  // Payout is gated on VERIFIED on-chain settlement, never the self-reported swap
+  // status (which any caller can drive to COMPLETE). onchainVerifiedAt is stamped
+  // only after LI.FI confirms the swap settled (status DONE); settlementTxHash is
+  // unique so one on-chain tx can never be claimed by two swaps. partnerPayoutId
+  // claims a swap to a payout run BEFORE the transfer is sent (idempotency).
+  onchainVerifiedAt     DateTime?
+  settlementTxHash      String?              @unique
+  partnerPayoutId       String?
 
   @@index([status, expiresAt])
   @@index([fromAsset, toAsset])
+  @@index([partnerId])
+  @@index([partnerPayoutId])
+}
+
+// Partner Swap API (Swaps-as-a-Service): external developers embed Atomic swaps
+// with an API key. The plaintext key is NEVER stored — only its sha256 hash and a
+// short prefix (for identification in dashboards/logs).
+model ApiPartner {
+  id            String          @id @default(uuid())
+  name          String
+  email         String?
+  keyPrefix     String          @unique
+  keyHash       String          @unique
+  feeBps        Int             @default(0)
+  payoutAddress String?         // EVM address — commissions are settled in USDC (on Base)
+  webhookUrl    String?
+  webhookSecret String?         // HMAC-SHA256 signing secret for webhook payloads
+  active        Boolean         @default(true)
+  swapCount     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  // Email verification for SELF-SERVE registration (anti-abuse). Defaults true so
+  // existing rows + operator-minted partners are never retroactively locked out —
+  // only /v1/partner/register sets it false (and only when a mailer actually sent
+  // the link; if no SMTP is configured it stays true, so registration never breaks).
+  emailVerified       Boolean   @default(true)
+  verifyTokenHash     String?   // sha256 of the emailed verification token
+  verifyTokenExpiresAt DateTime?
+  swaps         SwapQuote[]
+  payouts       PartnerPayout[]
+}
+
+// A settlement run: pays a partner the sum of their unpaid earnings in USDC on Base.
+model PartnerPayout {
+  id           String     @id @default(uuid())
+  partnerId    String
+  partner      ApiPartner @relation(fields: [partnerId], references: [id])
+  amountUsd    Float
+  swapCount    Int
+  toAddress    String
+  txHash       String?
+  status       String     @default("pending") // pending | sent | failed
+  createdAt    DateTime   @default(now())
 }
 
 model SwapExecutionEvent {

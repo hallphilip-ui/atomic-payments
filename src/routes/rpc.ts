@@ -34,7 +34,7 @@ const ALCHEMY_NET: Record<number, string | null> = {
 // Try Alchemy first (trusted), then the public node. So a chain the user hasn't
 // enabled on their Alchemy app — or a transient Alchemy hiccup — transparently
 // falls back and keeps working, and upgrades to Alchemy once enabled.
-const upstreamsFor = (chainId: number): string[] =>
+export const upstreamsFor = (chainId: number): string[] =>
   [ALCHEMY_NET[chainId], PUBLIC[chainId]].filter((u): u is string => !!u);
 
 // Read-heavy but cheap; generous per-IP cap keeps a single client fast while

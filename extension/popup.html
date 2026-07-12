@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --ink:#14161c; --muted:#667085; --line:#e8e9f0; --accent:#6d5cf5; --bg:#f7f8fc; }
+  * { box-sizing:border-box; }
+  body { margin:0; width:380px; height:600px; font-family:Inter,system-ui,-apple-system,sans-serif; color:var(--ink); background:var(--bg); display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:8px; padding:10px 14px; background:#fff; border-bottom:1px solid var(--line); }
+  header img { width:26px; height:20px; }
+  header strong { font-size:15px; }
+  .tabs { margin-left:auto; display:flex; gap:4px; }
+  .tab { font-size:12px; font-weight:600; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:8px; padding:5px 10px; cursor:pointer; }
+  .tab.active { color:var(--accent); border-color:var(--accent); }
+  .tab .badge { display:none; margin-left:5px; background:var(--accent); color:#fff; border-radius:8px; padding:0 6px; font-size:10px; }
+  .tab .badge.show { display:inline-block; }
+  main { flex:1; min-height:0; position:relative; }
+  #homeView, #reqView { position:absolute; inset:0; }
+  #reqView { display:none; }
+  iframe { width:100%; height:100%; border:0; }
+  .hero { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px 26px; }
+  .hero .mark { width:56px; height:44px; margin-bottom:14px; }
+  .hero h1 { font-size:21px; letter-spacing:-.01em; margin:0 0 8px; }
+  .hero p { font-size:13.5px; color:var(--muted); line-height:1.5; margin:0 0 20px; }
+  .primary { width:100%; border:none; background:var(--accent); color:#fff; font-family:inherit; font-weight:700; font-size:15px; padding:13px; border-radius:12px; cursor:pointer; }
+  .primary:hover { filter:brightness(1.05); }
+  .fine { font-size:11.5px; color:#98a2b3; margin:10px 0 0; }
+  .links { margin-top:22px; font-size:12.5px; color:var(--muted); }
+  .links a { color:var(--accent); text-decoration:none; } .links span { margin:0 6px; color:var(--line); }
+  #warn { display:none; position:absolute; inset:0; padding:20px; background:var(--bg); font-size:13px; color:var(--muted); }
+  #warn code { font-family:ui-monospace,Menlo,monospace; background:#eef0f7; padding:1px 5px; border-radius:5px; font-size:12px; }
+  @media (prefers-color-scheme: dark) {
+    body { background:#12141b; color:#e7e9f0; } header { background:#171922; border-color:#262a36; }
+    .tab { background:#1b1e27; border-color:#2a2f3c; } .hero p { color:#98a2b3; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon-128.png" alt="" onerror="this.style.display='none'">
+    <strong>Atomic Pay</strong>
+    <div class="tabs">
+      <button class="tab active" data-view="home">Swap</button>
+      <button class="tab" data-view="req">Requests<span class="badge" id="reqBadge"></span></button>
+    </div>
+  </header>
+  <main>
+    <!-- Home = launcher. Opens the full swap console in a TAB (not an iframe) so the
+         funds page keeps its strict anti-clickjacking headers. -->
+    <div id="homeView">
+      <div class="hero">
+        <img class="mark" src="icons/icon-128.png" alt="" onerror="this.style.display='none'">
+        <h1>Swap crypto across chains</h1>
+        <p>Any coin to any coin — with just email &amp; Face ID. Non-custodial; you keep your keys.</p>
+        <button id="openSwap" class="primary">Open swap console&nbsp;↗</button>
+        <p class="fine">Opens the full Atomic Pay app in a new tab.</p>
+        <div class="links">
+          <a href="https://atomicpay.cloud/help" target="_blank" rel="noopener">Help</a><span>·</span><a href="https://atomicpay.cloud/partners" target="_blank" rel="noopener">Partners</a>
+        </div>
+      </div>
+    </div>
+    <!-- The bridge iframe is VISIBLE here so the confirm sheet + Face ID prompt show.
+         /wallet-bridge allows this extension's origin to frame it. -->
+    <div id="reqView"><iframe id="signer" src="https://atomicpay.cloud/wallet-bridge" allow="publickey-credentials-get *"></iframe></div>
+    <div id="warn">
+      <p><b>Signing isn't configured yet.</b> The <code>/wallet-bridge</code> page must allow this extension's origin.</p>
+      <p>Set <code>ATOMIC_EXTENSION_ORIGINS=chrome-extension://&lt;this-extension-id&gt;</code> in the server <code>.env</code> and redeploy. Your ID is on <code>chrome://extensions</code>.</p>
+    </div>
+  </main>
+  <script src="src/popup.js"></script>
+</body>
+</html>

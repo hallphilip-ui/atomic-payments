@@ -317,7 +317,9 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
   }
 });
 
-// Keep simulation and admin metrics active
+// Operator-only (gated in operatorRules): marking an intent CONFIRMED is a
+// settlement action. A real confirmation must come from on-chain detection; this
+// endpoint is a controlled simulation for testing, never an anonymous "paid" flip.
 router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
   try {
     const { id } = req.params;
@@ -327,7 +329,10 @@ router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
 
     const settledIntent = await prisma.paymentIntent.update({ where: { id }, data: { status: 'CONFIRMED' } });
     const webhookPayload = JSON.stringify({ event: "payment.confirmed", data: { id: settledIntent.id, amount: settledIntent.amount } });
-    const computedSignature = generateSignature(webhookPayload, process.env.ATOMIC_WEBHOOK_SECRET || 'whsec_prod_secret');
+    // Fail closed: never sign with a hardcoded fallback secret. Without a
+    // configured secret the webhook simply isn't signed.
+    const secret = process.env.ATOMIC_WEBHOOK_SECRET;
+    const computedSignature = secret ? generateSignature(webhookPayload, secret) : null;
 
     return res.json({ message: "⚡ Payment successfully signed!", txHash: txHash || "0x_signature_verified", signatureVerified: computedSignature });
   } catch (error: any) { return res.status(500).json({ error: error.message }); }

@@ -1,6 +1,5 @@
 import {
   LIFI_API_KEY,
-  LIFI_FEE_DECIMAL,
   LIFI_INTEGRATOR,
   LIFI_QUOTE_ENDPOINT,
   PLATFORM_SPREAD_BPS,
@@ -38,6 +37,8 @@ export type ProviderQuoteResult = {
   latencyMs: number;
   diagnostics: string[];
   execution?: ProviderExecution;
+  // USD value of the input, from the provider — powers USD-denominated compliance.
+  amountUsd?: number;
 };
 
 type SimulationInput = {
@@ -49,8 +50,17 @@ type SimulationInput = {
 const LIVE_MODE = process.env.ATOMIC_SWAP_PROVIDER_MODE === 'live';
 const LIVE_WITH_FALLBACK = process.env.ATOMIC_SWAP_PROVIDER_MODE === 'live_with_fallback';
 
-function applyPlatformFee(amount: bigint): { output: string; fee: string } {
-  const feeAmount = amount * BigInt(PLATFORM_SPREAD_BPS) / 10000n;
+// Effective total platform fee for a request = base spread + any partner markup,
+// carried on request.feeBps. Falls back to the base spread when unset (consumer
+// swaps). Used everywhere the fee is applied so the sim/fallback paths collect the
+// SAME fee the live LI.FI path does — otherwise partner markup silently vanishes.
+function effectiveFeeBps(request: UnifiedSwapQuoteRequest): number {
+  const bps = request.feeBps;
+  return typeof bps === 'number' && Number.isFinite(bps) && bps >= 0 ? Math.floor(bps) : PLATFORM_SPREAD_BPS;
+}
+
+function applyPlatformFee(amount: bigint, feeBps: number): { output: string; fee: string } {
+  const feeAmount = amount * BigInt(feeBps) / 10000n;
   return {
     output: (amount - feeAmount).toString(),
     fee: feeAmount.toString()
@@ -109,7 +119,9 @@ export function buildProviderPayload(
       fromAddress: request.fromAddress ?? request.userAddress,
       toAddress: request.userAddress,
       integrator: LIFI_INTEGRATOR,
-      fee: LIFI_FEE_DECIMAL
+      // Total platform fee (base + any partner markup), as a decimal. LI.FI collects
+      // this to our integrator wallet; partner earnings are settled from attribution.
+      fee: (effectiveFeeBps(request) / 10000).toString()
     };
   }
 
@@ -146,7 +158,7 @@ export function buildProviderPayload(
 }
 
 function simulationQuote(input: SimulationInput, diagnostics: string[] = []): ProviderQuoteResult {
-  const fee = applyPlatformFee(input.amount);
+  const fee = applyPlatformFee(input.amount, effectiveFeeBps(input.request));
 
   return {
     mode: diagnostics.length ? 'fallback' : 'simulation',
@@ -212,9 +224,14 @@ async function fetchProviderJson(
     headers['x-lifi-api-key'] = LIFI_API_KEY;
   }
 
+  // Cross-chain routes to native BTC/Solana price through slow aggregators
+  // (NearIntents/Thorchain) and regularly take 8-10s — a 5s timeout aborted them
+  // and silently dropped the user onto a non-executable simulation quote. Give
+  // live quotes real headroom; overridable via env.
+  const timeoutMs = Number(process.env.ATOMIC_PROVIDER_TIMEOUT_MS) || 20000;
   const response = await fetch(url, {
     headers,
-    signal: AbortSignal.timeout(5000)
+    signal: AbortSignal.timeout(timeoutMs)
   });
 
   if (!response.ok) {
@@ -249,7 +266,8 @@ async function liveQuote(input: SimulationInput): Promise<ProviderQuoteResult> {
     if (!output) {
       throw new Error(json?.message ? `LI.FI: ${json.message}` : 'LI.FI response did not include an output amount.');
     }
-    const feeAmount = (input.amount * BigInt(PLATFORM_SPREAD_BPS) / 10000n).toString();
+    const totalFeeBps = effectiveFeeBps(input.request);
+    const feeAmount = (input.amount * BigInt(totalFeeBps) / 10000n).toString();
     return {
       mode: 'live',
       providerQuoteId: pickString(json?.id, json?.tool) ?? `live_lifi_${Date.now()}`,
@@ -258,6 +276,7 @@ async function liveQuote(input: SimulationInput): Promise<ProviderQuoteResult> {
       priceImpactPct: estimatePriceImpactPct(input.amount, input.provider),
       requestPayload: payload,
       latencyMs: Date.now() - startedAt,
+      amountUsd: pickNumber(est.fromAmountUSD),
       diagnostics: ['live_provider_quote_received', `tool:${pickString(json?.tool) ?? 'lifi'}`],
       execution: {
         transactionRequest: json?.transactionRequest ?? undefined,
@@ -294,7 +313,7 @@ async function liveQuote(input: SimulationInput): Promise<ProviderQuoteResult> {
   }
 
   const grossOutput = BigInt(output.replace(/\D/g, '') || '0');
-  const fee = applyPlatformFee(grossOutput > 0n ? grossOutput : input.amount);
+  const fee = applyPlatformFee(grossOutput > 0n ? grossOutput : input.amount, effectiveFeeBps(input.request));
 
   return {
     mode: 'live',
@@ -340,6 +359,60 @@ export function getProviderModeLabel(): string {
   if (LIVE_MODE) return 'live';
   if (LIVE_WITH_FALLBACK) return 'live_with_fallback';
   return 'simulation';
+}
+
+// Source-asset price + decimals from LI.FI's token API (same source the balance/
+// price path uses) — used to size the route-minimum probe amounts in USD terms.
+async function lifiTokenMeta(assetId: string): Promise<{ price: number | null; decimals: number } | null> {
+  const m = getLifiAsset(assetId);
+  if (!m) return null;
+  const headers: Record<string, string> = { accept: 'application/json' };
+  if (LIFI_API_KEY) headers['x-lifi-api-key'] = LIFI_API_KEY;
+  try {
+    const r = await fetch(`https://li.quest/v1/token?chain=${encodeURIComponent(m.chain)}&token=${encodeURIComponent(m.token)}`,
+      { headers, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    const d: any = await r.json();
+    const p = Number(d.priceUSD);
+    const decimals = Number(d.decimals);
+    if (!Number.isFinite(decimals)) return null;
+    return { price: Number.isFinite(p) && p > 0 ? p : null, decimals };
+  } catch { return null; }
+}
+
+// "Smallest amount that quotes" — LI.FI exposes no minimum field, so we probe a
+// small USD ladder and return the first amount that yields a live route. One call
+// in the common case (the smallest rung usually routes); at most three.
+export async function probeRouteMinimum(req: UnifiedSwapQuoteRequest): Promise<
+  { supported: true; minBaseUnits: string; decimals: number; minUsd: number; symbol: string }
+  | { supported: false; reason: string }
+> {
+  const from = getLifiAsset(req.fromAsset);
+  const to = getLifiAsset(req.toAsset);
+  if (!from || !to) return { supported: false, reason: 'This pair is not certified for live routing.' };
+  const meta = await lifiTokenMeta(req.fromAsset);
+  if (!meta || !meta.price) return { supported: false, reason: 'No live price for the source asset — enter an amount manually.' };
+
+  // Finer low-end steps so a working small amount (e.g. $5) isn't skipped when the
+  // $1 route is momentarily unavailable — the sub-$10 range is where users operate.
+  const usdLadder = [1, 2, 5, 10, 25, 50, 100];
+  for (const usd of usdLadder) {
+    const units = BigInt(Math.max(1, Math.ceil((usd / meta.price) * 10 ** meta.decimals)));
+    try {
+      const payload = buildProviderPayload({ ...req, amount: units.toString() }, 'LIFI', true);
+      const json = await fetchProviderJson(payload, 'LIFI');
+      if (json?.estimate?.toAmount) {
+        return {
+          supported: true,
+          minBaseUnits: units.toString(),
+          decimals: meta.decimals,
+          minUsd: Number(((Number(units) / 10 ** meta.decimals) * meta.price).toFixed(2)),
+          symbol: from.token
+        };
+      }
+    } catch { /* no route at this size — try the next rung up */ }
+  }
+  return { supported: false, reason: 'Could not find a routable minimum for this pair right now.' };
 }
 
 export { PRICE_IMPACT_LIMIT_PCT };

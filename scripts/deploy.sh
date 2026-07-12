@@ -26,6 +26,7 @@ echo "==> syncing to ${HOST}:${APP}"
 rsync -rlptz \
   --exclude=node_modules --exclude=.git --exclude=.env \
   --exclude=dist --exclude='*.db' --exclude=.DS_Store \
+  --exclude=extension \
   ./ "${HOST}:${APP}/"
 
 echo "==> fixing ownership, building, restarting"
@@ -34,6 +35,16 @@ ssh "${HOST}" "set -e
   chmod 600 ${APP}/.env
   # SQLite needs the *directory* writable (for -wal/-journal), not just the file.
   sudo -u ${SERVICE_USER} test -w ${APP}/prisma || { echo 'prisma dir not writable by ${SERVICE_USER}'; exit 1; }
+  # Regenerate the Prisma client + sync the schema to the DB (node_modules is not
+  # rsynced, so a schema change needs generate; db push applies additive changes —
+  # new tables/columns/indexes). --accept-data-loss is required because adding a
+  # UNIQUE index (e.g. settlementTxHash) trips Prisma's data-loss guard even when
+  # it's safe (a new nullable column is all-NULL, no dupes). TRADE-OFF: this also
+  # lets a genuinely destructive change (drop/rename column) apply WITHOUT a prompt
+  # — so schema edits must be reviewed as additive before deploying. MUST run before
+  # the tsc build, which references the generated types.
+  sudo -u ${SERVICE_USER} HOME=/home/${SERVICE_USER} bash -c 'cd ${APP} && npx prisma db push --accept-data-loss >/tmp/deploy-prisma.log 2>&1' \
+    || { echo 'PRISMA DB PUSH FAILED'; tail -20 /tmp/deploy-prisma.log; exit 1; }
   sudo -u ${SERVICE_USER} HOME=/home/${SERVICE_USER} bash -c 'cd ${APP} && npm run build >/tmp/deploy-build.log 2>&1' \
     || { echo 'BUILD FAILED'; tail -15 /tmp/deploy-build.log; exit 1; }
   sudo -u ${SERVICE_USER} HOME=/home/${SERVICE_USER} bash -c 'cd ${APP} && set -a; . ./.env; set +a; pm2 restart atomic-backend >/dev/null 2>&1'

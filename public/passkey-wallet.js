@@ -155,6 +155,28 @@
     try { if (typeof msg === 'string' && msg.startsWith('0x')) return E.toUtf8String(msg); } catch {}
     return typeof msg === 'string' ? msg : '(binary message)';
   }
+  // Render an EIP-712 message value for the confirm sheet: shorten addresses, stringify
+  // nested structs/arrays, truncate long numbers — so the user can actually SEE what a
+  // typed-data signature (e.g. a Permit) authorizes rather than a bare type name.
+  const formatTypedValue = (v) => {
+    if (v == null) return '—';
+    if (typeof v === 'object') { try { const s = JSON.stringify(v); return s.length > 64 ? s.slice(0, 63) + '…' : s; } catch { return '(struct)'; } }
+    const s = String(v);
+    if (/^0x[0-9a-fA-F]{40}$/.test(s)) return short(s);
+    return s.length > 46 ? s.slice(0, 44) + '…' : s;
+  };
+  function typedDataRows(E, d, activeChain, chains) {
+    const rows = [
+      ['Network', chains[activeChain].name],
+      ['Type', d.primaryType || 'Typed data'],
+      ['Contract', short(d.domain && d.domain.verifyingContract)]
+    ];
+    const msg = d.message || {};
+    const declared = (d.types && d.types[d.primaryType]) ? d.types[d.primaryType].map((f) => f.name) : [];
+    const keys = (declared.length ? declared : Object.keys(msg)).slice(0, 8);
+    for (const k of keys) rows.push([k, formatTypedValue(msg[k])]);
+    return rows;
+  }
 
   // Confirmation sheet. The Approve button performs the signing inside the click
   // gesture (WebAuthn requires user activation). Resolves with the signature /
@@ -169,6 +191,7 @@
       wrap.innerHTML = `<div role="dialog" aria-modal="true" style="background:#fff;color:#14161c;width:min(400px,92vw);border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.35);">
         <div style="font-size:16px;font-weight:700;margin-bottom:3px;">🔒 ${esc(details.title)}</div>
         <p style="font-size:12.5px;color:#667085;margin:0 0 14px;">Review the details — signing requires your device passkey.</p>
+        ${details.warn ? `<div style="font-size:12px;color:#8a5a00;background:#fff4e0;border:1px solid #ffe0a3;border-radius:9px;padding:9px 11px;margin:0 0 14px;">⚠️ ${esc(details.warn)}</div>` : ''}
         <div style="margin-bottom:16px;">${rows}</div>
         <div data-status style="font-size:12.5px;min-height:16px;margin-bottom:10px;color:#667085;"></div>
         <div style="display:flex;gap:10px;">
@@ -234,8 +257,13 @@
           case 'eth_signTypedData_v4': {
             const d = typeof params[1] === 'string' ? JSON.parse(params[1]) : params[1];
             const { EIP712Domain, ...types } = d.types;
+            // Show the ACTUAL message fields (spender/value/deadline/nonce for a Permit)
+            // — a typed-data signature can authorize moving tokens, so the user must see
+            // what they're approving, not just the type name.
             return await showSignModal(
-              { title: 'Signature request', action: 'Sign with Face ID / Touch ID', rows: [['Network', CHAINS[activeChain].name], ['Type', d.primaryType || 'Typed data'], ['Contract', short(d.domain && d.domain.verifyingContract)]] },
+              { title: 'Signature request', action: 'Sign with Face ID / Touch ID',
+                warn: 'This signature can authorize moving your tokens. Only sign if you recognize this request.',
+                rows: typedDataRows(E, d, activeChain, CHAINS) },
               () => withFreshKey((w) => w.signTypedData(d.domain, types, d.message)));
           }
           case 'eth_sendTransaction': {
@@ -253,9 +281,63 @@
           default: return await rpcProvider(activeChain).send(method, params); // reads
         }
       },
-      on() {}, removeListener() {} // no events needed for the swap flow
+      on() {}, removeListener() {}, // no events needed for the swap flow
+      // Recovery kit: derive the key behind Face ID and return a STANDARD encrypted
+      // Ethereum keystore (V3). Non-custodial insurance — with this file + password
+      // the user can restore in Atomic or ANY wallet (MetaMask), even if the passkey
+      // is lost. The key is encrypted then discarded; we never see file or password.
+      exportKeystore: (password) => withFreshKey((w) => w.encrypt(password)),
+      address: ctx.address
     };
   }
 
-  window.atomicPasskey = { mode: MODE, chains: CHAINS, defaultChain: DEFAULT_CHAIN, capabilities, lookup, createOrUnlock, lastEmail: local.lastEmail };
+  // Restore a wallet from a downloaded recovery kit (encrypted keystore) — for a new
+  // device where the passkey isn't available. Yields an in-memory signer for the
+  // session (the recovered key isn't behind a passkey anymore, so we prompt the user
+  // to keep the kit safe / move funds). Returns { address, provider }.
+  async function restoreFromKeystore(json, password) {
+    const E = await ethers();
+    const wallet = await E.Wallet.fromEncryptedJson(json, password);
+    return { address: wallet.address, provider: makeImportedProvider(E, wallet) };
+  }
+
+  // Minimal EIP-1193 provider for a recovered/imported raw key. Holds the wallet in
+  // memory for the session (no passkey to re-derive from) and still confirms each tx.
+  function makeImportedProvider(E, wallet) {
+    let activeChain = DEFAULT_CHAIN;
+    const providers = {};
+    const rpcProvider = (id) => (providers[id] ||= new E.JsonRpcProvider(`${location.origin}/v1/rpc/${id}`, id, { staticNetwork: true }));
+    const hex = (n) => '0x' + Number(n).toString(16);
+    return {
+      isAtomic: true, isPasskey: false, isImported: true, address: wallet.address,
+      get chainId() { return hex(activeChain); },
+      async request({ method, params = [] }) {
+        switch (method) {
+          case 'eth_requestAccounts': case 'eth_accounts': return [wallet.address];
+          case 'eth_chainId': return hex(activeChain);
+          case 'net_version': return String(activeChain);
+          case 'wallet_switchEthereumChain': {
+            const want = parseInt(params[0]?.chainId, 16);
+            if (!CHAINS[want]) { const e = new Error(`Chain ${want} not supported (${MODE}).`); e.code = 4902; throw e; }
+            activeChain = want; return null;
+          }
+          case 'wallet_addEthereumChain': return null;
+          case 'personal_sign':
+            return await showSignModal({ title: 'Signature request', action: 'Sign', rows: [['Network', CHAINS[activeChain].name], ['Message', decodeMessage(E, params[0])]] },
+              () => wallet.signMessage(E.getBytes(params[0])));
+          case 'eth_sendTransaction': {
+            const p = params[0]; const c = CHAINS[activeChain];
+            const amt = p.value ? E.formatEther(BigInt(p.value)) : '0';
+            return await showSignModal({ title: 'Confirm transaction', action: 'Approve',
+                rows: [['Network', c.name], ['To', short(p.to)], ['Amount', `${amt} ${c.symbol}`]].concat(p.data && p.data !== '0x' ? [['Details', 'contract interaction']] : []) },
+              async () => (await wallet.connect(rpcProvider(activeChain)).sendTransaction({ to: p.to, data: p.data, value: p.value ?? 0n, ...(p.gas ? { gasLimit: p.gas } : {}) })).hash);
+          }
+          default: return await rpcProvider(activeChain).send(method, params);
+        }
+      },
+      on() {}, removeListener() {}
+    };
+  }
+
+  window.atomicPasskey = { mode: MODE, chains: CHAINS, defaultChain: DEFAULT_CHAIN, capabilities, lookup, createOrUnlock, restoreFromKeystore, lastEmail: local.lastEmail };
 })();

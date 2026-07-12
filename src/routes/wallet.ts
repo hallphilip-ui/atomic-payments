@@ -15,7 +15,7 @@ const router = Router();
 
 const CACHE_MS = 60_000;
 const cache = new Map<string, { at: number; data: LifiToken | null }>();
-type LifiToken = { chainId: number; address: string; symbol: string; decimals: number; priceUSD: number | null };
+type LifiToken = { chainId: number; address: string; symbol: string; decimals: number; priceUSD: number | null; logoURI: string | null };
 
 const clip = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max);
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
@@ -47,7 +47,8 @@ async function lifiToken(assetId: string): Promise<LifiToken | null> {
       const price = Number(d.priceUSD);
       data = {
         chainId: Number(d.chainId), address: String(d.address || ''), symbol: String(d.symbol || mapped.token),
-        decimals: Number(d.decimals), priceUSD: Number.isFinite(price) && price > 0 ? price : null
+        decimals: Number(d.decimals), priceUSD: Number.isFinite(price) && price > 0 ? price : null,
+        logoURI: d.logoURI ? String(d.logoURI) : null
       };
     }
   } catch { /* fall through to null */ }
@@ -90,7 +91,7 @@ async function readEvmBalance(assetId: string, address: string) {
   const value = BigInt(raw && raw !== '0x' ? raw : '0x0');
   const formatted = formatUnits(value, t.decimals);
   const usdValue = t.priceUSD !== null ? Number(formatted) * t.priceUSD : null;
-  return { assetId, symbol: t.symbol, chain: asset.chain, chainId: t.chainId, raw: value.toString(), formatted, decimals: t.decimals, priceUSD: t.priceUSD, usdValue };
+  return { assetId, symbol: t.symbol, chain: asset.chain, chainId: t.chainId, raw: value.toString(), formatted, decimals: t.decimals, priceUSD: t.priceUSD, usdValue, logoURI: t.logoURI };
 }
 
 // On-chain balance of `address` for one `assetId`. EVM only.
@@ -137,7 +138,7 @@ router.get('/v1/wallet/btc-balance', limiter, async (req, res) => {
     const t = await lifiToken('BITCOIN.BTC');
     const priceUSD = t?.priceUSD ?? null;
     const usdValue = priceUSD !== null ? Number(formatted) * priceUSD : null;
-    return res.json({ supported: true, assetId: 'BITCOIN.BTC', symbol: 'BTC', chain: 'BITCOIN', raw: sats.toString(), formatted, decimals: 8, priceUSD, usdValue });
+    return res.json({ supported: true, assetId: 'BITCOIN.BTC', symbol: 'BTC', chain: 'BITCOIN', raw: sats.toString(), formatted, decimals: 8, priceUSD, usdValue, logoURI: t?.logoURI ?? null });
   } catch {
     return res.status(502).json({ error: 'Could not read BTC balance.' });
   }

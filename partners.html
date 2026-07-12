@@ -1,0 +1,338 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swaps-as-a-Service — Add Swaps to Your App | Atomic Pay</title>
+<meta name="description" content="Embed cross-chain crypto swaps in your app, wallet or bot with the Atomic Pay Partner API and earn revenue share. We handle routing, gas and compliance.">
+<link rel="canonical" href="https://atomicpay.cloud/partners">
+<meta name="theme-color" content="#6d5cf5">
+<meta property="og:site_name" content="Atomic Pay">
+<meta property="og:title" content="Swaps-as-a-Service — add crypto swaps to your app">
+<meta property="og:description" content="Embed cross-chain swaps via the Atomic Pay Partner API and earn revenue share. We handle routing, gas and compliance.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://atomicpay.cloud/partners">
+<meta property="og:image" content="https://atomicpay.cloud/assets/atomic-og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Swaps-as-a-Service — add crypto swaps to your app">
+<meta name="twitter:description" content="Embed cross-chain swaps via the Atomic Pay Partner API and earn revenue share.">
+<meta name="twitter:image" content="https://atomicpay.cloud/assets/atomic-og.png">
+<style>
+  :root { --ink:#14161c; --muted:#667085; --line:#e8e9f0; --accent:#6d5cf5; --panel:#fff; --bg:#f7f8fc; --good:#0a7d33; --red:#e5484d; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter,system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); }
+  .topbar { display:flex; align-items:center; justify-content:space-between; height:64px; padding:0 clamp(16px,4vw,40px); background:rgba(255,255,255,.9); border-bottom:1px solid var(--line); position:sticky; top:0; backdrop-filter:blur(12px); z-index:5; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; }
+  .brand strong { font-size:16px; }
+  .nav { display:flex; gap:2px; }
+  .nav a { text-decoration:none; color:var(--muted); font-weight:600; font-size:14px; padding:7px 12px; border-radius:9px; }
+  .nav a:hover { background:#f3f1fe; color:var(--ink); }
+  .nav a.active { color:var(--accent); background:#f3f1fe; }
+  main { max-width:760px; margin:0 auto; padding:clamp(20px,4vw,40px) 16px 60px; }
+  h1 { font-size:clamp(26px,4vw,34px); letter-spacing:-.02em; margin:0 0 6px; }
+  .sub { color:var(--muted); margin:0 0 26px; font-size:15px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 22px; box-shadow:0 1px 3px rgba(16,18,30,.04); margin-bottom:16px; }
+  .card h2 { font-size:16px; margin:0 0 4px; }
+  .card p.hint { color:var(--muted); font-size:13px; margin:0 0 14px; }
+  label { display:block; font-size:13px; font-weight:600; color:var(--muted); margin:12px 0 5px; }
+  input.f { width:100%; height:44px; border:1px solid var(--line); border-radius:11px; padding:0 13px; font:inherit; font-size:14px; }
+  button.btn { border:none; background:var(--accent); color:#fff; border-radius:11px; height:46px; padding:0 22px; font-weight:700; font-size:14px; cursor:pointer; }
+  button.btn:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:#fff; color:var(--accent); border:1px solid var(--line); }
+  .hint2 { font-size:12.5px; color:var(--muted); min-height:16px; margin-top:8px; }
+  .keybox { background:#0e1117; color:#7ef2b0; font-family:ui-monospace,Menlo,monospace; font-size:13px; padding:12px 14px; border-radius:11px; word-break:break-all; display:flex; align-items:center; gap:10px; }
+  .keybox button { flex:0 0 auto; background:#232838; color:#fff; border:none; border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
+  .row:last-child { border-bottom:none; }
+  .row .k { color:var(--muted); }
+  .mono { font-family:ui-monospace,Menlo,monospace; font-size:13px; }
+  .pill { display:inline-block; background:#e7f7ec; color:var(--good); border:1px solid #b7e6c4; border-radius:6px; padding:1px 7px; font-size:11px; font-weight:700; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; }
+  td.num, th.num { text-align:right; font-family:ui-monospace,monospace; }
+  code { background:#f2f3f8; border-radius:5px; padding:1px 5px; font-size:12.5px; }
+  .sliderow { display:flex; align-items:center; gap:14px; margin:10px 0; }
+  input[type=range] { flex:1; accent-color:var(--accent); }
+  .bignum { font-size:22px; font-weight:800; }
+  @media (max-width:640px){ .nav{ display:none; } }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://atomicpay.cloud/#organization",
+      "name": "Atomic Pay",
+      "url": "https://atomicpay.cloud/",
+      "logo": "https://atomicpay.cloud/assets/atomic-logo.png"
+    },
+    {
+      "@type": "Service",
+      "name": "Atomic Pay Partner API — Swaps-as-a-Service",
+      "serviceType": "Cross-chain crypto swap API",
+      "url": "https://atomicpay.cloud/partners",
+      "provider": { "@id": "https://atomicpay.cloud/#organization" },
+      "description": "Embed non-custodial cross-chain crypto swaps in your app, wallet or bot with the Atomic Pay Partner API and earn revenue share. Atomic Pay handles routing, gas and compliance.",
+      "areaServed": "Worldwide",
+      "offers": { "@type": "Offer", "description": "50 bps revenue share plus a partner-set markup, settled in USDC on Base." }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "How do partners earn with the Atomic Pay API?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Partners earn a fixed 50 bps revenue share on every swap plus an optional markup they set (up to 50 bps), settled automatically in USDC on Base." } },
+        { "@type": "Question", "name": "Is the Partner API non-custodial?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. Atomic Pay returns a quote plus a signable transaction; the partner's own user signs and broadcasts it, so Atomic Pay never holds funds." } },
+        { "@type": "Question", "name": "What does Atomic Pay handle for partners?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Atomic Pay handles cross-chain routing, gas abstraction, sanctions/compliance screening, and settlement — the partner just calls the quote endpoint and has their user sign." } }
+      ]
+    }
+  ]
+}
+</script>
+
+<header class="topbar">
+  <a class="brand" href="/"><img src="/assets/atomic-mark.png" width="34" height="28" alt="" onerror="this.style.display='none'"><strong>Atomic</strong></a>
+  <nav class="nav">
+    <a href="/">Home</a>
+    <a href="/defi-swap">Swap</a>
+    <a href="/transfers">Transfers</a>
+    <a href="/partners" class="active">Partners</a>
+  </nav>
+  <button id="logoutBtn" class="btn ghost" style="height:36px;padding:0 14px;font-size:13px;display:none;">Sign out</button>
+</header>
+
+<main>
+  <!-- REGISTER / LOGIN -->
+  <div id="authView">
+    <h1>Partner Portal</h1>
+    <p class="sub">Embed Atomic's cross-chain swaps in your product and earn on every trade. You keep <b>0.5%</b> of each swap, plus up to another <b>0.5%</b> of your own markup.</p>
+
+    <div class="card">
+      <h2>Register as a partner</h2>
+      <p class="hint">Get an API key in seconds — no approval needed to start testing.</p>
+      <label for="regName">Business name</label>
+      <input id="regName" class="f" placeholder="Acme Wallet" autocomplete="organization">
+      <label for="regEmail">Contact email</label>
+      <input id="regEmail" class="f" type="email" placeholder="you@acme.com" autocomplete="email">
+      <label for="regPayout">Payout wallet <span style="color:var(--muted);font-weight:400;">— commissions paid in USDC on Base (optional, add later)</span></label>
+      <input id="regPayout" class="f mono" placeholder="0x… (where we send your USDC)">
+      <div style="margin-top:16px;"><button id="regBtn" class="btn">Create partner account</button></div>
+      <div id="regHint" class="hint2"></div>
+    </div>
+
+    <div class="card">
+      <h2>Already have a key?</h2>
+      <p class="hint">Paste your API key to open your dashboard.</p>
+      <input id="loginKey" class="f mono" placeholder="ak_live_…">
+      <div style="margin-top:14px;"><button id="loginBtn" class="btn ghost">Open dashboard</button></div>
+      <div id="loginHint" class="hint2"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashView" style="display:none;">
+    <h1>Dashboard</h1>
+    <p class="sub" id="dashWho"></p>
+
+    <!-- one-time key reveal -->
+    <div class="card" id="keyRevealCard" style="display:none;border-color:#f4d7a8;background:#fff8ec;">
+      <h2>🔑 Your new API key</h2>
+      <p class="hint">Copy it now — it's shown once and can't be retrieved again.</p>
+      <div class="keybox"><span id="revealKey" style="flex:1;"></span><button id="revealCopy">Copy</button></div>
+    </div>
+
+    <div class="card">
+      <h2>API access</h2>
+      <div class="row"><span class="k">Base URL</span><span class="mono">https://atomicpay.cloud</span></div>
+      <div class="row"><span class="k">Auth header</span><span class="mono">Authorization: Bearer ak_live_…</span></div>
+      <div class="row"><span class="k">Your key</span><span class="mono" id="keyPrefix">—</span></div>
+      <div class="row"><span class="k">Docs</span><a href="/partner-docs" style="color:var(--accent);font-weight:600;">Partner API reference</a></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="rotateBtn" class="btn ghost">Rotate API key</button>
+      </div>
+      <div id="rotateHint" class="hint2"></div>
+    </div>
+
+    <div class="card">
+      <h2>Payout wallet</h2>
+      <p class="hint">Commissions are paid in <b>USDC on Base</b>. Enter the wallet where you want to receive them.</p>
+      <input id="payoutAddr" class="f mono" placeholder="0x…">
+      <div style="margin-top:12px;"><button id="savePayoutBtn" class="btn">Save payout wallet</button></div>
+      <div id="payoutHint" class="hint2"></div>
+    </div>
+
+    <div class="card">
+      <h2>Commission</h2>
+      <p class="hint">You always earn a fixed <b>50 bps</b> revenue share. Add up to <b>50 bps</b> of your own markup on top — your customers pay it, you keep it.</p>
+      <div class="sliderow">
+        <input id="mkSlider" type="range" min="0" max="50" step="5" value="0">
+        <div style="text-align:right;min-width:150px;">
+          <div class="bignum"><span id="mkVal">0</span> bps markup</div>
+          <div style="font-size:12px;color:var(--muted);">you earn <b><span id="earnTotal">50</span> bps</b> · customer pays <span id="custPays">2.50</span>%</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;"><button id="saveMkBtn" class="btn">Save commission</button></div>
+      <div id="mkHint" class="hint2"></div>
+    </div>
+
+    <div class="card">
+      <h2>Webhooks</h2>
+      <p class="hint">Get a signed POST when a swap changes state (<code>authorized</code>, <code>broadcast</code>, <code>completed</code>) — no polling.</p>
+      <input id="webhookUrl" class="f mono" placeholder="https://your-app.com/atomic-webhook">
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="saveWebhookBtn" class="btn">Save webhook</button>
+        <button id="clearWebhookBtn" class="btn ghost">Disable</button>
+      </div>
+      <div id="webhookSecretBox" style="display:none;margin-top:14px;">
+        <label style="margin-top:0;">Signing secret <span style="font-weight:400;">— verify HMAC-SHA256 of the raw body against the <code>x-atomic-signature</code> header</span></label>
+        <div class="keybox"><span id="webhookSecret" style="flex:1;"></span><button id="webhookSecretCopy">Copy</button></div>
+      </div>
+      <div id="webhookHint" class="hint2"></div>
+    </div>
+
+    <div class="card">
+      <h2>Monthly statements</h2>
+      <p class="hint">Earnings from executed swaps, by month. Settled to your payout address.</p>
+      <div id="statements"><p class="hint2">Loading…</p></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const LS = 'atomic_partner_key';
+  let KEY = null;
+  try { KEY = localStorage.getItem(LS); } catch (_) {}
+
+  const authH = () => ({ 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' });
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function showAuth() { $('authView').style.display = ''; $('dashView').style.display = 'none'; $('logoutBtn').style.display = 'none'; }
+  function showDash() { $('authView').style.display = 'none'; $('dashView').style.display = ''; $('logoutBtn').style.display = ''; }
+
+  async function loadMe() {
+    const r = await fetch('/v1/partner/me', { headers: authH() });
+    if (!r.ok) throw new Error('Invalid or expired key.');
+    return r.json();
+  }
+
+  function renderMe(me) {
+    $('dashWho').innerHTML = `${esc(me.name)} · <span class="pill">${me.swapCount} swaps</span> · member since ${new Date(me.createdAt).toLocaleDateString()}`;
+    $('keyPrefix').textContent = me.keyPrefix + '…';
+    $('payoutAddr').value = me.payoutAddress || '';
+    $('webhookUrl').value = me.webhookUrl || '';
+    const mk = me.markupBps || 0;
+    $('mkSlider').value = mk; setMk(mk);
+  }
+  async function saveWebhook(url) {
+    $('webhookHint').textContent = 'Saving…'; $('webhookHint').style.color = 'var(--muted)';
+    try {
+      const r = await fetch('/v1/partner/webhook', { method: 'POST', headers: authH(), body: JSON.stringify({ url }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed.');
+      if (d.webhookSecret) { $('webhookSecretBox').style.display = ''; $('webhookSecret').textContent = d.webhookSecret; }
+      else { $('webhookSecretBox').style.display = 'none'; }
+      $('webhookHint').style.color = 'var(--good)'; $('webhookHint').textContent = url ? '✓ Webhook saved — events: ' + d.events.join(', ') : '✓ Webhooks disabled.';
+    } catch (e) { $('webhookHint').style.color = 'var(--red)'; $('webhookHint').textContent = e.message; }
+  }
+  function setMk(v) {
+    v = Number(v);
+    $('mkVal').textContent = v;
+    $('earnTotal').textContent = 50 + v;
+    $('custPays').textContent = (2.5 + v / 100).toFixed(2);
+  }
+
+  async function loadStatements() {
+    try {
+      const r = await fetch('/v1/partner/statements', { headers: authH() });
+      const d = await r.json();
+      const box = $('statements');
+      if (!d.statements || !d.statements.length) { box.innerHTML = '<p class="hint2">No earnings yet — statements appear once your integrated swaps execute.</p>'; return; }
+      box.innerHTML = d.statements.map((m) => `
+        <div style="margin-bottom:16px;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${esc(m.month)} <span class="pill" style="background:#f3f1fe;color:var(--accent);border-color:#ddd6fe;">${m.swapCount} swaps</span></div>
+          <table><thead><tr><th>Asset</th><th class="num">Volume</th><th class="num">You earned</th></tr></thead><tbody>
+          ${m.assets.map((a) => `<tr><td>${esc(a.symbol)}</td><td class="num">${esc(a.volume)}</td><td class="num">${esc(a.earned)} ${esc(a.symbol)}</td></tr>`).join('')}
+          </tbody></table>
+        </div>`).join('');
+    } catch (_) { $('statements').innerHTML = '<p class="hint2">Could not load statements.</p>'; }
+  }
+
+  function revealKey(k) {
+    $('keyRevealCard').style.display = '';
+    $('revealKey').textContent = k;
+  }
+
+  async function boot() {
+    if (!KEY) { showAuth(); return; }
+    try { const me = await loadMe(); renderMe(me); showDash(); loadStatements(); }
+    catch (_) { KEY = null; try { localStorage.removeItem(LS); } catch (e) {} showAuth(); }
+  }
+
+  // Register
+  $('regBtn').addEventListener('click', async () => {
+    const businessName = $('regName').value.trim(), email = $('regEmail').value.trim(), payoutAddress = $('regPayout').value.trim();
+    const btn = $('regBtn'); btn.disabled = true; $('regHint').textContent = 'Creating…'; $('regHint').style.color = 'var(--muted)';
+    try {
+      const r = await fetch('/v1/partner/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ businessName, email, payoutAddress }) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Registration failed.');
+      KEY = d.apiKey; try { localStorage.setItem(LS, KEY); } catch (e) {}
+      const me = await loadMe(); renderMe(me); showDash(); loadStatements(); revealKey(d.apiKey);
+    } catch (e) { $('regHint').style.color = 'var(--red)'; $('regHint').textContent = e.message; } finally { btn.disabled = false; }
+  });
+
+  // Login with existing key
+  $('loginBtn').addEventListener('click', async () => {
+    KEY = $('loginKey').value.trim();
+    if (!KEY) return;
+    $('loginHint').textContent = 'Checking…'; $('loginHint').style.color = 'var(--muted)';
+    try { const me = await loadMe(); try { localStorage.setItem(LS, KEY); } catch (e) {} renderMe(me); showDash(); loadStatements(); }
+    catch (e) { KEY = null; $('loginHint').style.color = 'var(--red)'; $('loginHint').textContent = e.message; }
+  });
+
+  // Payout wallet
+  $('savePayoutBtn').addEventListener('click', async () => {
+    const payoutAddress = $('payoutAddr').value.trim();
+    $('payoutHint').textContent = 'Saving…'; $('payoutHint').style.color = 'var(--muted)';
+    try {
+      const r = await fetch('/v1/partner/payout', { method: 'POST', headers: authH(), body: JSON.stringify({ payoutAddress }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed.');
+      $('payoutHint').style.color = 'var(--good)'; $('payoutHint').textContent = '✓ Saved — commissions will be paid in USDC on Base to this wallet.';
+    } catch (e) { $('payoutHint').style.color = 'var(--red)'; $('payoutHint').textContent = e.message; }
+  });
+
+  // Webhooks
+  $('saveWebhookBtn').addEventListener('click', () => saveWebhook($('webhookUrl').value.trim()));
+  $('clearWebhookBtn').addEventListener('click', () => { $('webhookUrl').value = ''; saveWebhook(''); });
+  $('webhookSecretCopy').addEventListener('click', () => { try { navigator.clipboard.writeText($('webhookSecret').textContent); $('webhookSecretCopy').textContent = 'Copied ✓'; } catch (e) {} });
+
+  // Commission slider
+  $('mkSlider').addEventListener('input', (e) => setMk(e.target.value));
+  $('saveMkBtn').addEventListener('click', async () => {
+    const markupBps = Number($('mkSlider').value);
+    $('mkHint').textContent = 'Saving…'; $('mkHint').style.color = 'var(--muted)';
+    try {
+      const r = await fetch('/v1/partner/commission', { method: 'POST', headers: authH(), body: JSON.stringify({ markupBps }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed.');
+      $('mkHint').style.color = 'var(--good)'; $('mkHint').textContent = `✓ Saved — you now earn ${d.totalEarnBps} bps per swap.`;
+    } catch (e) { $('mkHint').style.color = 'var(--red)'; $('mkHint').textContent = e.message; }
+  });
+
+  // Rotate key
+  $('rotateBtn').addEventListener('click', async () => {
+    if (!confirm('Rotate your API key? Your current key will stop working immediately.')) return;
+    $('rotateHint').textContent = 'Rotating…'; $('rotateHint').style.color = 'var(--muted)';
+    try {
+      const r = await fetch('/v1/partner/rotate-key', { method: 'POST', headers: authH() });
+      const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed.');
+      KEY = d.apiKey; try { localStorage.setItem(LS, KEY); } catch (e) {}
+      $('keyPrefix').textContent = d.keyPrefix + '…'; revealKey(d.apiKey);
+      $('rotateHint').style.color = 'var(--good)'; $('rotateHint').textContent = '✓ New key issued (shown above).';
+    } catch (e) { $('rotateHint').style.color = 'var(--red)'; $('rotateHint').textContent = e.message; }
+  });
+
+  $('revealCopy').addEventListener('click', () => { try { navigator.clipboard.writeText($('revealKey').textContent); $('revealCopy').textContent = 'Copied ✓'; } catch (e) {} });
+  $('logoutBtn').addEventListener('click', () => { KEY = null; try { localStorage.removeItem(LS); } catch (e) {} location.reload(); });
+
+  boot();
+</script>

@@ -360,8 +360,11 @@ async function main() {
   assert.equal(quoted.quote.platformFeeBps, 250, 'quote embeds platform fee');
   assert.ok(quoted.quote.providerQuoteId, 'quote includes provider quote id');
   assert.ok(['AUTO_CLEARED', 'APPROVED'].includes(quoted.complianceReview.status), 'valid quote is compliance-cleared');
-  assert.equal(quoted.complianceReview.vendorMode, 'simulation', 'compliance review includes vendor mode');
-  assert.equal(quoted.complianceReview.vendorProvider, 'ofac-sdn-local', 'compliance review includes vendor provider');
+  // Sanctions screening is live-by-default via the keyless on-chain Chainalysis
+  // oracle (since 2026-07-09), so a clean address reports the on-chain oracle as the
+  // vendor rather than the old 'simulation'/'ofac-sdn-local' defaults.
+  assert.equal(quoted.complianceReview.vendorMode, 'live', 'compliance review includes vendor mode');
+  assert.equal(quoted.complianceReview.vendorProvider, 'chainalysis-sanctions-oracle-onchain', 'compliance review includes vendor provider');
   assert.ok(quoted.complianceReview.vendorReferenceId, 'compliance review includes vendor reference id');
   console.log(`OK quote created: ${quoted.quote.id}`);
 
@@ -534,8 +537,10 @@ async function main() {
   const review = reviewList.reviews.find((item) => item.id === reviewQuote.complianceReview.id);
   assert.ok(review, 'manual review appears in admin queue');
   assert.ok(review.swapQuote, 'admin review includes swap quote context');
-  assert.equal(review.vendorProvider, 'ofac-sdn-local', 'admin review preserves vendor provider');
-  assert.equal(review.vendorMetadata.screeningModel, 'ofac_address_and_jurisdiction_v1', 'admin review preserves vendor metadata');
+  // Live-by-default screening (keyless on-chain oracle, 2026-07-09): a non-sanctioned
+  // address reports the on-chain oracle vendor + the v2 screening model.
+  assert.equal(review.vendorProvider, 'chainalysis-sanctions-oracle-onchain', 'admin review preserves vendor provider');
+  assert.equal(review.vendorMetadata.screeningModel, 'ofac_address_and_jurisdiction_v2_onchain_oracle', 'admin review preserves vendor metadata');
 
   const evidence = await request(`/v1/admin/compliance/reviews/${review.id}/evidence`);
   assert.equal(evidence.evidence.schemaVersion, 'compliance-evidence.v1', 'evidence export includes schema version');

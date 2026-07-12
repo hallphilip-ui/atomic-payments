@@ -6,8 +6,12 @@
   var POSTHOG_HOST = 'https://us.i.posthog.com'; // EU: https://eu.i.posthog.com
   var SUPPORT_EMAIL = 'support@atomicpay.cloud';
 
-  if (POSTHOG_KEY && POSTHOG_KEY !== 'REPLACE_WITH_POSTHOG_KEY') {
-    import('https://esm.sh/posthog-js@1').then(function (mod) {
+  var phStarted = false;
+  function initPostHog() {
+    if (phStarted) return;
+    if (!POSTHOG_KEY || POSTHOG_KEY === 'REPLACE_WITH_POSTHOG_KEY') return;
+    phStarted = true;
+    import('/assets/vendor/esm/posthog-js.mjs').then(function (mod) {
       var posthog = mod.default || mod.posthog;
       if (!posthog || !posthog.init) return;
       posthog.init(POSTHOG_KEY, {
@@ -20,6 +24,25 @@
       });
       window.posthog = posthog;
     }).catch(function (e) { console.warn('PostHog load failed', e); });
+  }
+
+  // PostHog sets cookies, so it MUST wait for consent. The consent manager decides
+  // per region (opt-in blocks it until Accept; opt-out/notice allow it by default,
+  // honoring an opt-out). Load the manager if it isn't already present.
+  function gate() {
+    if (!window.AtomicConsent) return;
+    window.AtomicConsent.ready(function (s) { if (s && s.analytics) initPostHog(); });
+    window.AtomicConsent.onChange(function (s) { if (s && s.analytics) initPostHog(); });
+  }
+  // consent.js is injected site-wide by the server, so avoid loading a SECOND copy
+  // (duplicate script evaluation is the class of bug behind stray "already declared"
+  // errors). Wait for it if a tag is already present; only inject as a last resort.
+  if (window.AtomicConsent) { gate(); }
+  else if (document.querySelector('script[src*="/assets/consent.js"]')) {
+    var tries = 0, iv = setInterval(function () { if (window.AtomicConsent) { clearInterval(iv); gate(); } else if (++tries > 60) { clearInterval(iv); } }, 50);
+  } else {
+    var cs = document.createElement('script'); cs.src = '/assets/consent.js'; cs.onload = gate;
+    (document.head || document.documentElement).appendChild(cs);
   }
 
   // Help / Support entry point. Used by the "Help" links; captures the event in

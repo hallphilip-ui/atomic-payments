@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atomic Pay — Wallet Bridge</title>
+<style>
+  :root { --ink:#14161c; --muted:#667085; --line:#e8e9f0; --accent:#6d5cf5; --bg:#f7f8fc; --err:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter,system-ui,-apple-system,sans-serif; color:var(--ink); background:var(--bg); }
+  .wrap { padding:18px 16px; max-width:360px; margin:0 auto; }
+  .brand { display:flex; align-items:center; gap:8px; font-weight:700; margin-bottom:14px; }
+  .brand img { width:24px; height:19px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; }
+  h1 { font-size:15px; margin:0 0 4px; } p { font-size:13px; color:var(--muted); margin:4px 0; }
+  .req { font-size:12px; background:#eef0f7; border-radius:8px; padding:8px 10px; margin:10px 0; word-break:break-all; }
+  .req b { color:var(--ink); }
+  label { font-size:12px; color:var(--muted); display:block; margin:12px 0 4px; }
+  input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
+  button { width:100%; margin-top:12px; border:none; border-radius:10px; padding:11px; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; }
+  .primary { background:var(--accent); color:#fff; } .ghost { background:#fff; border:1px solid var(--line); color:var(--ink); }
+  .err { color:var(--err); font-size:12px; margin-top:8px; }
+  .muted-sm { font-size:11px; color:#98a2b3; margin-top:10px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><img src="/assets/atomic-mark.png" alt="" onerror="this.style.display='none'">Atomic Pay</div>
+    <div class="card">
+      <div id="idle"><h1>Wallet bridge</h1><p>Waiting for a request from the Atomic Pay extension…</p></div>
+
+      <div id="unlock" hidden>
+        <h1 id="unlockTitle">Connect your wallet</h1>
+        <p id="reqLine" class="req"></p>
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@email.com">
+        <button class="primary" id="unlockBtn">Unlock with Face ID</button>
+        <div class="err" id="err" hidden></div>
+        <p class="muted-sm">No wallet yet? <a href="https://atomicpay.cloud/defi-swap" target="_blank" rel="noopener">Set one up on atomicpay.cloud</a> first.</p>
+      </div>
+
+      <div id="working" hidden><h1>Processing…</h1><p>Confirm on your device.</p></div>
+      <div id="done" hidden><h1 id="doneTitle">Done</h1><p id="doneMsg"></p></div>
+    </div>
+  </div>
+
+  <script>window.ATOMIC_PASSKEY_MODE = 'mainnet';</script>
+  <script id="ext-origins">window.__ATOMIC_EXT_ORIGINS__ = [];</script>
+  <script src="/assets/vendor/ethers-6.13.4.umd.min.js"
+          integrity="sha384-6Zl0Pc8zjSz8KvmNeXRvUQgY4ryFb+BwDvKCmLYcBME0joAaru491tQgi9B7zsMM"></script>
+  <script src="/assets/passkey-wallet.js?v=sec6"></script>
+  <script>
+  (function () {
+    // Origins allowed to drive this signer — injected server-side from
+    // ATOMIC_EXTENSION_ORIGINS. If it's empty, NOTHING is trusted (fail closed):
+    // this page is a signing oracle and must only obey our own extension.
+    const ALLOWED = (window.__ATOMIC_EXT_ORIGINS__ || []).filter(Boolean);
+    // Only these methods are ever honored here; reads go through the extension's
+    // own RPC passthrough, not the bridge.
+    const ALLOWED_METHODS = new Set(['eth_requestAccounts', 'eth_accounts', 'eth_chainId',
+      'personal_sign', 'eth_signTypedData_v4', 'eth_sendTransaction', 'wallet_switchEthereumChain']);
+    const $ = (id) => document.getElementById(id);
+    const show = (id) => ['idle', 'unlock', 'working', 'done'].forEach((k) => $(k).hidden = (k !== id));
+
+    let session = null;        // { address, provider }
+    let pending = null;        // { id, method, params, origin }
+
+    function reply(origin, id, result, error) {
+      try { parent.postMessage({ channel: 'atomic:signer:res', id, result, error }, origin); } catch (_) {}
+    }
+
+    async function process(req) {
+      // eth_requestAccounts with no session == the unlock step.
+      if (!session && (req.method === 'eth_requestAccounts' || req.method === 'personal_sign' || req.method === 'eth_signTypedData_v4' || req.method === 'eth_sendTransaction')) {
+        pending = req;
+        $('reqLine').innerHTML = `<b>${req.origin.replace(/^https?:\/\//, '')}</b> wants to ${req.method === 'eth_requestAccounts' ? 'connect' : 'sign (' + req.method + ')'}`;
+        $('email').value = (window.atomicPasskey && window.atomicPasskey.lastEmail && window.atomicPasskey.lastEmail()) || '';
+        show('unlock');
+        return; // resumes after unlock
+      }
+      try {
+        if (!session) { // accounts/chainId with no session -> nothing to report
+          if (req.method === 'eth_accounts') return reply(req.origin, req.id, []);
+          if (req.method === 'eth_chainId') return reply(req.origin, req.id, '0x2105');
+        }
+        show('working');
+        const result = await session.provider.request({ method: req.method, params: req.params || [] });
+        show('done'); $('doneTitle').textContent = 'Done'; $('doneMsg').textContent = req.method === 'eth_sendTransaction' ? 'Transaction sent.' : 'Request completed.';
+        reply(req.origin, req.id, result, undefined);
+      } catch (e) {
+        show('done'); $('doneTitle').textContent = 'Request failed'; $('doneMsg').textContent = e && e.message || 'Failed.';
+        reply(req.origin, req.id, undefined, (e && e.message) || 'Failed');
+      }
+    }
+
+    $('unlockBtn').addEventListener('click', async () => {
+      const email = $('email').value.trim();
+      $('err').hidden = true;
+      if (!email) { $('err').textContent = 'Enter your email.'; $('err').hidden = false; return; }
+      $('unlockBtn').disabled = true;
+      try {
+        const res = await window.atomicPasskey.createOrUnlock({ email, create: false });
+        session = { address: res.address, provider: res.provider };
+        const req = pending; pending = null;
+        if (req && req.method === 'eth_requestAccounts') { reply(req.origin, req.id, [res.address], undefined); show('done'); $('doneTitle').textContent = 'Connected'; $('doneMsg').textContent = res.address; }
+        else if (req) await process(req);
+      } catch (e) {
+        $('err').textContent = (e && e.message) || 'Unlock failed.'; $('err').hidden = false;
+        if (pending) reply(pending.origin, pending.id, undefined, (e && e.message) || 'Unlock failed');
+      } finally { $('unlockBtn').disabled = false; }
+    });
+
+    window.addEventListener('message', (e) => {
+      if (!ALLOWED.includes(e.origin)) return;              // origin lock (fail closed)
+      const d = e.data;
+      if (!d || d.channel !== 'atomic:signer:req' || typeof d.id === 'undefined') return;
+      if (!ALLOWED_METHODS.has(d.method)) { reply(e.origin, d.id, undefined, `Method ${d.method} not allowed by the bridge`); return; }
+      process({ id: d.id, method: d.method, params: d.params, origin: e.origin });
+    });
+
+    // Tell the parent we're ready (and whether we're configured at all).
+    try { parent.postMessage({ channel: 'atomic:signer:ready', configured: ALLOWED.length > 0 }, '*'); } catch (_) {}
+  })();
+  </script>
+</body>
+</html>

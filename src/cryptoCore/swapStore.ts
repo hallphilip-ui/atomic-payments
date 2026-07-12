@@ -1,6 +1,9 @@
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { UnifiedSwapQuote, UnifiedSwapQuoteRequest, getEnforcedPlatformQuote } from './routing';
+import { PARTNER_REVENUE_SHARE_BPS } from './swapConfig';
+import { buildAuthorizationMessage, verifyAuthorizationSignature } from './authorizationSignature';
+import { firePartnerWebhook } from '../security/partnerWebhook';
 import { getSwapAsset } from './tokens';
 import { screenSwapCompliance } from '../compliance/complianceProvider';
 import { toComplianceReviewView } from '../compliance/complianceStore';
@@ -161,7 +164,7 @@ function toSwapQuoteView(quote: StoredSwapQuote): UnifiedSwapQuote & {
 
 export async function createStoredSwapQuote(
   request: UnifiedSwapQuoteRequest,
-  context: { countryCode?: string } = {}
+  context: { countryCode?: string; partnerId?: string; partnerFeeBps?: number; jurisdictionTrusted?: boolean } = {}
 ) {
   const quote = await getEnforcedPlatformQuote(request);
   const compliance = await screenSwapCompliance({
@@ -171,7 +174,9 @@ export async function createStoredSwapQuote(
     userAddress: request.userAddress,
     sourceAddress: request.fromAddress,
     countryCode: context.countryCode,
-    priceImpactPct: quote.priceImpactPct
+    jurisdictionTrusted: context.jurisdictionTrusted,
+    priceImpactPct: quote.priceImpactPct,
+    amountUsd: quote.amountUsd
   });
 
   const result = await prisma.$transaction(async (tx) => {
@@ -197,7 +202,14 @@ export async function createStoredSwapQuote(
         requestPayload: JSON.stringify(quote.requestPayload),
         executionStates: JSON.stringify(quote.executionStates),
         guardrails: JSON.stringify(quote.guardrails),
-        currentState: quote.status === 'HALTED' ? 'HALTED' : compliance.status === 'BLOCKED' ? 'COMPLIANCE_BLOCKED' : quote.executionStates[0]
+        currentState: quote.status === 'HALTED' ? 'HALTED' : compliance.status === 'BLOCKED' ? 'COMPLIANCE_BLOCKED' : quote.executionStates[0],
+        partnerId: context.partnerId ?? null,
+        partnerFeeBps: context.partnerFeeBps ?? 0,
+        // Partner's USD earnings for this swap = swap USD value x (share + markup).
+        // Uses the provider's USD figure; 0 when unavailable (undercounts, never over).
+        partnerEarnedUsd: context.partnerId && typeof quote.amountUsd === 'number'
+          ? quote.amountUsd * (PARTNER_REVENUE_SHARE_BPS + (context.partnerFeeBps ?? 0)) / 10000
+          : 0
       }
     });
 
@@ -400,6 +412,13 @@ export async function authorizeStoredSwapQuote(quoteId: string, authorization: {
     throw new Error('Blocked quotes cannot be authorized.');
   }
 
+  // Ownership binding: only a fresh QUOTED swap can be authorized. Once it's been
+  // authorized (walletAddress bound), it can't be re-pointed to a different wallet
+  // by another caller who learns the quote id.
+  if (quote.status !== 'QUOTED') {
+    throw new Error(`This quote can no longer be authorized (status ${quote.status}).`);
+  }
+
   const complianceReview = await prisma.complianceReview.findFirst({
     where: { swapQuoteId: quote.id },
     orderBy: { createdAt: 'desc' }
@@ -427,9 +446,30 @@ export async function authorizeStoredSwapQuote(quoteId: string, authorization: {
     throw new Error(`Quote expired at ${expired.expiresAt.toISOString()}.`);
   }
 
+  // Cryptographically verify the wallet attestation. The message is reconstructed
+  // from the stored quote (never trusted from the client) and must match what the
+  // wallet signed. In production (live provider mode) an unverifiable/simulated
+  // signature is rejected; in dev/simulation it's allowed so local demos still work.
+  const strict = process.env.ATOMIC_SWAP_PROVIDER_MODE === 'live'
+    || process.env.ATOMIC_SWAP_PROVIDER_MODE === 'live_with_fallback';
+  const canonicalMessage = buildAuthorizationMessage({
+    id: quote.id,
+    fromAsset: quote.fromAsset,
+    toAsset: quote.toAsset,
+    amount: quote.amount,
+    expiresAt: quote.expiresAt
+  });
+  const verifiedAddress = verifyAuthorizationSignature(canonicalMessage, {
+    signature,
+    walletAddress: authorization.walletAddress,
+    signatureKind: authorization.signatureKind
+  }, strict);
+
   const updatedQuote = await prisma.$transaction(async (tx) => {
     const signedMessage = authorization.signedMessage?.trim() ?? '';
-    const walletAddress = authorization.walletAddress?.trim() || quote.userAddress;
+    // Bind to the VERIFIED signer (falls back to the quote's destination only for the
+    // allowed dev/simulation unverified path).
+    const walletAddress = verifiedAddress && verifiedAddress !== 'unverified' ? verifiedAddress : quote.userAddress;
     const walletType = authorization.walletType?.trim() || 'manual';
     const signatureKind = authorization.signatureKind?.trim() || 'message_signature';
     const signatureHash = sha256(signature);
@@ -438,10 +478,15 @@ export async function authorizeStoredSwapQuote(quoteId: string, authorization: {
       chainIntent: authorization.chainIntent?.trim() || 'signature_only',
       quoteStatusBeforeAuthorization: quote.status,
       authorizationMode: 'wallet_attestation',
+      signatureVerified: verifiedAddress !== 'unverified',
       rawSignatureStored: false
     };
-    const updated = await tx.swapQuote.update({
-      where: { id: quote.id },
+    // Status-guarded write: only transition if the row is STILL QUOTED. A concurrent
+    // authorize (retry / double-click / hijack race) that already transitioned it
+    // makes this affect 0 rows, so we abort instead of double-binding or double-firing
+    // the partner webhook.
+    const res = await tx.swapQuote.updateMany({
+      where: { id: quote.id, status: 'QUOTED' },
       data: {
         status: 'AUTHORIZED',
         currentState: 'ESCROW_ESCORTING',
@@ -454,6 +499,9 @@ export async function authorizeStoredSwapQuote(quoteId: string, authorization: {
         authorizedAt: new Date()
       }
     });
+    if (res.count !== 1) {
+      throw new Error('This quote was already being authorized — refresh and try again.');
+    }
 
     await tx.swapExecutionEvent.create({
       data: {
@@ -464,9 +512,10 @@ export async function authorizeStoredSwapQuote(quoteId: string, authorization: {
       }
     });
 
-    return updated;
+    return tx.swapQuote.findUniqueOrThrow({ where: { id: quote.id } });
   });
 
+  firePartnerWebhook(quote.partnerId, { type: 'swap.authorized', quoteId: quote.id, status: 'AUTHORIZED' });
   return toSwapQuoteView(updatedQuote);
 }
 
@@ -482,6 +531,13 @@ export async function broadcastStoredSwapQuote(quoteId: string, broadcast: {
 
   if (!['AUTHORIZED', 'ROUTING'].includes(quote.status)) {
     throw new Error(`Swap quote must be AUTHORIZED or ROUTING before broadcast; current status is ${quote.status}.`);
+  }
+
+  // Ownership binding: the broadcast must come from the wallet that authorized the
+  // quote — a different supplied address can't hijack an already-authorized quote.
+  if (broadcast.walletAddress && quote.walletAddress &&
+      broadcast.walletAddress.trim().toLowerCase() !== quote.walletAddress.toLowerCase()) {
+    throw new Error('Broadcast wallet does not match the wallet that authorized this quote.');
   }
 
   const walletAddress = broadcast.walletAddress?.trim() || quote.walletAddress || quote.userAddress;
@@ -506,14 +562,19 @@ export async function broadcastStoredSwapQuote(quoteId: string, broadcast: {
   };
 
   const updatedQuote = await prisma.$transaction(async (tx) => {
-    const updated = await tx.swapQuote.update({
-      where: { id: quote.id },
+    // Status-guarded: only transition if the row is still in the state we read, so a
+    // concurrent duplicate broadcast can't double-record or double-fire the webhook.
+    const res = await tx.swapQuote.updateMany({
+      where: { id: quote.id, status: quote.status },
       data: {
         status: 'ROUTING',
         currentState: 'MULTI_BRIDGE_ROUTING',
         authorizationMetadata: JSON.stringify(authorizationMetadata)
       }
     });
+    if (res.count !== 1) {
+      throw new Error('This quote is already being broadcast — refresh and try again.');
+    }
 
     await tx.swapExecutionEvent.create({
       data: {
@@ -524,9 +585,10 @@ export async function broadcastStoredSwapQuote(quoteId: string, broadcast: {
       }
     });
 
-    return updated;
+    return tx.swapQuote.findUniqueOrThrow({ where: { id: quote.id } });
   });
 
+  firePartnerWebhook(quote.partnerId, { type: 'swap.broadcast', quoteId: quote.id, status: 'ROUTING', txHash: result.txHash });
   return {
     quote: toSwapQuoteView(updatedQuote),
     broadcast: result
@@ -549,10 +611,15 @@ export async function advanceStoredSwapQuote(quoteId: string) {
   const nextStatus = nextState === 'DISTRIBUTION_COMPLETE' ? 'COMPLETE' : 'ROUTING';
 
   const updatedQuote = await prisma.$transaction(async (tx) => {
-    const updated = await tx.swapQuote.update({
-      where: { id: quote.id },
+    // State-guarded: only advance if currentState is unchanged since we read it, so
+    // two concurrent advances can't skip/repeat a state or double-fire swap.completed.
+    const res = await tx.swapQuote.updateMany({
+      where: { id: quote.id, currentState: quote.currentState, status: { in: ['AUTHORIZED', 'ROUTING'] } },
       data: { status: nextStatus, currentState: nextState }
     });
+    if (res.count !== 1) {
+      throw new Error('This quote was already advancing — refresh and try again.');
+    }
 
     await tx.swapExecutionEvent.create({
       data: {
@@ -565,8 +632,12 @@ export async function advanceStoredSwapQuote(quoteId: string) {
       }
     });
 
-    return updated;
+    return tx.swapQuote.findUniqueOrThrow({ where: { id: quote.id } });
   });
 
+  firePartnerWebhook(quote.partnerId, {
+    type: nextStatus === 'COMPLETE' ? 'swap.completed' : 'swap.updated',
+    quoteId: quote.id, status: nextStatus, state: nextState
+  });
   return toSwapQuoteView(updatedQuote);
 }
