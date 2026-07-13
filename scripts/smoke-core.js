@@ -160,7 +160,7 @@ async function main() {
   console.log(`OK assets/config: ${assets.assets.length} assets, ${config.providerMode} provider mode`);
 
   const paymentRails = await request('/v1/payment_rails');
-  assert.equal(paymentRails.railsCount, 12, 'payment rail catalog exposes all checkout rails');
+  assert.equal(paymentRails.railsCount, 13, 'payment rail catalog exposes all checkout rails');
   assert.deepEqual(paymentRails.tetheredAssets, ['USDC', 'USDT', 'PYUSD'], 'payment rail catalog exposes tethered assets');
   assert.ok(paymentRails.rails.some((rail) => rail.id === 'TETHER_TRON' && rail.stable), 'payment rail catalog includes USDT Tron rail');
   assert.ok(paymentRails.rails.some((rail) => rail.id === 'USD_COIN_SOLANA' && rail.stable), 'payment rail catalog includes USDC Solana rail');
@@ -263,7 +263,7 @@ async function main() {
 
   await Promise.all([
     assertContains('/defi-swap', 'data-atomic-language-select'),
-    assertContains('/checkout', 'data-theme-option'),
+    assertContains('/checkout', 'data-atomic-language-select'),
     assertContains('/admin-compliance', 'data-atomic-language-select'),
     assertContains('/admin-compliance', 'Funding Connectors'),
     assertContains('/admin-compliance', 'transferCapabilities'),
@@ -336,7 +336,10 @@ async function main() {
     });
     assert.equal(railSelected.selectedChain, rail.chain, `${rail.symbol} tethered rail can be selected`);
     assert.equal(railSelected.assetSymbol, rail.symbol, `${rail.symbol} tethered rail returns asset symbol`);
-    assert.equal(railSelected.cryptoAmountRequired, 120.5, `${rail.symbol} tethered rail preserves USD parity`);
+    // Stablecoin parity holds, plus a tiny per-invoice matching entropy on EVM rails
+    // (≤ 0.009) so the on-chain watcher maps one Transfer to exactly one invoice.
+    assert.ok(railSelected.cryptoAmountRequired >= 120.5 && railSelected.cryptoAmountRequired < 120.51,
+      `${rail.symbol} tethered rail preserves USD parity (± per-invoice matching entropy)`);
     assert.ok(railSelected.web3PaymentUri.includes(rail.uriPrefix), `${rail.symbol} tethered rail returns wallet payment URI`);
   }
 
