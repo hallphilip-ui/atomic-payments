@@ -33,7 +33,29 @@
     return LOCALE_CCY[loc] || 'USD';
   }
   function userCurrency() { if (!CURRENCY) CURRENCY = detectCurrency(); return CURRENCY; }
-  function setCurrency(c) { CURRENCY = c; try { localStorage.setItem('atomic.currency', c); } catch (e) {} annotate(); }
+  function setCurrency(c) {
+    CURRENCY = c;
+    try { localStorage.setItem('atomic.currency', c); } catch (e) {}
+    document.querySelectorAll('[data-atomic-currency-select]').forEach(function (s) { s.value = c; });
+    load().then(function () { annotate(); });
+    window.dispatchEvent(new CustomEvent('atomic-fx-change', { detail: { currency: c } }));
+  }
+
+  // Currencies offered in the picker (all returned by the rate source).
+  var CURRENCIES = ['USD','EUR','GBP','JPY','CNY','INR','CAD','AUD','CHF','SGD','HKD','KRW','BRL','MXN','AED','SAR','NGN','ZAR','KES','TRY','RUB','PKR','BDT','IDR','PHP','THB','VND','MYR','PLN','SEK','NOK','DKK','NZD','ARS','COP'];
+  function currencyLabel(code) {
+    try { var n = new Intl.DisplayNames([locale()], { type: 'currency' }).of(code); if (n && n !== code) return code + ' — ' + n; } catch (e) {}
+    return code;
+  }
+  function mountCurrencySelect(select) {
+    select.innerHTML = CURRENCIES.map(function (c) { return '<option value="' + c + '">' + currencyLabel(c) + '</option>'; }).join('');
+    select.value = userCurrency();
+    select.addEventListener('change', function () { setCurrency(select.value); });
+  }
+  function init() {
+    document.querySelectorAll('[data-atomic-currency-select]').forEach(mountCurrencySelect);
+    load().then(function () { annotate(); });
+  }
 
   function load() {
     if (LOADED) return LOADED;
@@ -78,7 +100,15 @@
     });
   }
 
-  window.atomicFx = { load: load, equiv: equiv, convert: convert, rate: rate, userCurrency: userCurrency, setCurrency: setCurrency, annotate: annotate, ready: load() };
-  // Currency default can shift with language; re-derive + re-annotate on change.
-  window.addEventListener('atomic-i18n-change', function () { CURRENCY = null; load().then(function () { annotate(); }); });
+  window.atomicFx = { load: load, equiv: equiv, convert: convert, rate: rate, userCurrency: userCurrency, setCurrency: setCurrency, annotate: annotate, init: init, ready: load() };
+
+  // Self-mount the currency picker + annotate once the DOM is ready.
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  // If the user hasn't explicitly picked a currency, the language's default may
+  // shift it — re-derive + re-render on a language change (but keep an explicit pick).
+  window.addEventListener('atomic-i18n-change', function () {
+    var explicit; try { explicit = localStorage.getItem('atomic.currency'); } catch (e) {}
+    if (!explicit) { CURRENCY = null; document.querySelectorAll('[data-atomic-currency-select]').forEach(function (s) { s.value = userCurrency(); }); }
+    load().then(function () { annotate(); });
+  });
 })();

@@ -20,6 +20,7 @@
 
   const raw = {
     'common.language': ['Language', '语言', 'भाषा', 'Idioma', 'Langue', 'اللغة', 'ভাষা', 'Idioma', 'Язык', 'زبان', 'Bahasa', 'Sprache', '言語', 'Lugha', 'ਭਾਸ਼ਾ'],
+    'common.currency': ['Currency', '货币', 'मुद्रा', 'Moneda', 'Devise', 'العملة', 'মুদ্রা', 'Moeda', 'Валюта', 'کرنسی', 'Mata uang', 'Währung', '通貨', 'Sarafu', 'ਮੁਦਰਾ'],
     'common.checkingApi': ['Checking API', '正在检查 API', 'API जाँच रहा है', 'Comprobando API', 'Vérification API', 'جار فحص API', 'API পরীক্ষা হচ্ছে', 'Verificando API', 'Проверка API', 'API چیک ہو رہی ہے', 'Memeriksa API', 'API wird geprüft', 'API を確認中', 'Inakagua API', 'API ਦੀ ਜਾਂਚ'],
     'common.connecting': ['Connecting', '正在连接', 'कनेक्ट हो रहा है', 'Conectando', 'Connexion', 'جار الاتصال', 'সংযোগ হচ্ছে', 'Conectando', 'Подключение', 'کنیکٹ ہو رہا ہے', 'Menghubungkan', 'Verbindet', '接続中', 'Inaunganisha', 'ਕਨੈਕਟ ਹੋ ਰਿਹਾ ਹੈ'],
     'common.syncing': ['Syncing', '正在同步', 'सिंक हो रहा है', 'Sincronizando', 'Synchronisation', 'جار المزامنة', 'সিঙ্ক হচ্ছে', 'Sincronizando', 'Синхронизация', 'سنک ہو رہا ہے', 'Sinkronisasi', 'Synchronisiert', '同期中', 'Inasawazisha', 'ਸਿੰਕ ਹੋ ਰਿਹਾ ਹੈ'],

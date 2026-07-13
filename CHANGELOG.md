@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.1 - 2026-07-13
+
+**Currency picker.**
+
+- **A currency selector** sits beside the language picker (checkout footer, merchant topbar) so viewers can override the auto-detected currency; the choice persists and every displayed equivalent re-renders instantly. Built as a self-mounting `[data-atomic-currency-select]`, so any page gets a picker by dropping in one element.
+- Fix: `atomicFx` re-render on currency/language change (the annotator was being passed the rates object as its root).
+
 ## 2.4.0 - 2026-07-13
 
 **Local-currency amount display (FX layer).**
