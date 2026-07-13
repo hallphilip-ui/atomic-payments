@@ -173,9 +173,11 @@ export async function createStoredSwapQuote(
   if (SWAP_MAX_USD > 0 && typeof quote.amountUsd === 'number' && quote.amountUsd > SWAP_MAX_USD) {
     const err = new Error(
       `This swap is about $${Math.round(quote.amountUsd).toLocaleString('en-US')}, which is over the maximum swap size of $${SWAP_MAX_USD.toLocaleString('en-US')}. Please try a smaller amount.`
-    ) as Error & { status?: number; code?: string };
+    ) as Error & { status?: number; code?: string; maxUsd?: number; amountUsd?: number };
     err.status = 413;
     err.code = 'SWAP_LIMIT_EXCEEDED';
+    err.maxUsd = SWAP_MAX_USD;                 // so the client can show a local-currency equivalent
+    err.amountUsd = Math.round(quote.amountUsd);
     throw err;
   }
   const compliance = await screenSwapCompliance({

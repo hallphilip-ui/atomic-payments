@@ -18,6 +18,7 @@
   .body { padding:18px 24px 26px; }
   .biz { font-size:13px; color:var(--muted); }
   .amt { font-size:40px; font-weight:800; letter-spacing:-.02em; margin:2px 0; }
+  .fxeq { font-size:13px; color:var(--muted); margin:-2px 0 2px; min-height:16px; }
   .desc { font-size:14px; color:var(--muted); }
   .ref { font-family:var(--mono); font-size:11.5px; color:var(--faint); margin-top:4px; }
   .lbl { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--faint); margin:22px 0 10px; }
@@ -62,6 +63,7 @@
     <div id="chooseView" hidden>
       <div class="biz" id="cBiz"></div>
       <div class="amt" id="cAmt"></div>
+      <div class="fxeq" id="cAmtFx"></div>
       <div class="desc" id="cDesc"></div>
       <div class="ref" id="cRef"></div>
       <div class="lbl" data-i18n="checkout.payWith">Pay with</div>
@@ -92,6 +94,7 @@
 </div>
 
 <script src="/assets/i18n.js?v=223"></script>
+<script src="/assets/fx.js?v=1"></script>
 <script>
 (function () {
   var A = window.atomicI18n; if (A) A.init();
@@ -109,6 +112,11 @@
   ];
   var poll = null, countdown = null;
   function money(a, c) { return (SYM[c] || '') + Number(a).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (SYM[c] ? '' : ' ' + c); }
+  // Show the amount's local-currency equivalent under it (e.g. "≈ €0.92"), best-effort.
+  function showLocalEquiv(amount, currency) {
+    var el = $('cAmtFx'); if (!el || !window.atomicFx) return;
+    window.atomicFx.ready.then(function () { el.textContent = window.atomicFx.equiv(amount, { from: currency }); });
+  }
   function view(id) { ['loading','errorView','chooseView','payView','successView'].forEach(function (v) { $(v).hidden = v !== id; }); }
   function fail(m) { clearInterval(poll); clearInterval(countdown); $('errMsg').textContent = m; view('errorView'); }
 
@@ -124,6 +132,7 @@
     if (rc.paid) return success(rc);
     $('cBiz').textContent = rc.businessName || t('checkout.paymentFallback');
     $('cAmt').textContent = money(rc.amount, rc.currency);
+    showLocalEquiv(rc.amount, rc.currency);
     $('cDesc').textContent = rc.description || '';
     $('cRef').textContent = rc.reference ? t('checkout.ref', { ref: rc.reference }) : '';
     renderRails(rc); view('chooseView');

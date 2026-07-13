@@ -24,6 +24,7 @@ import assistantRoutes from './routes/assistant';
 import observabilityRoutes from './routes/observability';
 import arbRoutes from './routes/arb';
 import marketRoutes from './routes/markets';
+import fxRoutes from './routes/fx';
 import { startPaymentWatcher } from './payments/paymentWatcher';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -115,6 +116,7 @@ app.use(userRoutes);
 app.use(adminRoutes);
 app.use(arbRoutes);
 app.use(marketRoutes);
+app.use(fxRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
 app.use(transferRoutes);
@@ -450,6 +452,13 @@ app.use('/assets/i18n.js', (_req: Request, res: Response) => {
 app.use('/assets/widget.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'widget.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');
+  return res.send(script);
+});
+
+app.use('/assets/fx.js', (_req: Request, res: Response) => {
+  const script = readFileSync(join(process.cwd(), 'public', 'fx.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');   // like i18n.js — revalidate (CF still caches; version the URL)
   return res.send(script);
 });
 

@@ -906,6 +906,7 @@
   </div>
 
   <script src="/assets/i18n.js"></script>
+  <script src="/assets/fx.js?v=1"></script>
   <script>window.ATOMIC_PASSKEY_MODE = 'mainnet';</script>
   <!-- Self-hosted, integrity-pinned ethers. The browser refuses to execute it if a
        single byte differs, so key-touching crypto can't be swapped by a CDN/MITM. -->
@@ -1620,9 +1621,14 @@
       const data = await response.json();
       if (seq !== quoteSeq) return; // a newer quote superseded this one
       if (data.error) {
+        var msg = data.error;
+        // Show the swap-size cap in the viewer's local currency too, e.g. "(max ≈ €920,000)".
+        if (data.code === 'SWAP_LIMIT_EXCEEDED' && data.maxUsd && window.atomicFx) {
+          try { var eq = window.atomicFx.equiv(data.maxUsd); if (eq) msg += ' (' + eq.replace(/^≈\s*/, 'max ≈ ') + ')'; } catch (e) {}
+        }
         el('complianceStatus').className = 'alert bad';
-        el('complianceStatus').textContent = data.error;
-        setActionHint('bad', data.error);
+        el('complianceStatus').textContent = msg;
+        setActionHint('bad', msg);
         return;
       }
       renderQuote(data);

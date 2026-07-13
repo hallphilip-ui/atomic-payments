@@ -110,7 +110,7 @@ router.post('/v1/swaps/quote', async (req, res) => {
   } catch (error: any) {
     // Surface a size-cap refusal with its own status + code so the client can
     // explain to the user exactly why the swap was declined (not a generic 400).
-    return res.status(error?.status || 400).json({ error: error.message, code: error?.code });
+    return res.status(error?.status || 400).json({ error: error.message, code: error?.code, maxUsd: error?.maxUsd, amountUsd: error?.amountUsd });
   }
 });
 

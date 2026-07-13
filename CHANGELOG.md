@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.0 - 2026-07-13
+
+**Local-currency amount display (FX layer).**
+
+- **Amounts now show a local-currency equivalent** in the viewer's currency, e.g. `$1.00 ≈ 0,88 €`. Live on the hosted checkout (invoice total), the merchant POS charge, and the swap-size cap message (e.g. "max ≈ €920,000").
+- **New `/v1/fx/rates`** — public, server-cached USD→fiat rates (166 currencies, hourly refresh, last-known-good on source outage). Indicative and display-only — never used for settlement or the enforced USD cap.
+- **`atomicFx` client helper** (`/assets/fx.js`) — detects the viewer's currency (region → currency, with a per-language default and a `atomic.currency` override), formats via `Intl.NumberFormat` in the active locale, and offers a declarative `data-fx-usd` annotator for reuse on any amount.
+
 ## 2.3.0 - 2026-07-13
 
 **Full 15-language localization across the product.**
