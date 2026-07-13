@@ -22,6 +22,7 @@ import gasRoutes from './routes/gas';
 import partnerRoutes from './routes/partner';
 import assistantRoutes from './routes/assistant';
 import observabilityRoutes from './routes/observability';
+import arbRoutes from './routes/arb';
 import { startPaymentWatcher } from './payments/paymentWatcher';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -111,6 +112,7 @@ app.use(operatorAuth);
 app.use(intentRoutes);
 app.use(userRoutes);
 app.use(adminRoutes);
+app.use(arbRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
 app.use(transferRoutes);
@@ -217,7 +219,7 @@ const CSP_WALLET_BRIDGE = [
 // /defi-swap and /wallet-test set theirs inline below). Keyed on exact path so the
 // /v1 API and static assets are untouched.
 const CONTENT_PAGES = new Set([
-  '/', '/transfers', '/partners', '/merchant', '/help', '/releases', '/partner-docs', '/partner-verify', '/terms', '/privacy', '/admin-compliance'
+  '/', '/transfers', '/partners', '/merchant', '/help', '/releases', '/partner-docs', '/partner-verify', '/terms', '/privacy', '/admin-compliance', '/arb-desk'
 ]);
 app.use((req: Request, res: Response, next?: () => void) => {
   const p = req.path || '';
@@ -310,6 +312,13 @@ app.use('/checkout', (_req: Request, res: Response) => {
 
 app.use('/admin-compliance', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'admin-compliance.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
+app.use('/arb-desk', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'arb-desk.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);

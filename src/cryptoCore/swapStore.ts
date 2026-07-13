@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import { UnifiedSwapQuote, UnifiedSwapQuoteRequest, getEnforcedPlatformQuote } from './routing';
-import { PARTNER_REVENUE_SHARE_BPS } from './swapConfig';
+import { PARTNER_REVENUE_SHARE_BPS, SWAP_MAX_USD } from './swapConfig';
 import { buildAuthorizationMessage, verifyAuthorizationSignature } from './authorizationSignature';
 import { firePartnerWebhook } from '../security/partnerWebhook';
 import { getSwapAsset } from './tokens';
@@ -167,6 +167,17 @@ export async function createStoredSwapQuote(
   context: { countryCode?: string; partnerId?: string; partnerFeeBps?: number; jurisdictionTrusted?: boolean } = {}
 ) {
   const quote = await getEnforcedPlatformQuote(request);
+  // Platform swap-size cap. Refuse an oversized swap up front with a clear reason
+  // — never store or let it be signed. Only enforceable when the USD value is
+  // known (live provider path); fails open otherwise. See SWAP_MAX_USD.
+  if (SWAP_MAX_USD > 0 && typeof quote.amountUsd === 'number' && quote.amountUsd > SWAP_MAX_USD) {
+    const err = new Error(
+      `This swap is about $${Math.round(quote.amountUsd).toLocaleString('en-US')}, which is over the maximum swap size of $${SWAP_MAX_USD.toLocaleString('en-US')}. Please try a smaller amount.`
+    ) as Error & { status?: number; code?: string };
+    err.status = 413;
+    err.code = 'SWAP_LIMIT_EXCEEDED';
+    throw err;
+  }
   const compliance = await screenSwapCompliance({
     fromAsset: quote.fromAsset,
     toAsset: quote.toAsset,

@@ -218,6 +218,16 @@
         <button class="btn pri sm" id="setAddrSave" style="margin-top:10px">Save address</button>
       </div>
       <div class="panel">
+        <h2>Transaction limits</h2>
+        <p style="font-size:13px;color:var(--muted);margin-top:0">Optional min/max per charge, in your charge currency. Charges outside the range are rejected. Leave blank for no limit.</p>
+        <div class="row2">
+          <div><label>Minimum per charge</label><input id="setMin" inputmode="decimal" placeholder="No minimum"></div>
+          <div><label>Maximum per charge</label><input id="setMax" inputmode="decimal" placeholder="No maximum"></div>
+        </div>
+        <button class="btn pri sm" id="setLimitsSave" style="margin-top:10px">Save limits</button>
+        <div class="err hidden" id="setLimitsErr"></div>
+      </div>
+      <div class="panel">
         <h2>Webhook</h2>
         <p style="font-size:13px;color:var(--muted);margin-top:0">We POST a signed <code>payment.confirmed</code> when a charge is paid.</p>
         <input id="setHook" placeholder="https://your-app.com/atomic-webhook">
@@ -290,6 +300,8 @@
     renderOverview(me); loadReports(); loadInvoices();
     if ($('setAddr')) $('setAddr').value = me.receiveAddress || '';
     if ($('setHook')) $('setHook').value = me.webhookUrl || '';
+    if ($('setMin')) $('setMin').value = me.minChargeAmount != null ? me.minChargeAmount : '';
+    if ($('setMax')) $('setMax').value = me.maxChargeAmount != null ? me.maxChargeAmount : '';
   }
   window.go = function (v) { document.querySelector('nav.side a[data-view="' + v + '"]').click(); };
   document.querySelectorAll('nav.side a').forEach(function (a) { a.addEventListener('click', function () {
@@ -420,6 +432,15 @@
   }
   $('setAddrSave').addEventListener('click', function () { saveSettings({ receiveAddress: $('setAddr').value.trim() }).then(function (d) { if (d) { $('setAddrSave').textContent = 'Saved ✓'; setTimeout(function(){ $('setAddrSave').textContent = 'Save address'; }, 1500); api('/v1/merchant/me').then(function (m) { if (m.ok) show($('addrWarn'), !m.d.receiveConfigured); }); } }); });
   $('setHookSave').addEventListener('click', function () { saveSettings({ webhookUrl: $('setHook').value.trim() }, $('setSecret')).then(function (d) { if (d) { $('setHookSave').textContent = 'Saved ✓'; setTimeout(function(){ $('setHookSave').textContent = 'Save webhook'; }, 1500); } }); });
+  $('setLimitsSave').addEventListener('click', async function () {
+    show($('setLimitsErr'), false);
+    var minv = $('setMin').value.trim(), maxv = $('setMax').value.trim();
+    var r = await api('/v1/merchant/settings', { method: 'POST', body: JSON.stringify({ minChargeAmount: minv === '' ? null : minv, maxChargeAmount: maxv === '' ? null : maxv }) });
+    if (!r.ok) { $('setLimitsErr').textContent = r.d.error || 'Could not save.'; show($('setLimitsErr'), true); return; }
+    $('setMin').value = r.d.minChargeAmount != null ? r.d.minChargeAmount : '';
+    $('setMax').value = r.d.maxChargeAmount != null ? r.d.maxChargeAmount : '';
+    $('setLimitsSave').textContent = 'Saved ✓'; setTimeout(function(){ $('setLimitsSave').textContent = 'Save limits'; }, 1500);
+  });
 
   // ---------- Cash out (global fiat off-ramp aggregator) ----------
   // Non-custodial: we hand the merchant off to a LICENSED partner that runs KYC,

@@ -108,7 +108,9 @@ router.post('/v1/swaps/quote', async (req, res) => {
         : 'Refresh with a smaller amount or lower-impact route.'
     });
   } catch (error: any) {
-    return res.status(400).json({ error: error.message });
+    // Surface a size-cap refusal with its own status + code so the client can
+    // explain to the user exactly why the swap was declined (not a generic 400).
+    return res.status(error?.status || 400).json({ error: error.message, code: error?.code });
   }
 });
 

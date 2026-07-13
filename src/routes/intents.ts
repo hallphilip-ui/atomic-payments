@@ -245,6 +245,13 @@ router.post('/v1/payment_intents', async (req, res) => {
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
+    // Per-transaction limits, if the merchant set them (in the charge currency).
+    if (merchant.minChargeAmount != null && amount < merchant.minChargeAmount) {
+      return res.status(400).json({ error: `Amount is below this merchant's minimum of ${merchant.minChargeAmount}.` });
+    }
+    if (merchant.maxChargeAmount != null && amount > merchant.maxChargeAmount) {
+      return res.status(400).json({ error: `Amount exceeds this merchant's maximum of ${merchant.maxChargeAmount}.` });
+    }
     if (!/^[A-Z]{3,10}$/.test(currency)) {
       return res.status(400).json({ error: 'Currency must be a valid uppercase code' });
     }
@@ -420,7 +427,7 @@ router.post('/v1/merchant/settings', async (req, res) => {
     if (!merchant) return res.status(401).json({ error: 'Merchant API key is invalid' });
 
     const EVM_ADDR = /^0x[0-9a-fA-F]{40}$/;
-    const data: { receiveAddress?: string | null; webhookUrl?: string | null; webhookSecret?: string | null } = {};
+    const data: { receiveAddress?: string | null; webhookUrl?: string | null; webhookSecret?: string | null; minChargeAmount?: number | null; maxChargeAmount?: number | null } = {};
 
     if (req.body.receiveAddress !== undefined) {
       const a = String(req.body.receiveAddress).trim();
@@ -434,6 +441,26 @@ router.post('/v1/merchant/settings', async (req, res) => {
       data.webhookUrl = u || null;
       data.webhookSecret = u ? (merchant.webhookSecret || 'whsec_' + crypto.randomBytes(24).toString('hex')) : null;
     }
+    // Per-transaction limits (in the charge currency). Empty/null clears a limit.
+    const parseLimit = (v: unknown): number | null | undefined => {
+      if (v === undefined) return undefined;                       // field not sent → leave as-is
+      if (v === null || String(v).trim() === '') return null;      // explicit clear
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0 ? n : NaN;               // NaN → validation error below
+    };
+    const minL = parseLimit(req.body.minChargeAmount);
+    const maxL = parseLimit(req.body.maxChargeAmount);
+    if (Number.isNaN(minL as number) || Number.isNaN(maxL as number)) {
+      return res.status(400).json({ error: 'Transaction limits must be non-negative numbers.' });
+    }
+    if (minL !== undefined) data.minChargeAmount = minL;
+    if (maxL !== undefined) data.maxChargeAmount = maxL;
+    // Effective values after this update (fall back to current stored values).
+    const effMin = minL !== undefined ? minL : merchant.minChargeAmount;
+    const effMax = maxL !== undefined ? maxL : merchant.maxChargeAmount;
+    if (effMin != null && effMax != null && effMax < effMin) {
+      return res.status(400).json({ error: 'Maximum must be greater than or equal to the minimum.' });
+    }
 
     const updated = await prisma.merchant.update({ where: { id: merchant.id }, data });
     return res.json({
@@ -441,6 +468,8 @@ router.post('/v1/merchant/settings', async (req, res) => {
       receiveAddress: updated.receiveAddress,
       webhookUrl: updated.webhookUrl,
       webhookSecret: updated.webhookSecret,
+      minChargeAmount: updated.minChargeAmount,
+      maxChargeAmount: updated.maxChargeAmount,
       note: 'Payments settle directly to receiveAddress (non-custodial). Verify webhooks with HMAC-SHA256(rawBody, webhookSecret) == the x-atomic-signature header.'
     });
   } catch (error: any) {
@@ -477,6 +506,7 @@ router.get('/v1/merchant/me', async (req, res) => {
     id: m.id, businessName: m.businessName, email: m.email,
     receiveAddress: m.receiveAddress, receiveConfigured: !!m.receiveAddress,
     webhookUrl: m.webhookUrl, webhookConfigured: !!m.webhookUrl,
+    minChargeAmount: m.minChargeAmount, maxChargeAmount: m.maxChargeAmount,
     stats: { paidCount: confirmed.length, paidVolume: Number(totalPaid.toFixed(2)), pendingCount: pending, currency: confirmed[0]?.currency || 'USD' }
   });
 });

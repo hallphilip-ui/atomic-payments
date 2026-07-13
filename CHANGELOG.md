@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.1 - 2026-07-13
+
+**Configurable transaction limits + a platform swap cap.**
+
+- **Per-merchant transaction limits** — a "Transaction limits" panel in the merchant portal Settings (min/max per charge, in the charge currency, either optional). Enforced server-side across POS, invoices, API, and hosted checkout; a charge outside the range is rejected with a plain-language reason before an intent is created. Validates non-negative and max ≥ min.
+- **Platform swap-size cap** — swaps above a configurable USD ceiling are refused with a clear, user-facing reason (shown in the swap UI, relayed by the AI assistant, returned by the partner API) rather than failing silently. Default **$1,000,000**, tunable via `ATOMIC_SWAP_MAX_USD` (`0` disables). Enforced at the single quote chokepoint for every swap path; applies when the swap's USD value is known and fails open otherwise.
+
 ## 2.2.0 - 2026-07-13
 
 **Merchant fiat cash-out — a global off-ramp aggregator.**

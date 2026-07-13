@@ -15,6 +15,8 @@ model Merchant {
   receiveAddress String?        // merchant's own EVM wallet — payments settle here directly (non-custodial)
   webhookUrl    String?
   webhookSecret String?         // HMAC-SHA256 signing secret for payment webhooks
+  minChargeAmount Float?        // per-transaction limits (in the charge currency); null = no limit
+  maxChargeAmount Float?
   createdAt     DateTime        @default(now())
   intents       PaymentIntent[]
 }

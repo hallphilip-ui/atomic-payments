@@ -13,6 +13,17 @@ export const PARTNER_MAX_MARKUP_BPS = 50;
 // held for manual operator review rather than swept in one transfer — a circuit
 // breaker against a mis-attribution or verification bug ever draining the treasury.
 export const PARTNER_MAX_PAYOUT_USD = Number(process.env.ATOMIC_PARTNER_MAX_PAYOUT_USD) || 25000;
+// Platform maximum swap size in USD. A swap whose USD notional exceeds this is
+// refused with a clear, user-facing reason (never silently) — a guardrail against
+// oversized / fat-finger swaps and large-exposure risk. Applies when the swap's
+// USD value is known (the live provider path); fails open when it can't be
+// determined. Set ATOMIC_SWAP_MAX_USD=0 to disable. Default $1,000,000.
+export const SWAP_MAX_USD = (() => {
+  const raw = process.env.ATOMIC_SWAP_MAX_USD;
+  if (raw == null || raw === '') return 1000000;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 1000000;   // 0 disables the cap
+})();
 export const PLATFORM_TREASURY_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
 export const THOR_AFFILIATE_NAME = 'ATOMIC_MOBILE_PROD';
 // Quote lifetime. 30s was too tight for a hand-driven test (re-quote churn, B9);

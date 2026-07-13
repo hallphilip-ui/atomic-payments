@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arb Desk — Atomic (operator)</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    :root{--ink:#14161c;--muted:#667085;--line:#e8e9f0;--panel:#fff;--soft:#f7f7fb;
+      --accent:#6d5cf5;--green:#16b364;--red:#e5484d;--amber:#e08a00;
+      --shadow:0 1px 2px rgba(16,18,30,.04),0 8px 24px rgba(16,18,30,.06);}
+    *{box-sizing:border-box}
+    body{margin:0;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+      background:radial-gradient(900px 480px at 82% -12%,rgba(109,92,245,.10),transparent 60%),#fbfbfd;min-height:100vh}
+    .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,3vw,28px)}
+    .top{display:flex;align-items:center;justify-content:space-between;height:64px;border-bottom:1px solid var(--line);
+      position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);padding:0 clamp(16px,3vw,28px);z-index:10}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+    .brand .dot{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#8b5cf6)}
+    .badge{font-size:11px;font-weight:700;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:#fff4e6;color:var(--amber);border:1px solid #ffe2b8}
+    main{padding:22px 0 60px}
+    .banner{background:#f3f1fe;border:1px solid #e4e0fb;color:#4a3fb8;font-size:13px;padding:11px 14px;border-radius:12px;margin-bottom:18px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px;margin-bottom:16px}
+    h2{font-size:15px;margin:0 0 12px}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+    .kpi{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .kpi .l{font-size:11.5px;color:var(--muted);margin-bottom:4px}
+    .kpi .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+    .up{color:var(--green)}.down{color:var(--red)}
+    .meta{font-size:12px;color:var(--muted);margin-top:10px}
+    table{width:100%;border-collapse:collapse;font-size:12.5px}
+    th{text-align:right;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+    th:first-child,td:first-child{text-align:left}
+    td{padding:8px 10px;border-bottom:1px solid #f1f1f6;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    tbody tr:hover{background:#fafafc}
+    .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+    .pill.filled{background:#eafaf1;color:var(--green)}
+    .pill.evaporated{background:#f2f2f7;color:var(--muted)}
+    .scroll{overflow-x:auto}
+    .gate{max-width:420px;margin:60px auto;text-align:center}
+    .gate input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:14px;margin:12px 0;font-family:inherit}
+    .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+    .err{color:var(--red);font-size:13px;margin-top:8px}
+    .empty{color:var(--muted);font-size:13px;padding:14px 0}
+    .steps{display:flex;flex-direction:column;gap:8px;margin:8px 0 4px}
+    .step{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:13.5px}
+    .step a{color:var(--accent);font-weight:600;margin-left:8px;font-size:12.5px;white-space:nowrap}
+    .step.netline{background:#f3f1fe;border-color:#e4e0fb}
+    .ctl-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:8px 0 14px}
+    .ctl-grid label{display:flex;flex-direction:column;font-size:11.5px;color:var(--muted);gap:5px}
+    .ctl-grid input{padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;color:var(--ink);width:100%}
+    .ctl-grid input:focus{outline:none;border-color:var(--accent)}
+    @media(max-width:820px){.ctl-grid{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:820px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand"><span class="dot"></span> Atomic · Arb Desk</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span id="viewer" style="font-size:12.5px;color:var(--muted)"></span>
+      <span class="badge">LOG-ONLY · PAPER</span>
+      <button class="btn ghost" id="logoutBtn" style="display:none;padding:7px 12px;font-size:13px">Lock</button>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <!-- operator key gate -->
+    <div class="gate card" id="gate">
+      <h2>Operator sign-in</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0">Enter your operator key to view the arbitrage forward-test. This desk is read-only and shows paper (simulated) results — no live trading.</p>
+      <input id="keyInput" type="password" placeholder="x-atomic-operator-key" autocomplete="off">
+      <button class="btn" id="loginBtn">Unlock</button>
+      <div class="err" id="gateErr"></div>
+    </div>
+
+    <!-- desk -->
+    <div id="desk" style="display:none">
+      <div class="banner">
+        <b>Paper / log-only.</b> These are simulated round-trips from the market scanner — <b>no real orders, no funds moved</b>. Opportunities are for a human to review and decide. Nothing here auto-executes.
+      </div>
+
+      <div class="card">
+        <h2>Paper account <span id="mode" style="font-weight:400;color:var(--muted);font-size:12px"></span></h2>
+        <div class="kpis" id="kpis"></div>
+        <div class="meta" id="meta"></div>
+      </div>
+
+      <div class="card" id="controlsCard">
+        <h2>Scanner controls <span style="font-weight:400;color:var(--muted);font-size:12px">· changes apply on the next scan cycle</span></h2>
+        <div class="ctl-grid">
+          <label>Min net edge %<input id="c_threshold" type="number" step="0.01" min="0.01" max="10"></label>
+          <label>Alert %<input id="c_alert" type="number" step="0.01" min="0.01" max="20"></label>
+          <label>Trade size $<input id="c_notional" type="number" step="10" min="10"></label>
+          <label>Max assets<input id="c_max" type="number" step="10" min="5" max="1000"></label>
+          <label>Interval (s)<input id="c_interval" type="number" step="10" min="30" max="3600"></label>
+          <label>Window (h)<input id="c_window" type="number" step="1" min="1" max="168"></label>
+        </div>
+        <div style="border-top:1px solid var(--line);margin:2px 0 14px;padding-top:12px">
+          <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:7px">
+            📱 Push notifications — <a href="https://ntfy.sh" target="_blank" rel="noopener" style="color:var(--accent)">ntfy</a> topic
+            <span style="display:block;margin-top:2px">Install the free ntfy app on your phone + desktop, subscribe to this topic, and you'll get a push the moment an edge fires. Pick something unguessable.</span>
+          </label>
+          <input id="c_ntfy" type="text" placeholder="e.g. atomic-arb-7h3k9x" style="width:300px;max-width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;color:var(--ink)">
+          <button class="btn ghost" id="testAlert" style="margin-left:8px;padding:9px 14px;font-size:13px">Send test push</button>
+          <span id="testMsg" style="margin-left:8px;font-size:12.5px"></span>
+        </div>
+        <button class="btn" id="saveCtl">Save controls</button>
+        <span id="ctlMsg" style="margin-left:12px;font-size:13px"></span>
+      </div>
+
+      <div class="card" id="manualCard">
+        <h2>Manual execution ticket <span style="font-weight:400;color:var(--muted);font-size:12px">· you place the orders yourself — this never executes, holds keys, or moves funds</span></h2>
+        <div id="ticket"></div>
+      </div>
+
+      <div class="card">
+        <h2>Paper trades · <span id="tradesWindow">last 12h</span> <span style="font-weight:400;color:var(--muted);font-size:12px">(best edge per scan, re-checked after latency)</span></h2>
+        <div class="scroll"><table id="trades"><thead><tr>
+          <th>Time (UTC)</th><th>Asset</th><th>Route</th><th>Size $</th>
+          <th>Detected %</th><th>Fill %</th><th>Status</th><th>PnL $</th><th>Balance $</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="empty" id="tradesEmpty" style="display:none">No paper trades yet — the scanner has found no post-cost edge to simulate.</div>
+      </div>
+
+      <div class="card">
+        <h2>Opportunities · <span id="oppsWindow">last 12h</span> <span style="font-weight:400;color:var(--muted);font-size:12px">(flagged before latency re-check)</span></h2>
+        <div class="scroll"><table id="opps"><thead><tr>
+          <th>Time (UTC)</th><th>Asset</th><th>Buy</th><th>Sell</th><th>Net %</th><th>Buy px</th><th>Sell px</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="empty" id="oppsEmpty" style="display:none">No opportunities in the last 12 hours.</div>
+      </div>
+
+      <div class="card">
+        <h2>Alerts</h2>
+        <div id="alerts"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+  (function(){
+    var KEY='atomic_op_key';
+    var gate=document.getElementById('gate'),desk=document.getElementById('desk');
+    var logoutBtn=document.getElementById('logoutBtn');
+    var timer=null;
+
+    function key(){ try{return sessionStorage.getItem(KEY)||''}catch(e){return ''} }
+    function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML}
+    function pctCell(v){var n=parseFloat(v);if(isNaN(n))return esc(v);var c=n>=0?'up':'down';return '<span class="'+c+'">'+n.toFixed(3)+'%</span>'}
+    function num(n,dp){n=parseFloat(n);return isNaN(n)?'—':n.toLocaleString('en-US',{maximumFractionDigits:dp})}
+    function venueUrl(v,asset){var b=(asset||'').toLowerCase(),A=(asset||'').toUpperCase();
+      if(v==='kraken')return 'https://pro.kraken.com/app/trade/'+b+'-usd';
+      if(v==='coinbase')return 'https://www.coinbase.com/advanced-trade/spot/'+A+'-USD';
+      if(v==='binanceus')return 'https://www.binance.us/spot-trade/'+A+'_USDT';
+      if(v==='bybit')return 'https://www.bybit.com/en/trade/spot/'+A+'/USDT';
+      if(v==='okx')return 'https://www.okx.com/trade-spot/'+b+'-usdt';
+      if(v==='kucoin')return 'https://www.kucoin.com/trade/'+A+'-USDT';
+      if(v==='gate')return 'https://www.gate.io/trade/'+A+'_USDT';
+      return '#';}
+    function buildTicket(d){
+      var el=document.getElementById('ticket');
+      var opp=(d.recent_opportunities||[])[0];
+      var c=d.config||{};
+      if(!opp){
+        el.innerHTML='<div class="empty">No live opportunity right now. When the scanner detects a post-cost edge, its exact orders appear here — asset, venues, sizes and prices — for you to place yourself. This panel is a checklist only: it never executes trades, holds keys, or moves funds.</div>';
+        return;
+      }
+      var size=parseFloat(c.notional_usd)||1000;
+      var buyPx=parseFloat(opp.buy_px),sellPx=parseFloat(opp.sell_px),net=parseFloat(opp.net_pct);
+      var qty=size/buyPx,cost=qty*buyPx,proceeds=qty*sellPx,netUsd=size*net/100;
+      var age=d.snapshot_age_sec;
+      el.innerHTML=
+        '<div class="banner" style="background:#fff4e6;border-color:#ffe2b8;color:#a5680a">⚠ Prices move in seconds — confirm LIVE quotes on each exchange before placing. Flagged '+(age!=null?age+'s ago':'recently')+'. <b>You place these orders yourself.</b></div>'+
+        '<div class="steps">'+
+          '<div class="step"><b>1 · Buy</b> '+num(qty,6)+' '+esc(opp.asset)+' on <b>'+esc(opp.buy_venue)+'</b> @ ~'+num(buyPx,6)+' (≈$'+num(cost,2)+')<a href="'+venueUrl(opp.buy_venue,opp.asset)+'" target="_blank" rel="noopener">open '+esc(opp.buy_venue)+' ↗</a></div>'+
+          '<div class="step"><b>2 · Sell</b> '+num(qty,6)+' '+esc(opp.asset)+' on <b>'+esc(opp.sell_venue)+'</b> @ ~'+num(sellPx,6)+' (≈$'+num(proceeds,2)+')<a href="'+venueUrl(opp.sell_venue,opp.asset)+'" target="_blank" rel="noopener">open '+esc(opp.sell_venue)+' ↗</a></div>'+
+          '<div class="step netline">Expected net after fees + transfer: <b class="'+(net>=0?'up':'down')+'">'+(isNaN(net)?'—':net.toFixed(3)+'%')+'</b> (~$'+num(netUsd,2)+' on $'+num(size,0)+')</div>'+
+        '</div>'+
+        '<div class="meta">Assumes you already hold USD on '+esc(opp.buy_venue)+' and '+esc(opp.asset)+' on '+esc(opp.sell_venue)+' — arbitrage runs against pre-positioned inventory (per-trade transfers are too slow). Informational only; not advice.</div>';
+    }
+    function val(id){var v=document.getElementById(id).value;return v===''?undefined:v;}
+    function fillCtl(c){
+      var map={c_threshold:'threshold_pct',c_alert:'alert_pct',c_notional:'notional_usd',c_max:'max_assets',c_interval:'interval_sec',c_window:'window_hours',c_ntfy:'ntfy_topic'};
+      for(var id in map){var el=document.getElementById(id); if(el&&document.activeElement!==el&&c[map[id]]!=null) el.value=c[map[id]];}
+    }
+    async function saveControls(){
+      var m=document.getElementById('ctlMsg'); m.textContent='Saving…'; m.style.color='var(--muted)';
+      var body={threshold_pct:val('c_threshold'),alert_pct:val('c_alert'),notional_usd:val('c_notional'),max_assets:val('c_max'),interval_sec:val('c_interval'),window_hours:val('c_window'),ntfy_topic:document.getElementById('c_ntfy').value.trim()};
+      var k=key(); var headers={'Content-Type':'application/json'}; if(k) headers['x-atomic-operator-key']=k;
+      try{
+        var r=await fetch('/arb-desk/config',{method:'POST',headers:headers,body:JSON.stringify(body)});
+        var d=await r.json();
+        if(r.ok){ m.textContent='Saved ✓ applies on the next scan'; m.style.color='var(--green)'; setTimeout(load,1500); }
+        else { m.textContent=(d&&d.error)||'Save failed'; m.style.color='var(--red)'; }
+      }catch(e){ m.textContent='Save error: '+e.message; m.style.color='var(--red)'; }
+    }
+
+    function show(authed){
+      gate.style.display=authed?'none':'block';
+      desk.style.display=authed?'block':'none';
+      logoutBtn.style.display=authed?'inline-flex':'none';
+    }
+
+    async function load(){
+      // Try the Cloudflare Access session first (per-person, no key). If the desk
+      // isn't behind Access, this 401s and we fall back to the operator-key gate.
+      var k=key();
+      try{
+        var r=await fetch('/arb-desk/data', k?{headers:{'x-atomic-operator-key':k}}:{});
+        if(r.status===401||r.status===403){
+          if(k){ document.getElementById('gateErr').textContent='Key rejected. Check your operator key.'; try{sessionStorage.removeItem(KEY)}catch(e){} }
+          show(false); return;
+        }
+        if(!r.ok){ throw new Error('HTTP '+r.status); }
+        var d=await r.json();
+        render(d); show(true);
+      }catch(e){
+        document.getElementById('meta').textContent='Load error: '+e.message;
+      }
+    }
+
+    function render(d){
+      var p=d.paper||{};
+      document.getElementById('viewer').textContent = d.viewer ? ('Signed in: '+d.viewer) : '';
+      document.getElementById('mode').textContent='· '+(d.mode||'');
+      var ret=(p.balance/p.start-1)*100; var wr=p.fills?(p.wins/p.fills*100):0;
+      var kpis=[
+        ['Balance','$'+(p.balance||0).toFixed(2)],
+        ['Return',(ret>=0?'+':'')+ret.toFixed(2)+'%',ret>=0?'up':'down'],
+        ['Start','$'+(p.start||0).toFixed(0)],
+        ['Fills',p.fills||0],
+        ['Evaporated',p.evaporated||0],
+        ['Win rate',wr.toFixed(0)+'%']
+      ];
+      document.getElementById('kpis').innerHTML=kpis.map(function(k){
+        return '<div class="kpi"><div class="l">'+k[0]+'</div><div class="v '+(k[2]||'')+'">'+k[1]+'</div></div>';
+      }).join('');
+      var c=d.config||{};
+      var wh=(c.window_hours||12)+'h';
+      var ow=document.getElementById('oppsWindow'); if(ow) ow.textContent='last '+wh;
+      var tw=document.getElementById('tradesWindow'); if(tw) tw.textContent='last '+wh;
+      var age=d.snapshot_age_sec;
+      var stale=age!=null&&age>600;
+      document.getElementById('meta').innerHTML=
+        'Threshold ≥'+c.threshold_pct+'% · alert ≥'+c.alert_pct+'% · size $'+c.notional_usd+
+        ' · '+c.max_assets+' assets · every '+c.interval_sec+'s · started '+esc(p.started_at||'?')+
+        ' · updated '+esc(d.updated||'?')+(age!=null?' ('+age+'s ago'+(stale?' — ⚠ scanner may be stalled':'')+')':'');
+
+      var tb=document.querySelector('#trades tbody'), tr=d.recent_trades||[];
+      document.getElementById('tradesEmpty').style.display=tr.length?'none':'block';
+      tb.innerHTML=tr.map(function(t){
+        return '<tr><td>'+esc(t.ts)+'</td><td><b>'+esc(t.asset)+'</b></td>'+
+          '<td>'+esc(t.buy_venue)+' → '+esc(t.sell_venue)+'</td><td>'+esc(t.size_usd)+'</td>'+
+          '<td>'+pctCell(t.detected_net_pct)+'</td><td>'+pctCell(t.fill_net_pct)+'</td>'+
+          '<td><span class="pill '+esc(t.status)+'">'+esc(t.status)+'</span></td>'+
+          '<td class="'+(parseFloat(t.pnl_usd)>=0?'up':'down')+'">'+esc(t.pnl_usd)+'</td>'+
+          '<td>'+esc(t.balance_after)+'</td></tr>';
+      }).join('');
+
+      var ob=document.querySelector('#opps tbody'), op=d.recent_opportunities||[];
+      document.getElementById('oppsEmpty').style.display=op.length?'none':'block';
+      ob.innerHTML=op.map(function(o){
+        return '<tr><td>'+esc(o.ts)+'</td><td><b>'+esc(o.asset)+'</b></td><td>'+esc(o.buy_venue)+'</td>'+
+          '<td>'+esc(o.sell_venue)+'</td><td>'+pctCell(o.net_pct)+'</td><td>'+esc(o.buy_px)+'</td><td>'+esc(o.sell_px)+'</td></tr>';
+      }).join('');
+
+      var al=d.recent_alerts||[];
+      document.getElementById('alerts').innerHTML=al.length
+        ? al.map(function(a){return '<div style="font-size:12.5px;padding:6px 0;border-bottom:1px solid #f1f1f6">'+esc(a)+'</div>'}).join('')
+        : '<div class="empty">No alerts yet.</div>';
+
+      buildTicket(d);
+      fillCtl(d.config||{});
+    }
+
+    document.getElementById('loginBtn').addEventListener('click',function(){
+      var v=document.getElementById('keyInput').value.trim();
+      if(!v)return;
+      try{sessionStorage.setItem(KEY,v)}catch(e){}
+      document.getElementById('gateErr').textContent='';
+      load();
+    });
+    document.getElementById('keyInput').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('loginBtn').click()});
+    logoutBtn.addEventListener('click',function(){try{sessionStorage.removeItem(KEY)}catch(e){}; if(timer)clearInterval(timer); show(false);});
+    document.getElementById('saveCtl').addEventListener('click',saveControls);
+    document.getElementById('testAlert').addEventListener('click',async function(){
+      var m=document.getElementById('testMsg'); m.textContent='Sending…'; m.style.color='var(--muted)';
+      var k=key(); var headers={'Content-Type':'application/json'}; if(k) headers['x-atomic-operator-key']=k;
+      try{
+        var r=await fetch('/arb-desk/test-alert',{method:'POST',headers:headers,body:'{}'});
+        var d=await r.json();
+        if(r.ok){ m.textContent='Sent ✓ check your ntfy app'; m.style.color='var(--green)'; }
+        else { m.textContent=(d&&d.error)||'Failed'; m.style.color='var(--red)'; }
+      }catch(e){ m.textContent='Error: '+e.message; m.style.color='var(--red)'; }
+    });
+
+    load();  // tries the Cloudflare Access session first; falls back to the key gate on 401
+    timer=setInterval(load,30000);
+  })();
+  </script>
+</body>
+</html>
