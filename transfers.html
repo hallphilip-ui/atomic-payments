@@ -127,63 +127,67 @@
   <header class="topbar">
     <a class="brand" href="/">
       <img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'">
-      <span><strong>Atomic</strong><span>Payments &amp; Conversions</span></span>
+      <span><strong>Atomic</strong><span data-i18n="n.brandSub">Payments &amp; Conversions</span></span>
     </a>
     <nav class="nav">
-      <a href="/defi-swap">Swap</a>
-      <a href="/transfers" class="active">Transfers</a>
-      <a href="/checkout">Checkout</a>
-      <a href="/help">Help</a>
-      <a href="/releases">Releases</a>
+      <a href="/defi-swap" data-i18n="n.swap">Swap</a>
+      <a href="/transfers" class="active" data-i18n="n.transfers">Transfers</a>
+      <a href="/checkout" data-i18n="n.checkout">Checkout</a>
+      <a href="/help" data-i18n="n.help">Help</a>
+      <a href="/releases" data-i18n="n.releases">Releases</a>
+      <select data-atomic-language-select aria-label="Language" style="width:auto;padding:0 8px;font-size:13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);font-family:inherit"></select>
     </nav>
   </header>
 
   <main class="wrap">
-    <h1>Transfers</h1>
-    <p class="sub">Every conversion routed through the Atomic network — settled only when a trade executes.</p>
+    <h1 data-i18n="n.transfers">Transfers</h1>
+    <p class="sub" data-i18n="tr.sub">Every conversion routed through the Atomic network — settled only when a trade executes.</p>
 
     <div class="stats">
-      <div class="stat"><div class="k">Total transfers</div><div class="v" id="stat-total">—</div></div>
-      <div class="stat"><div class="k">Completed</div><div class="v" id="stat-complete">—</div></div>
-      <div class="stat"><div class="k">In progress</div><div class="v" id="stat-pending">—</div></div>
+      <div class="stat"><div class="k" data-i18n="tr.totalTransfers">Total transfers</div><div class="v" id="stat-total">—</div></div>
+      <div class="stat"><div class="k" data-i18n="tr.completed">Completed</div><div class="v" id="stat-complete">—</div></div>
+      <div class="stat"><div class="k" data-i18n="tr.inProgress">In progress</div><div class="v" id="stat-pending">—</div></div>
     </div>
 
     <div class="tabs" id="tabs">
-      <button class="tab" data-status="all">All <span class="count" id="c-all">0</span></button>
-      <button class="tab" data-status="pending">Pending <span class="count" id="c-pending">0</span></button>
-      <button class="tab" data-status="complete">Complete <span class="count" id="c-complete">0</span></button>
-      <button class="tab" data-status="failed">Failed <span class="count" id="c-failed">0</span></button>
+      <button class="tab" data-status="all"><span data-i18n="tr.all">All</span> <span class="count" id="c-all">0</span></button>
+      <button class="tab" data-status="pending"><span data-i18n="tr.pending">Pending</span> <span class="count" id="c-pending">0</span></button>
+      <button class="tab" data-status="complete"><span data-i18n="tr.complete">Complete</span> <span class="count" id="c-complete">0</span></button>
+      <button class="tab" data-status="failed"><span data-i18n="tr.failed">Failed</span> <span class="count" id="c-failed">0</span></button>
     </div>
 
     <div class="panel">
       <table>
         <thead>
           <tr>
-            <th>Time</th>
-            <th>Route</th>
-            <th>Send</th>
-            <th>Receive</th>
-            <th class="hide-sm">Provider</th>
-            <th>Status</th>
-            <th class="hide-sm">Address</th>
+            <th data-i18n="tr.time">Time</th>
+            <th data-i18n="tr.route">Route</th>
+            <th data-i18n="tr.send">Send</th>
+            <th data-i18n="tr.receive">Receive</th>
+            <th class="hide-sm" data-i18n="tr.provider">Provider</th>
+            <th data-i18n="tr.status">Status</th>
+            <th class="hide-sm" data-i18n="tr.address">Address</th>
           </tr>
         </thead>
         <tbody id="rows">
-          <tr><td colspan="7" class="loading">Loading transfers…</td></tr>
+          <tr><td colspan="7" class="loading" data-i18n="tr.loading">Loading transfers…</td></tr>
         </tbody>
       </table>
       <div class="foot">
-        <span class="refresh" id="refresh-note">Auto-refreshes every 15s</span>
+        <span class="refresh" id="refresh-note" data-i18n="tr.autoRefresh">Auto-refreshes every 15s</span>
         <div class="pager">
-          <button id="prev">← Prev</button>
+          <button id="prev" data-i18n="tr.prev">← Prev</button>
           <span class="pageinfo" id="pageinfo">Page 1</span>
-          <button id="next">Next →</button>
+          <button id="next" data-i18n="tr.next">Next →</button>
         </div>
       </div>
     </div>
   </main>
 
+  <script src="/assets/i18n.js?v=223"></script>
   <script>
+    window.atomicI18n?.init();
+    const _t = (k, v) => window.atomicI18n ? window.atomicI18n.t(k, v) : k;
     const params = new URLSearchParams(location.search);
     let status = params.get('status') || 'all';
     let page = Math.max(0, parseInt(params.get('page') || '0', 10) || 0);
@@ -194,10 +198,10 @@
 
     function relTime(iso) {
       const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-      if (s < 60) return s + 's ago';
-      const m = Math.floor(s / 60); if (m < 60) return m + 'm ago';
-      const h = Math.floor(m / 60); if (h < 24) return h + 'h ago';
-      const d = Math.floor(h / 24); return d + 'd ago';
+      if (s < 60) return _t('tr.secAgo', { n: s });
+      const m = Math.floor(s / 60); if (m < 60) return _t('tr.minAgo', { n: m });
+      const h = Math.floor(m / 60); if (h < 24) return _t('tr.hourAgo', { n: h });
+      const d = Math.floor(h / 24); return _t('tr.dayAgo', { n: d });
     }
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
 
@@ -220,7 +224,7 @@
 
     function renderRows(transfers) {
       if (!transfers.length) {
-        $('rows').innerHTML = '<tr><td colspan="7" class="empty">No transfers yet for this filter. Conversions appear here the moment they route through Atomic.</td></tr>';
+        $('rows').innerHTML = '<tr><td colspan="7" class="empty">' + _t('tr.emptyFilter') + '</td></tr>';
         return;
       }
       $('rows').innerHTML = transfers.map((t) => `
@@ -244,12 +248,12 @@
         if (page >= totalPages) { page = Math.max(0, totalPages - 1); }
         renderTabs(data.statusCounts || { all: 0, pending: 0, complete: 0, failed: 0 });
         renderRows(data.transfers || []);
-        $('pageinfo').textContent = `Page ${page + 1} of ${totalPages}`;
+        $('pageinfo').textContent = _t('tr.pageOf', { page: page + 1, total: totalPages });
         $('prev').disabled = page <= 0;
         $('next').disabled = page >= totalPages - 1;
         syncUrl();
       } catch (e) {
-        $('rows').innerHTML = `<tr><td colspan="7" class="empty">Could not load transfers (${esc(e.message)}). Retrying…</td></tr>`;
+        $('rows').innerHTML = `<tr><td colspan="7" class="empty">${_t('tr.loadError', { e: esc(e.message) })}</td></tr>`;
       }
     }
 

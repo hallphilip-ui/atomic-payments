@@ -71,32 +71,35 @@
 </style>
 
 <header class="topbar">
-  <a class="brand" href="/"><img src="/assets/atomic-mark.png" alt="" onerror="this.style.display='none'">Atomic <span class="sub">· Merchant</span></a>
-  <div class="who hidden" id="who"><span id="whoName"></span><button class="btn sm" id="signout">Sign out</button></div>
+  <a class="brand" href="/"><img src="/assets/atomic-mark.png" alt="" onerror="this.style.display='none'">Atomic <span class="sub">· <span data-i18n="m.merchant">Merchant</span></span></a>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+    <select data-atomic-language-select aria-label="Language" style="width:auto;padding:5px 8px;font-size:12.5px;color:var(--muted)"></select>
+    <div class="who hidden" id="who"><span id="whoName"></span><button class="btn sm" id="signout" data-i18n="m.signout">Sign out</button></div>
+  </div>
 </header>
 
 <!-- AUTH -->
 <div class="authwrap" id="authView">
   <div class="card">
-    <div class="tabs"><div class="t on" data-auth="signin">Sign in</div><div class="t" data-auth="signup">Create account</div></div>
+    <div class="tabs"><div class="t on" data-auth="signin" data-i18n="m.signin">Sign in</div><div class="t" data-auth="signup" data-i18n="m.createAccount">Create account</div></div>
     <div id="signinPane">
-      <p class="lede" style="margin-bottom:4px">Paste your merchant API key to open your portal.</p>
-      <label for="siKey">Merchant API key</label>
+      <p class="lede" style="margin-bottom:4px" data-i18n="m.signinLede">Paste your merchant API key to open your portal.</p>
+      <label for="siKey" data-i18n="m.apiKeyLabel">Merchant API key</label>
       <input id="siKey" placeholder="mk_live_…" autocomplete="off">
-      <button class="btn pri" id="siBtn" style="width:100%;margin-top:14px">Sign in</button>
+      <button class="btn pri" id="siBtn" style="width:100%;margin-top:14px" data-i18n="m.signin">Sign in</button>
       <div class="err hidden" id="siErr"></div>
     </div>
     <div id="signupPane" class="hidden">
-      <p class="lede" style="margin-bottom:4px">Start accepting crypto in minutes. Non-custodial — funds settle to your own wallet.</p>
-      <label for="suName">Business name</label><input id="suName" placeholder="Acme Coffee">
-      <label for="suEmail">Email</label><input id="suEmail" type="email" placeholder="you@business.com">
-      <label for="suAddr">Receiving wallet (EVM, optional now)</label><input id="suAddr" placeholder="0x… — where USDC settles">
-      <button class="btn pri" id="suBtn" style="width:100%;margin-top:14px">Create account</button>
+      <p class="lede" style="margin-bottom:4px" data-i18n="m.signupLede">Start accepting crypto in minutes. Non-custodial — funds settle to your own wallet.</p>
+      <label for="suName" data-i18n="m.businessName">Business name</label><input id="suName" placeholder="Acme Coffee">
+      <label for="suEmail" data-i18n="m.email">Email</label><input id="suEmail" type="email" placeholder="you@business.com">
+      <label for="suAddr" data-i18n="m.receivingWalletOpt">Receiving wallet (EVM, optional now)</label><input id="suAddr" placeholder="0x… — where USDC settles">
+      <button class="btn pri" id="suBtn" style="width:100%;margin-top:14px" data-i18n="m.createAccount">Create account</button>
       <div class="err hidden" id="suErr"></div>
       <div id="suKeyBox" class="hidden">
-        <div class="warn"><b>Save your API key now</b> — it's shown once and it's your login.</div>
+        <div class="warn" data-i18n-html="m.saveKeyWarn"><b>Save your API key now</b> — it's shown once and it's your login.</div>
         <div class="keybox" id="suKey"></div>
-        <button class="btn" id="suCopy" style="width:100%;margin-top:10px">Copy &amp; continue</button>
+        <button class="btn" id="suCopy" style="width:100%;margin-top:10px" data-i18n="m.copyContinue">Copy &amp; continue</button>
       </div>
     </div>
   </div>
@@ -105,104 +108,104 @@
 <!-- APP -->
 <div class="shell hidden" id="appView">
   <nav class="side">
-    <a data-view="overview" class="on">Overview</a>
-    <a data-view="pos">New charge</a>
-    <a data-view="invoices">Invoices</a>
-    <a data-view="payments">Payments</a>
-    <a data-view="cashout">Cash out</a>
-    <a data-view="settings">Settings</a>
+    <a data-view="overview" class="on" data-i18n="m.nav.overview">Overview</a>
+    <a data-view="pos" data-i18n="m.nav.newCharge">New charge</a>
+    <a data-view="invoices" data-i18n="m.nav.invoices">Invoices</a>
+    <a data-view="payments" data-i18n="m.nav.payments">Payments</a>
+    <a data-view="cashout" data-i18n="m.nav.cashout">Cash out</a>
+    <a data-view="settings" data-i18n="m.nav.settings">Settings</a>
   </nav>
   <main class="content">
     <!-- OVERVIEW -->
     <section data-pane="overview">
-      <h1>Overview</h1><p class="lede">Your payments at a glance.</p>
-      <div class="warn hidden" id="addrWarn">⚠️ Set a <b>receiving wallet</b> in Settings so payments can settle to you.</div>
+      <h1 data-i18n="m.nav.overview">Overview</h1><p class="lede" data-i18n="m.overviewLede">Your payments at a glance.</p>
+      <div class="warn hidden" id="addrWarn" data-i18n-html="m.addrWarn">⚠️ Set a <b>receiving wallet</b> in Settings so payments can settle to you.</div>
       <div class="grid">
-        <div class="stat"><div class="n" id="stVol">—</div><div class="l">Paid volume</div></div>
-        <div class="stat"><div class="n" id="stCount">—</div><div class="l">Payments received</div></div>
-        <div class="stat"><div class="n" id="stPending">—</div><div class="l">Awaiting payment</div></div>
+        <div class="stat"><div class="n" id="stVol">—</div><div class="l" data-i18n="m.paidVolume">Paid volume</div></div>
+        <div class="stat"><div class="n" id="stCount">—</div><div class="l" data-i18n="m.paymentsReceived">Payments received</div></div>
+        <div class="stat"><div class="n" id="stPending">—</div><div class="l" data-i18n="m.awaitingPayment">Awaiting payment</div></div>
       </div>
-      <button class="btn pri" onclick="go('pos')">+ New charge</button>
+      <button class="btn pri" onclick="go('pos')" data-i18n="m.newChargePlus">+ New charge</button>
     </section>
 
     <!-- POS -->
     <section data-pane="pos" class="hidden">
-      <h1>New charge (POS)</h1><p class="lede">Enter an amount, show the QR — get paid.</p>
+      <h1 data-i18n="m.posTitle">New charge (POS)</h1><p class="lede" data-i18n="m.posLede">Enter an amount, show the QR — get paid.</p>
       <div class="panel" id="posForm">
         <div class="row2">
-          <div><label>Amount</label><input id="posAmt" inputmode="decimal" placeholder="0.00"></div>
-          <div><label>Currency</label><select id="posCur"><option>USD</option><option>EUR</option><option>GBP</option></select></div>
+          <div><label data-i18n="m.amount">Amount</label><input id="posAmt" inputmode="decimal" placeholder="0.00"></div>
+          <div><label data-i18n="m.currency">Currency</label><select id="posCur"><option>USD</option><option>EUR</option><option>GBP</option></select></div>
         </div>
-        <label>Description (optional)</label><input id="posDesc" placeholder="e.g. Table 4 — 2 coffees">
-        <button class="btn pri" id="posCreate" style="margin-top:16px">Create charge</button>
+        <label data-i18n="m.descOptional">Description (optional)</label><input id="posDesc" data-i18n-placeholder="m.posDescPh" placeholder="e.g. Table 4 — 2 coffees">
+        <button class="btn pri" id="posCreate" style="margin-top:16px" data-i18n="m.createCharge">Create charge</button>
         <div class="err hidden" id="posErr"></div>
       </div>
       <div class="panel charge hidden" id="posCharge">
-        <div style="font-size:13px;color:var(--muted)">Have the customer scan to pay</div>
+        <div style="font-size:13px;color:var(--muted)" data-i18n="m.scanToPay">Have the customer scan to pay</div>
         <div class="qr" id="posQr">…</div>
         <div style="font-size:22px;font-weight:800" id="posChargeAmt"></div>
-        <div class="linkrow"><code id="posLink"></code><button class="btn sm" id="posCopy">Copy</button><a class="btn sm" id="posOpen" target="_blank">Open</a></div>
-        <div class="bigstatus" id="posStatus">Waiting for payment…</div>
-        <button class="btn" id="posNew" style="margin-top:14px">New charge</button>
+        <div class="linkrow"><code id="posLink"></code><button class="btn sm" id="posCopy" data-i18n="m.copy">Copy</button><a class="btn sm" id="posOpen" target="_blank" data-i18n="m.open">Open</a></div>
+        <div class="bigstatus" id="posStatus" data-i18n="m.waiting">Waiting for payment…</div>
+        <button class="btn" id="posNew" style="margin-top:14px" data-i18n="m.nav.newCharge">New charge</button>
       </div>
     </section>
 
     <!-- INVOICES -->
     <section data-pane="invoices" class="hidden">
-      <h1>Invoices</h1><p class="lede">Create a payable link to send a customer.</p>
+      <h1 data-i18n="m.nav.invoices">Invoices</h1><p class="lede" data-i18n="m.invLede">Create a payable link to send a customer.</p>
       <div class="panel">
         <div class="row2">
-          <div><label>Amount</label><input id="invAmt" inputmode="decimal" placeholder="0.00"></div>
-          <div><label>Reference / order #</label><input id="invRef" placeholder="INV-1001"></div>
+          <div><label data-i18n="m.amount">Amount</label><input id="invAmt" inputmode="decimal" placeholder="0.00"></div>
+          <div><label data-i18n="m.refOrder">Reference / order #</label><input id="invRef" placeholder="INV-1001"></div>
         </div>
         <div class="row2">
-          <div><label>Customer email (optional)</label><input id="invEmail" type="email" placeholder="customer@email.com"></div>
-          <div><label>Currency</label><select id="invCur"><option>USD</option><option>EUR</option><option>GBP</option></select></div>
+          <div><label data-i18n="m.customerEmailOpt">Customer email (optional)</label><input id="invEmail" type="email" placeholder="customer@email.com"></div>
+          <div><label data-i18n="m.currency">Currency</label><select id="invCur"><option>USD</option><option>EUR</option><option>GBP</option></select></div>
         </div>
-        <label>Description</label><input id="invDesc" placeholder="What is this for?">
-        <p style="font-size:12px;color:var(--faint);margin:10px 0 0">Add a customer email and we'll email them the invoice — and a receipt when it's paid.</p>
-        <button class="btn pri" id="invCreate" style="margin-top:12px">Create invoice</button>
+        <label data-i18n="m.description">Description</label><input id="invDesc" data-i18n-placeholder="m.invDescPh" placeholder="What is this for?">
+        <p style="font-size:12px;color:var(--faint);margin:10px 0 0" data-i18n="m.invEmailHint">Add a customer email and we'll email them the invoice — and a receipt when it's paid.</p>
+        <button class="btn pri" id="invCreate" style="margin-top:12px" data-i18n="m.createInvoice">Create invoice</button>
         <div class="err hidden" id="invErr"></div>
-        <div class="linkrow hidden" id="invResult"><code id="invLink"></code><button class="btn sm" id="invCopy">Copy link</button></div>
+        <div class="linkrow hidden" id="invResult"><code id="invLink"></code><button class="btn sm" id="invCopy" data-i18n="m.copyLink">Copy link</button></div>
       </div>
-      <div class="panel"><h2>Recent invoices</h2><div class="tablewrap"><table id="invTable"><tbody></tbody></table></div></div>
+      <div class="panel"><h2 data-i18n="m.recentInvoices">Recent invoices</h2><div class="tablewrap"><table id="invTable"><tbody></tbody></table></div></div>
     </section>
 
     <!-- PAYMENTS -->
     <section data-pane="payments" class="hidden">
-      <h1>Payments</h1><p class="lede">Every charge and invoice, with totals.</p>
+      <h1 data-i18n="m.nav.payments">Payments</h1><p class="lede" data-i18n="m.payLede">Every charge and invoice, with totals.</p>
       <div class="grid" style="grid-template-columns:repeat(2,1fr)">
-        <div class="stat"><div class="n" id="rpVol">—</div><div class="l">Confirmed volume</div></div>
-        <div class="stat"><div class="n" id="rpCount">—</div><div class="l">Confirmed count</div></div>
+        <div class="stat"><div class="n" id="rpVol">—</div><div class="l" data-i18n="m.confirmedVolume">Confirmed volume</div></div>
+        <div class="stat"><div class="n" id="rpCount">—</div><div class="l" data-i18n="m.confirmedCount">Confirmed count</div></div>
       </div>
       <div class="panel">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-          <select id="rpStatus" style="width:auto"><option value="">All statuses</option><option>CONFIRMED</option><option>PROCESSING</option><option>PENDING</option><option>EXPIRED</option></select>
-          <select id="rpSource" style="width:auto"><option value="">All sources</option><option value="pos">POS</option><option value="invoice">Invoice</option><option value="api">API</option></select>
-          <button class="btn sm" id="rpExport" style="margin-left:auto">Export CSV</button>
+          <select id="rpStatus" style="width:auto"><option value="" data-i18n="m.allStatuses">All statuses</option><option>CONFIRMED</option><option>PROCESSING</option><option>PENDING</option><option>EXPIRED</option></select>
+          <select id="rpSource" style="width:auto"><option value="" data-i18n="m.allSources">All sources</option><option value="pos" data-i18n="m.srcPos">POS</option><option value="invoice" data-i18n="m.srcInvoice">Invoice</option><option value="api" data-i18n="m.srcApi">API</option></select>
+          <button class="btn sm" id="rpExport" style="margin-left:auto" data-i18n="m.exportCsv">Export CSV</button>
         </div>
-        <div class="tablewrap"><table id="rpTable"><thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Source</th><th>Ref</th><th>Asset</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="tablewrap"><table id="rpTable"><thead><tr><th data-i18n="m.thDate">Date</th><th data-i18n="m.amount">Amount</th><th data-i18n="m.thStatus">Status</th><th data-i18n="m.thSource">Source</th><th data-i18n="m.thRef">Ref</th><th data-i18n="m.thAsset">Asset</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
     </section>
 
     <!-- CASH OUT -->
     <section data-pane="cashout" class="hidden">
-      <h1>Cash out to fiat</h1>
-      <p class="lede">Turn the crypto you've received into your local currency, paid to your bank or card. Non-custodial — you sell straight from your own wallet through a licensed partner; Atomic never holds your funds.</p>
-      <div class="warn hidden" id="coAddrWarn">⚠️ Set a <b>receiving wallet</b> in Settings first — that's the wallet you'll cash out from.</div>
+      <h1 data-i18n="m.coTitle">Cash out to fiat</h1>
+      <p class="lede" data-i18n="m.coLede">Turn the crypto you've received into your local currency, paid to your bank or card. Non-custodial — you sell straight from your own wallet through a licensed partner; Atomic never holds your funds.</p>
+      <div class="warn hidden" id="coAddrWarn" data-i18n-html="m.coAddrWarn">⚠️ Set a <b>receiving wallet</b> in Settings first — that's the wallet you'll cash out from.</div>
       <div class="panel">
         <div class="row2">
-          <div><label>Amount to cash out (optional)</label><input id="coAmt" inputmode="decimal" placeholder="e.g. 250"></div>
-          <div><label>Payout currency</label><select id="coFiat"></select></div>
+          <div><label data-i18n="m.coAmountOpt">Amount to cash out (optional)</label><input id="coAmt" inputmode="decimal" data-i18n-placeholder="m.coAmountPh" placeholder="e.g. 250"></div>
+          <div><label data-i18n="m.payoutCurrency">Payout currency</label><select id="coFiat"></select></div>
         </div>
         <div class="row2">
-          <div><label>Your country</label><select id="coCountry"></select></div>
-          <div><label>Selling</label><input id="coAsset" value="USDC on Base" disabled></div>
+          <div><label data-i18n="m.yourCountry">Your country</label><select id="coCountry"></select></div>
+          <div><label data-i18n="m.selling">Selling</label><input id="coAsset" value="USDC on Base" disabled></div>
         </div>
-        <p style="font-size:12px;color:var(--faint);margin:10px 0 0">We show the licensed off-ramps available in your country. You complete identity verification and get paid by the provider directly — Atomic just routes you there.</p>
+        <p style="font-size:12px;color:var(--faint);margin:10px 0 0" data-i18n="m.coNote">We show the licensed off-ramps available in your country. You complete identity verification and get paid by the provider directly — Atomic just routes you there.</p>
       </div>
       <div class="panel">
-        <h2>Available providers</h2>
+        <h2 data-i18n="m.availableProviders">Available providers</h2>
         <div id="coProviders"></div>
         <p style="font-size:11px;color:var(--faint);margin:12px 0 0" id="coDemoNote"></p>
       </div>
@@ -210,28 +213,28 @@
 
     <!-- SETTINGS -->
     <section data-pane="settings" class="hidden">
-      <h1>Settings</h1><p class="lede">Where your money goes, and how you're notified.</p>
+      <h1 data-i18n="m.nav.settings">Settings</h1><p class="lede" data-i18n="m.setLede">Where your money goes, and how you're notified.</p>
       <div class="panel">
-        <h2>Receiving wallet</h2>
-        <p style="font-size:13px;color:var(--muted);margin-top:0">Payments settle here directly — Atomic never holds your funds. EVM address (USDC on Base recommended).</p>
+        <h2 data-i18n="m.receivingWallet">Receiving wallet</h2>
+        <p style="font-size:13px;color:var(--muted);margin-top:0" data-i18n="m.receivingWalletNote">Payments settle here directly — Atomic never holds your funds. EVM address (USDC on Base recommended).</p>
         <input id="setAddr" placeholder="0x…">
-        <button class="btn pri sm" id="setAddrSave" style="margin-top:10px">Save address</button>
+        <button class="btn pri sm" id="setAddrSave" style="margin-top:10px" data-i18n="m.saveAddress">Save address</button>
       </div>
       <div class="panel">
-        <h2>Transaction limits</h2>
-        <p style="font-size:13px;color:var(--muted);margin-top:0">Optional min/max per charge, in your charge currency. Charges outside the range are rejected. Leave blank for no limit.</p>
+        <h2 data-i18n="m.txLimits">Transaction limits</h2>
+        <p style="font-size:13px;color:var(--muted);margin-top:0" data-i18n="m.txLimitsNote">Optional min/max per charge, in your charge currency. Charges outside the range are rejected. Leave blank for no limit.</p>
         <div class="row2">
-          <div><label>Minimum per charge</label><input id="setMin" inputmode="decimal" placeholder="No minimum"></div>
-          <div><label>Maximum per charge</label><input id="setMax" inputmode="decimal" placeholder="No maximum"></div>
+          <div><label data-i18n="m.minPerCharge">Minimum per charge</label><input id="setMin" inputmode="decimal" data-i18n-placeholder="m.noMinimum" placeholder="No minimum"></div>
+          <div><label data-i18n="m.maxPerCharge">Maximum per charge</label><input id="setMax" inputmode="decimal" data-i18n-placeholder="m.noMaximum" placeholder="No maximum"></div>
         </div>
-        <button class="btn pri sm" id="setLimitsSave" style="margin-top:10px">Save limits</button>
+        <button class="btn pri sm" id="setLimitsSave" style="margin-top:10px" data-i18n="m.saveLimits">Save limits</button>
         <div class="err hidden" id="setLimitsErr"></div>
       </div>
       <div class="panel">
-        <h2>Webhook</h2>
-        <p style="font-size:13px;color:var(--muted);margin-top:0">We POST a signed <code>payment.confirmed</code> when a charge is paid.</p>
+        <h2 data-i18n="m.webhook">Webhook</h2>
+        <p style="font-size:13px;color:var(--muted);margin-top:0" data-i18n-html="m.webhookNote">We POST a signed <code>payment.confirmed</code> when a charge is paid.</p>
         <input id="setHook" placeholder="https://your-app.com/atomic-webhook">
-        <button class="btn pri sm" id="setHookSave" style="margin-top:10px">Save webhook</button>
+        <button class="btn pri sm" id="setHookSave" style="margin-top:10px" data-i18n="m.saveWebhook">Save webhook</button>
         <div id="setSecret" class="keybox hidden" style="margin-top:10px"></div>
       </div>
       <div class="err hidden" id="setErr"></div>
@@ -242,8 +245,11 @@
 <!-- RECEIPT -->
 <div id="receiptModal"><div class="receipt" id="receiptBody"></div></div>
 
+<script src="/assets/i18n.js?v=223"></script>
 <script>
 (function () {
+  var A = window.atomicI18n; if (A) A.init();
+  var t = A ? A.t : function (k) { return k; };
   var KEY = 'atomic_merchant_key';
   var $ = function (id) { return document.getElementById(id); };
   var key = localStorage.getItem(KEY) || '';
@@ -255,12 +261,13 @@
     return fetch(path, opts).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); });
   }
   function show(el, on) { el.classList.toggle('hidden', !on); }
-  function money(a, c) { return (currencySym[c] || '') + Number(a).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (currencySym[c] ? '' : ' ' + (c || '')); }
+  var LOC = function () { return A ? A.locale : undefined; };
+  function money(a, c) { return (currencySym[c] || '') + Number(a).toLocaleString(LOC(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (currencySym[c] ? '' : ' ' + (c || '')); }
   function checkoutUrl(id) { return location.origin + '/checkout?intentId=' + id; }
   async function qr(el, text) {
     el.textContent = '…';
     try { var M = await import('/assets/vendor/esm/qrcode.mjs'); var u = await (M.toDataURL || M.default.toDataURL)(text, { width: 210, margin: 1, color: { dark: '#14161c', light: '#ffffff' } }); el.innerHTML = '<img alt="Payment QR" src="' + u + '">'; }
-    catch (e) { el.innerHTML = '<span style="font-size:12px;color:var(--muted);padding:10px">Scan the link below</span>'; }
+    catch (e) { el.innerHTML = '<span style="font-size:12px;color:var(--muted);padding:10px">' + t('m.scanLinkBelow') + '</span>'; }
   }
 
   // ---------- auth ----------
@@ -274,14 +281,14 @@
     if (!k) return;
     key = k; var r = await api('/v1/merchant/me');
     if (r.ok) { localStorage.setItem(KEY, k); enter(r.d); }
-    else { key = ''; $('siErr').textContent = r.d.error || 'Invalid key.'; show($('siErr'), true); }
+    else { key = ''; $('siErr').textContent = r.d.error || t('m.invalidKey'); show($('siErr'), true); }
   });
 
   $('suBtn').addEventListener('click', async function () {
     $('suErr').classList.add('hidden');
     var body = { businessName: $('suName').value.trim(), email: $('suEmail').value.trim(), receiveAddress: $('suAddr').value.trim() };
     var r = await fetch('/v1/merchant/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (x) { return x.json().then(function (d) { return { ok: x.ok, d: d }; }); });
-    if (!r.ok) { $('suErr').textContent = r.d.error || 'Could not create account.'; show($('suErr'), true); return; }
+    if (!r.ok) { $('suErr').textContent = r.d.error || t('m.createFailed'); show($('suErr'), true); return; }
     key = r.d.apiKey; $('suKey').textContent = key; show($('suKeyBox'), true); $('suBtn').classList.add('hidden');
   });
   $('suCopy').addEventListener('click', async function () {
@@ -296,7 +303,7 @@
   function enter(me) {
     currentMe = me;
     show($('authView'), false); show($('appView'), true); show($('who'), true);
-    $('whoName').textContent = me.businessName || 'Merchant';
+    $('whoName').textContent = me.businessName || t('m.merchant');
     renderOverview(me); loadReports(); loadInvoices();
     if ($('setAddr')) $('setAddr').value = me.receiveAddress || '';
     if ($('setHook')) $('setHook').value = me.webhookUrl || '';
@@ -324,18 +331,18 @@
   $('posCreate').addEventListener('click', async function () {
     $('posErr').classList.add('hidden');
     var amt = parseFloat($('posAmt').value);
-    if (!(amt > 0)) { $('posErr').textContent = 'Enter an amount.'; show($('posErr'), true); return; }
+    if (!(amt > 0)) { $('posErr').textContent = t('m.enterAmount'); show($('posErr'), true); return; }
     var r = await api('/v1/payment_intents', { method: 'POST', body: JSON.stringify({ amount: amt, currency: $('posCur').value, description: $('posDesc').value.trim(), source: 'pos' }) });
-    if (!r.ok) { $('posErr').textContent = r.d.error || 'Could not create charge.'; show($('posErr'), true); return; }
+    if (!r.ok) { $('posErr').textContent = r.d.error || t('m.createChargeFailed'); show($('posErr'), true); return; }
     var id = r.d.intent.id, url = checkoutUrl(id);
     show($('posForm'), false); show($('posCharge'), true);
     $('posChargeAmt').textContent = money(amt, $('posCur').value);
-    $('posLink').textContent = url; $('posOpen').href = url; $('posStatus').textContent = 'Waiting for payment…'; $('posStatus').style.color = 'var(--pend)';
+    $('posLink').textContent = url; $('posOpen').href = url; $('posStatus').textContent = t('m.waiting'); $('posStatus').style.color = 'var(--pend)';
     qr($('posQr'), url);
     clearInterval(posPoll);
     posPoll = setInterval(async function () {
       var s = await api('/v1/payment_intents/' + id);
-      if (s.ok && s.d.intent && s.d.intent.status === 'CONFIRMED') { clearInterval(posPoll); $('posStatus').textContent = '✅ Paid'; $('posStatus').style.color = 'var(--live)'; loadReports(); }
+      if (s.ok && s.d.intent && s.d.intent.status === 'CONFIRMED') { clearInterval(posPoll); $('posStatus').textContent = '✅ ' + t('m.paidShort'); $('posStatus').style.color = 'var(--live)'; loadReports(); }
     }, 5000);
   });
   $('posCopy').addEventListener('click', function () { navigator.clipboard.writeText($('posLink').textContent).catch(function(){}); });
@@ -345,9 +352,9 @@
   $('invCreate').addEventListener('click', async function () {
     $('invErr').classList.add('hidden'); show($('invResult'), false);
     var amt = parseFloat($('invAmt').value);
-    if (!(amt > 0)) { $('invErr').textContent = 'Enter an amount.'; show($('invErr'), true); return; }
+    if (!(amt > 0)) { $('invErr').textContent = t('m.enterAmount'); show($('invErr'), true); return; }
     var r = await api('/v1/payment_intents', { method: 'POST', body: JSON.stringify({ amount: amt, currency: $('invCur').value, description: $('invDesc').value.trim(), reference: $('invRef').value.trim(), customerEmail: $('invEmail').value.trim(), source: 'invoice' }) });
-    if (!r.ok) { $('invErr').textContent = r.d.error || 'Could not create invoice.'; show($('invErr'), true); return; }
+    if (!r.ok) { $('invErr').textContent = r.d.error || t('m.createInvoiceFailed'); show($('invErr'), true); return; }
     var url = checkoutUrl(r.d.intent.id); $('invLink').textContent = url; show($('invResult'), true);
     $('invAmt').value = ''; $('invDesc').value = ''; $('invRef').value = ''; $('invEmail').value = '';
     loadInvoices();
@@ -358,12 +365,12 @@
     var r = await api('/v1/merchant/payments?source=invoice&pageSize=25');
     if (!r.ok) return;
     var tb = $('invTable').querySelector('tbody'); tb.innerHTML = '';
-    if (!r.d.payments.length) { tb.innerHTML = '<tr><td style="color:var(--muted)">No invoices yet.</td></tr>'; return; }
+    if (!r.d.payments.length) { tb.innerHTML = '<tr><td style="color:var(--muted)">' + t('m.noInvoices') + '</td></tr>'; return; }
     r.d.payments.forEach(function (p) {
       var tr = document.createElement('tr');
       tr.innerHTML = '<td>' + (p.reference || '—') + '</td><td>' + money(p.amount, p.currency) + '</td><td><span class="pill ' + p.status + '">' + p.status + '</span></td>' +
-        '<td class="mono">' + new Date(p.createdAt).toLocaleDateString() + '</td>' +
-        '<td style="text-align:right"><button class="btn sm" data-link="' + checkoutUrl(p.id) + '">Copy link</button>' + (p.status === 'CONFIRMED' ? ' <button class="btn sm" data-receipt="' + p.id + '">Receipt</button>' : '') + '</td>';
+        '<td class="mono">' + new Date(p.createdAt).toLocaleDateString(LOC()) + '</td>' +
+        '<td style="text-align:right"><button class="btn sm" data-link="' + checkoutUrl(p.id) + '">' + t('m.copyLink') + '</button>' + (p.status === 'CONFIRMED' ? ' <button class="btn sm" data-receipt="' + p.id + '">' + t('m.receipt') + '</button>' : '') + '</td>';
       tb.appendChild(tr);
     });
     wireRowButtons(tb);
@@ -379,13 +386,13 @@
     $('rpVol').textContent = money(r.d.totals.confirmedVolume, (r.d.payments[0] && r.d.payments[0].currency) || 'USD');
     $('rpCount').textContent = r.d.totals.confirmedCount;
     var tb = $('rpTable').querySelector('tbody'); tb.innerHTML = '';
-    if (!r.d.payments.length) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">No payments yet.</td></tr>'; return; }
+    if (!r.d.payments.length) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">' + t('m.noPayments') + '</td></tr>'; return; }
     r.d.payments.forEach(function (p) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td class="mono">' + new Date(p.createdAt).toLocaleString() + '</td><td>' + money(p.amount, p.currency) + '</td>' +
+      tr.innerHTML = '<td class="mono">' + new Date(p.createdAt).toLocaleString(LOC()) + '</td><td>' + money(p.amount, p.currency) + '</td>' +
         '<td><span class="pill ' + p.status + '">' + p.status + '</span></td><td>' + (p.source || 'api') + '</td><td>' + (p.reference || '—') + '</td>' +
         '<td class="mono">' + (p.asset ? p.asset.replace(/_/g, ' ') : '—') + '</td>' +
-        '<td style="text-align:right">' + (p.status === 'CONFIRMED' ? '<button class="btn sm" data-receipt="' + p.id + '">Receipt</button>' : '') + '</td>';
+        '<td style="text-align:right">' + (p.status === 'CONFIRMED' ? '<button class="btn sm" data-receipt="' + p.id + '">' + t('m.receipt') + '</button>' : '') + '</td>';
       tb.appendChild(tr);
     });
     wireRowButtons(tb);
@@ -399,7 +406,7 @@
   });
 
   function wireRowButtons(scope) {
-    scope.querySelectorAll('[data-link]').forEach(function (b) { b.addEventListener('click', function () { navigator.clipboard.writeText(b.dataset.link).catch(function(){}); b.textContent = 'Copied'; setTimeout(function(){ b.textContent = 'Copy link'; }, 1500); }); });
+    scope.querySelectorAll('[data-link]').forEach(function (b) { b.addEventListener('click', function () { navigator.clipboard.writeText(b.dataset.link).catch(function(){}); b.textContent = t('m.copied'); setTimeout(function(){ b.textContent = t('m.copyLink'); }, 1500); }); });
     scope.querySelectorAll('[data-receipt]').forEach(function (b) { b.addEventListener('click', function () { openReceipt(b.dataset.receipt); }); });
   }
 
@@ -408,15 +415,15 @@
     var r = await fetch('/v1/payment_intents/' + id + '/receipt').then(function (x) { return x.json(); });
     var rc = r.receipt; if (!rc) return;
     $('receiptBody').innerHTML =
-      '<h3>' + rc.businessName + '</h3><div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">Payment receipt</div>' +
+      '<h3>' + rc.businessName + '</h3><div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">' + t('m.paymentReceipt') + '</div>' +
       '<div class="big">' + money(rc.amount, rc.currency) + '</div>' +
-      (rc.description ? '<div class="r"><span class="k">Description</span><span>' + rc.description + '</span></div>' : '') +
-      (rc.reference ? '<div class="r"><span class="k">Reference</span><span>' + rc.reference + '</span></div>' : '') +
-      '<div class="r"><span class="k">Status</span><span>' + (rc.paid ? '✅ Paid' : rc.status) + '</span></div>' +
-      '<div class="r"><span class="k">Paid in</span><span>' + (rc.asset || '—') + (rc.cryptoAmount ? ' (' + rc.cryptoAmount + ')' : '') + '</span></div>' +
-      (rc.txHash ? '<div class="r"><span class="k">Transaction</span><span class="mono" style="font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
-      '<div class="r"><span class="k">Date</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString() + '</span></div>' +
-      '<div class="noprint" style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="window.print()">Print / Save PDF</button><button class="btn pri" style="flex:1" id="rcClose">Close</button></div>';
+      (rc.description ? '<div class="r"><span class="k">' + t('m.description') + '</span><span>' + rc.description + '</span></div>' : '') +
+      (rc.reference ? '<div class="r"><span class="k">' + t('m.thRef') + '</span><span>' + rc.reference + '</span></div>' : '') +
+      '<div class="r"><span class="k">' + t('m.thStatus') + '</span><span>' + (rc.paid ? '✅ ' + t('m.paidShort') : rc.status) + '</span></div>' +
+      '<div class="r"><span class="k">' + t('m.paidIn') + '</span><span>' + (rc.asset || '—') + (rc.cryptoAmount ? ' (' + rc.cryptoAmount + ')' : '') + '</span></div>' +
+      (rc.txHash ? '<div class="r"><span class="k">' + t('m.transaction') + '</span><span class="mono" style="font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
+      '<div class="r"><span class="k">' + t('m.thDate') + '</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString(LOC()) + '</span></div>' +
+      '<div class="noprint" style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="window.print()">' + t('m.printSave') + '</button><button class="btn pri" style="flex:1" id="rcClose">' + t('m.close') + '</button></div>';
     $('receiptModal').classList.add('show');
     $('rcClose').addEventListener('click', function () { $('receiptModal').classList.remove('show'); });
   }
@@ -426,20 +433,20 @@
   async function saveSettings(data, secretEl) {
     $('setErr').classList.add('hidden');
     var r = await api('/v1/merchant/settings', { method: 'POST', body: JSON.stringify(data) });
-    if (!r.ok) { $('setErr').textContent = r.d.error || 'Could not save.'; show($('setErr'), true); return null; }
-    if (secretEl && r.d.webhookSecret) { secretEl.textContent = 'Signing secret: ' + r.d.webhookSecret; show(secretEl, true); }
+    if (!r.ok) { $('setErr').textContent = r.d.error || t('m.couldNotSave'); show($('setErr'), true); return null; }
+    if (secretEl && r.d.webhookSecret) { secretEl.textContent = t('m.signingSecret', { s: r.d.webhookSecret }); show(secretEl, true); }
     return r.d;
   }
-  $('setAddrSave').addEventListener('click', function () { saveSettings({ receiveAddress: $('setAddr').value.trim() }).then(function (d) { if (d) { $('setAddrSave').textContent = 'Saved ✓'; setTimeout(function(){ $('setAddrSave').textContent = 'Save address'; }, 1500); api('/v1/merchant/me').then(function (m) { if (m.ok) show($('addrWarn'), !m.d.receiveConfigured); }); } }); });
-  $('setHookSave').addEventListener('click', function () { saveSettings({ webhookUrl: $('setHook').value.trim() }, $('setSecret')).then(function (d) { if (d) { $('setHookSave').textContent = 'Saved ✓'; setTimeout(function(){ $('setHookSave').textContent = 'Save webhook'; }, 1500); } }); });
+  $('setAddrSave').addEventListener('click', function () { saveSettings({ receiveAddress: $('setAddr').value.trim() }).then(function (d) { if (d) { $('setAddrSave').textContent = t('m.saved'); setTimeout(function(){ $('setAddrSave').textContent = t('m.saveAddress'); }, 1500); api('/v1/merchant/me').then(function (m) { if (m.ok) show($('addrWarn'), !m.d.receiveConfigured); }); } }); });
+  $('setHookSave').addEventListener('click', function () { saveSettings({ webhookUrl: $('setHook').value.trim() }, $('setSecret')).then(function (d) { if (d) { $('setHookSave').textContent = t('m.saved'); setTimeout(function(){ $('setHookSave').textContent = t('m.saveWebhook'); }, 1500); } }); });
   $('setLimitsSave').addEventListener('click', async function () {
     show($('setLimitsErr'), false);
     var minv = $('setMin').value.trim(), maxv = $('setMax').value.trim();
     var r = await api('/v1/merchant/settings', { method: 'POST', body: JSON.stringify({ minChargeAmount: minv === '' ? null : minv, maxChargeAmount: maxv === '' ? null : maxv }) });
-    if (!r.ok) { $('setLimitsErr').textContent = r.d.error || 'Could not save.'; show($('setLimitsErr'), true); return; }
+    if (!r.ok) { $('setLimitsErr').textContent = r.d.error || t('m.couldNotSave'); show($('setLimitsErr'), true); return; }
     $('setMin').value = r.d.minChargeAmount != null ? r.d.minChargeAmount : '';
     $('setMax').value = r.d.maxChargeAmount != null ? r.d.maxChargeAmount : '';
-    $('setLimitsSave').textContent = 'Saved ✓'; setTimeout(function(){ $('setLimitsSave').textContent = 'Save limits'; }, 1500);
+    $('setLimitsSave').textContent = t('m.saved'); setTimeout(function(){ $('setLimitsSave').textContent = t('m.saveLimits'); }, 1500);
   });
 
   // ---------- Cash out (global fiat off-ramp aggregator) ----------
@@ -478,7 +485,7 @@
     var list = OFFRAMP.filter(function(p){ return p.cover === G || !cc || p.cover.indexOf(cc) >= 0; });
     var host = $('coProviders');
     host.innerHTML = list.map(function(p){
-      var label = p.setup ? 'Set up →' : 'Continue →';
+      var label = p.setup ? t('m.setupArrow') : t('m.continueArrow');
       return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)">' +
         '<div style="font-size:22px;width:26px;text-align:center">' + p.emoji + '</div>' +
         '<div style="flex:1"><div style="font-weight:700">' + p.name + '</div><div style="font-size:12px;color:var(--muted)">' + p.note + '</div></div>' +
@@ -505,9 +512,9 @@
     if (cashoutInit) return;
     cashoutInit = true;
     $('coFiat').innerHTML = FIATS.map(function(f){ return '<option>' + f + '</option>'; }).join('');
-    $('coCountry').innerHTML = '<option value="">🌍 Global / Other</option>' + COUNTRIES.map(function(c){ return '<option value="' + c[0] + '">' + c[1] + '</option>'; }).join('');
+    $('coCountry').innerHTML = '<option value="">' + t('m.globalOther') + '</option>' + COUNTRIES.map(function(c){ return '<option value="' + c[0] + '">' + c[1] + '</option>'; }).join('');
     $('coCountry').addEventListener('change', function(){ var f = FIAT_BY_CC[$('coCountry').value]; if (f) $('coFiat').value = f; renderProviders(); });
-    $('coDemoNote').textContent = 'Non-custodial hand-off to licensed partners. Provider API keys aren’t configured yet, so buttons open each provider’s public page — add your keys in OFFRAMP_KEYS (merchant.html) to prefill amount, wallet & currency and earn referral fees.';
+    $('coDemoNote').textContent = t('m.coDemoNote');
     renderProviders();
     fetch('/v1/geo').then(function(r){ return r.json(); }).then(function(d){
       if (d && d.country && $('coCountry').querySelector('option[value="' + d.country + '"]')) {

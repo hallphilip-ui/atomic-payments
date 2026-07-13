@@ -23,6 +23,7 @@ import partnerRoutes from './routes/partner';
 import assistantRoutes from './routes/assistant';
 import observabilityRoutes from './routes/observability';
 import arbRoutes from './routes/arb';
+import marketRoutes from './routes/markets';
 import { startPaymentWatcher } from './payments/paymentWatcher';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -113,6 +114,7 @@ app.use(intentRoutes);
 app.use(userRoutes);
 app.use(adminRoutes);
 app.use(arbRoutes);
+app.use(marketRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
 app.use(transferRoutes);
@@ -439,6 +441,9 @@ app.use('/favicon.ico', (_req: Request, res: Response) => {
 app.use('/assets/i18n.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'i18n.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');
+  // The dictionary changes as pages are localized — revalidate (ETag) so
+  // Cloudflare/browsers never serve a stale dict that renders raw i18n keys.
+  res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(script);
 });
 

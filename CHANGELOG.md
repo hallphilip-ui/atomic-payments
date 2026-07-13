@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.0 - 2026-07-13
+
+**Full 15-language localization across the product.**
+
+- **Every customer- and merchant-facing surface is now translated** into 15 languages (en, zh, hi, es, fr, ar, bn, pt, ru, ur, id, de, ja, sw, pa, incl. RTL): the hosted checkout, the entire merchant portal (auth, POS, invoices, payments, cash-out, transaction limits, settings, receipts), the transfers explorer, the help & bug tracker, and partner sign-in/verification. ~250 dictionary keys × 15 languages, with a language selector on every page; numbers and dates localize too.
+- **atomicexchange** — the market dashboard gets its own self-contained i18n (49 keys × 15) with a language selector, ready for its first deploy.
+- Legal text (terms/privacy), API docs, and version-history bodies remain in English by design (English governs; translations are for convenience).
+- **Fix** — the i18n bundle is now cache-versioned so a dictionary update can't be masked by Cloudflare's edge cache.
+
 ## 2.2.1 - 2026-07-13
 
 **Configurable transaction limits + a platform swap cap.**

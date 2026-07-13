@@ -20,49 +20,52 @@
   .muted-sm { font-size:12.5px; color:#98a2b3; }
 </style>
 
-<header class="topbar"><a class="brand" href="/"><img src="/assets/atomic-mark.png" width="30" height="24" alt="" onerror="this.style.display='none'">Atomic</a></header>
+<header class="topbar"><a class="brand" href="/"><img src="/assets/atomic-mark.png" width="30" height="24" alt="" onerror="this.style.display='none'">Atomic</a><select data-atomic-language-select aria-label="Language" style="margin-left:auto;width:auto;padding:5px 8px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--muted);font-family:inherit"></select></header>
 
 <main>
   <div class="card">
     <div id="pending" class="status">
-      <div class="icon">⏳</div><h1>Verifying…</h1><p>Confirming your email address.</p>
+      <div class="icon">⏳</div><h1 data-i18n="pv.verifying">Verifying…</h1><p data-i18n="pv.confirming">Confirming your email address.</p>
     </div>
 
     <div id="ok" class="status ok hidden">
-      <div class="icon">✅</div><h1>Email verified</h1>
-      <p>Your Atomic Partner API access is now active. You can use your API key.</p>
-      <a class="btn" href="/partners">Go to the partner dashboard</a>
+      <div class="icon">✅</div><h1 data-i18n="pv.verified">Email verified</h1>
+      <p data-i18n="pv.active">Your Atomic Partner API access is now active. You can use your API key.</p>
+      <a class="btn" href="/partners" data-i18n="pv.goDashboard">Go to the partner dashboard</a>
     </div>
 
     <div id="err" class="status err hidden">
-      <div class="icon">⚠️</div><h1 id="errTitle">Verification failed</h1>
-      <p id="errMsg">This link is invalid or has already been used.</p>
+      <div class="icon">⚠️</div><h1 id="errTitle" data-i18n="pv.failed">Verification failed</h1>
+      <p id="errMsg" data-i18n="pv.invalidLink">This link is invalid or has already been used.</p>
       <div class="resend">
-        <p>Need a new link? Enter your account email:</p>
+        <p data-i18n="pv.needNew">Need a new link? Enter your account email:</p>
         <input id="email" type="email" placeholder="you@company.com" autocomplete="email">
-        <button class="btn" id="resendBtn" type="button">Send a new link</button>
+        <button class="btn" id="resendBtn" type="button" data-i18n="pv.sendNew">Send a new link</button>
         <p id="resendNote" class="muted-sm hidden"></p>
       </div>
     </div>
   </div>
 </main>
 
+<script src="/assets/i18n.js?v=223"></script>
 <script>
 (function () {
+  var A = window.atomicI18n; if (A) A.init();
+  var t = A ? A.t : function (k) { return k; };
   var $ = function (id) { return document.getElementById(id); };
   var show = function (id) { ['pending','ok','err'].forEach(function (k) { $(k).classList.toggle('hidden', k !== id); }); };
   var token = new URLSearchParams(location.search).get('token') || '';
 
   if (!token) {
-    show('err'); $('errTitle').textContent = 'Missing link'; $('errMsg').textContent = 'This page needs a verification link from your email.';
+    show('err'); $('errTitle').textContent = t('pv.missing'); $('errMsg').textContent = t('pv.needLink');
   } else {
     fetch('/v1/partner/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: token }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
         if (res.ok && res.d.verified) { show('ok'); }
-        else { show('err'); if (res.d && res.d.error) $('errMsg').textContent = res.d.error; if (res.d && res.d.expired) $('errTitle').textContent = 'Link expired'; }
+        else { show('err'); if (res.d && res.d.error) $('errMsg').textContent = res.d.error; if (res.d && res.d.expired) $('errTitle').textContent = t('pv.expired'); }
       })
-      .catch(function () { show('err'); $('errMsg').textContent = 'Something went wrong. Please try again.'; });
+      .catch(function () { show('err'); $('errMsg').textContent = t('pv.wentWrong'); });
   }
 
   $('resendBtn').addEventListener('click', function () {
@@ -70,8 +73,8 @@
     var note = $('resendNote'); $('resendBtn').disabled = true;
     fetch('/v1/partner/resend-verification', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) })
       .then(function (r) { return r.json(); })
-      .then(function (d) { note.textContent = d.note || 'If that email has an unverified account, a new link is on its way.'; note.classList.remove('hidden'); })
-      .catch(function () { note.textContent = 'Could not send right now — try again shortly.'; note.classList.remove('hidden'); })
+      .then(function (d) { note.textContent = d.note || t('pv.resendNote'); note.classList.remove('hidden'); })
+      .catch(function () { note.textContent = t('pv.resendFailed'); note.classList.remove('hidden'); })
       .finally(function () { setTimeout(function () { $('resendBtn').disabled = false; }, 4000); });
   });
 })();

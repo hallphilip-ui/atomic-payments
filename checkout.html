@@ -54,17 +54,17 @@
 </style>
 
 <div class="card">
-  <div class="head"><img src="/assets/atomic-mark.png" alt="" onerror="this.style.display='none'"><b>Atomic Pay</b><span class="tag">🔒 Non-custodial</span></div>
+  <div class="head"><img src="/assets/atomic-mark.png" alt="" onerror="this.style.display='none'"><b>Atomic Pay</b><span class="tag">🔒 <span data-i18n="checkout.nonCustodial">Non-custodial</span></span></div>
   <div class="body">
-    <div id="loading" class="center">Loading payment…</div>
-    <div id="errorView" hidden><div class="errbox" id="errMsg">This payment link is invalid or has expired.</div></div>
+    <div id="loading" class="center" data-i18n="checkout.loading">Loading payment…</div>
+    <div id="errorView" hidden><div class="errbox" id="errMsg" data-i18n="checkout.invalidLink">This payment link is invalid or has expired.</div></div>
 
     <div id="chooseView" hidden>
       <div class="biz" id="cBiz"></div>
       <div class="amt" id="cAmt"></div>
       <div class="desc" id="cDesc"></div>
       <div class="ref" id="cRef"></div>
-      <div class="lbl">Pay with</div>
+      <div class="lbl" data-i18n="checkout.payWith">Pay with</div>
       <div id="railList"></div>
     </div>
 
@@ -72,24 +72,30 @@
       <div style="text-align:center" class="biz" id="pBiz"></div>
       <div class="qr" id="qr">…</div>
       <div class="payamt"><span class="r" id="pRailName"></span><span id="pCryptoAmt"></span></div>
-      <div class="addr"><code id="pAddr"></code><button class="btn sm" id="copyAddr">Copy</button></div>
-      <a class="btn pri" id="openWallet">Open in wallet</a>
-      <div class="status" id="payStatus"><span class="spin"></span> Waiting for payment…</div>
+      <div class="addr"><code id="pAddr"></code><button class="btn sm" id="copyAddr" data-i18n="checkout.copy">Copy</button></div>
+      <a class="btn pri" id="openWallet" data-i18n="checkout.openWallet">Open in wallet</a>
+      <div class="status" id="payStatus"><span class="spin"></span> <span data-i18n="checkout.waiting">Waiting for payment…</span></div>
       <div class="meta"><span id="pExpiry"></span><span id="pFiat"></span></div>
-      <button class="back" id="changeRail">← Pay with a different coin</button>
+      <button class="back" id="changeRail" data-i18n="checkout.differentCoin">← Pay with a different coin</button>
     </div>
 
     <div id="successView" hidden>
-      <div class="success"><div class="check">✓</div><h2>Payment complete</h2><p id="sBiz"></p></div>
+      <div class="success"><div class="check">✓</div><h2 data-i18n="checkout.complete">Payment complete</h2><p id="sBiz"></p></div>
       <div class="rc" id="sReceipt"></div>
-      <button class="btn" style="width:100%;margin-top:12px" onclick="window.print()">Save receipt (PDF)</button>
+      <button class="btn" style="width:100%;margin-top:12px" onclick="window.print()" data-i18n="checkout.saveReceipt">Save receipt (PDF)</button>
     </div>
   </div>
-  <div class="foot">Secured by <a href="/" target="_blank" rel="noopener">Atomic Pay</a> · funds settle directly to the merchant</div>
+  <div class="foot">
+    <div data-i18n-html="checkout.foot">Secured by <a href="/" target="_blank" rel="noopener">Atomic Pay</a> · funds settle directly to the merchant</div>
+    <label style="display:inline-flex;align-items:center;gap:6px;margin-top:10px"><span data-i18n="common.language">Language</span> <select data-atomic-language-select aria-label="Language" style="font:inherit;font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:3px 6px"></select></label>
+  </div>
 </div>
 
+<script src="/assets/i18n.js?v=223"></script>
 <script>
 (function () {
+  var A = window.atomicI18n; if (A) A.init();
+  var t = A ? A.t : function (k) { return k; };
   var $ = function (id) { return document.getElementById(id); };
   var qs = new URLSearchParams(location.search);
   var ID = qs.get('intentId') || qs.get('id') || '';
@@ -112,14 +118,14 @@
   }
 
   async function boot() {
-    if (!ID) return fail('No payment specified.');
+    if (!ID) return fail(t('checkout.noPayment'));
     var rc = await getReceipt();
-    if (!rc) return fail('This payment link is invalid or has expired.');
+    if (!rc) return fail(t('checkout.invalidLink'));
     if (rc.paid) return success(rc);
-    $('cBiz').textContent = rc.businessName || 'Payment';
+    $('cBiz').textContent = rc.businessName || t('checkout.paymentFallback');
     $('cAmt').textContent = money(rc.amount, rc.currency);
     $('cDesc').textContent = rc.description || '';
-    $('cRef').textContent = rc.reference ? 'Ref: ' + rc.reference : '';
+    $('cRef').textContent = rc.reference ? t('checkout.ref', { ref: rc.reference }) : '';
     renderRails(rc); view('chooseView');
   }
 
@@ -128,8 +134,8 @@
     RAILS.forEach(function (rail) {
       var b = document.createElement('button'); b.className = 'rail';
       b.innerHTML = '<span class="ic">' + rail.sym.slice(0, 2) + '</span>' +
-        '<span><span class="t">' + rail.sym + '</span><br><span class="s">on ' + rail.net + '</span></span>' +
-        (rail.rec ? '<span class="rec">Lowest fees</span>' : '') + '<span class="arw">›</span>';
+        '<span><span class="t">' + rail.sym + '</span><br><span class="s">' + t('checkout.onNetwork', { net: rail.net }) + '</span></span>' +
+        (rail.rec ? '<span class="rec">' + t('checkout.lowestFees') + '</span>' : '') + '<span class="arw">›</span>';
       b.addEventListener('click', function () { selectRail(rail, rc); });
       list.appendChild(b);
     });
@@ -137,16 +143,16 @@
 
   async function selectRail(rail, rc) {
     view('payView'); $('pBiz').textContent = rc.businessName || '';
-    $('payStatus').innerHTML = '<span class="spin"></span> Setting up…'; $('qr').textContent = '…';
+    $('payStatus').innerHTML = '<span class="spin"></span> ' + t('checkout.settingUp'); $('qr').textContent = '…';
     var d;
-    try { var r = await fetch('/v1/payment_intents/' + ID + '/select_chain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chain: rail.key }) }); d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not set up this payment.'); }
-    catch (e) { $('payStatus').innerHTML = '<span style="color:var(--err)">' + (e.message || 'Setup failed.') + '</span>'; return; }
-    $('pRailName').textContent = 'Send ' + rail.sym + ' on ' + rail.net;
+    try { var r = await fetch('/v1/payment_intents/' + ID + '/select_chain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chain: rail.key }) }); d = await r.json(); if (!r.ok) throw new Error(d.error || t('checkout.setupFailed')); }
+    catch (e) { $('payStatus').innerHTML = '<span style="color:var(--err)">' + (e.message || t('checkout.setupFailed')) + '</span>'; return; }
+    $('pRailName').textContent = t('checkout.sendInstruction', { sym: rail.sym, net: rail.net });
     $('pCryptoAmt').textContent = d.cryptoAmountRequired + ' ' + rail.sym;
     $('pAddr').textContent = d.depositAddress;
     $('pFiat').textContent = '= ' + money(rc.amount, rc.currency);
     $('openWallet').href = d.web3PaymentUri || '#';
-    $('payStatus').innerHTML = '<span class="spin"></span> Waiting for payment…'; $('payStatus').style.color = 'var(--pend)';
+    $('payStatus').innerHTML = '<span class="spin"></span> ' + t('checkout.waiting'); $('payStatus').style.color = 'var(--pend)';
     makeQr(d.web3PaymentUri || d.depositAddress);
     startCountdown(d.expiresAt);
     clearInterval(poll);
@@ -155,7 +161,7 @@
 
   async function makeQr(text) {
     try { var M = await import('/assets/vendor/esm/qrcode.mjs'); var u = await (M.toDataURL || M.default.toDataURL)(text, { width: 200, margin: 1, color: { dark: '#14161c', light: '#ffffff' } }); $('qr').innerHTML = '<img alt="Payment QR" src="' + u + '">'; }
-    catch (e) { $('qr').innerHTML = '<span style="font-size:12px;color:var(--muted);padding:12px;text-align:center">Copy the address below to pay</span>'; }
+    catch (e) { $('qr').innerHTML = '<span style="font-size:12px;color:var(--muted);padding:12px;text-align:center">' + t('checkout.qrFallback') + '</span>'; }
   }
 
   function startCountdown(expiresAt) {
@@ -163,28 +169,28 @@
     var end = new Date(expiresAt).getTime();
     function tick() {
       var ms = end - Date.now();
-      if (ms <= 0) { clearInterval(countdown); clearInterval(poll); $('pExpiry').textContent = 'Expired'; $('payStatus').innerHTML = '<span style="color:var(--err)">This payment window expired — refresh to retry.</span>'; return; }
+      if (ms <= 0) { clearInterval(countdown); clearInterval(poll); $('pExpiry').textContent = t('checkout.expired'); $('payStatus').innerHTML = '<span style="color:var(--err)">' + t('checkout.windowExpired') + '</span>'; return; }
       var totalS = Math.floor(ms / 1000), d = Math.floor(totalS / 86400), h = Math.floor((totalS % 86400) / 3600), m = Math.floor((totalS % 3600) / 60), s = totalS % 60;
       var txt = d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + ':' + (s < 10 ? '0' : '') + s;
-      $('pExpiry').textContent = 'Expires in ' + txt;
+      $('pExpiry').textContent = t('checkout.expiresIn', { t: txt });
     }
     tick(); countdown = setInterval(tick, 1000);
   }
 
   function success(rc) {
     clearInterval(poll); clearInterval(countdown);
-    $('sBiz').textContent = 'Paid to ' + (rc.businessName || 'merchant');
+    $('sBiz').textContent = t('checkout.paidTo', { name: rc.businessName || t('checkout.merchant') });
     $('sReceipt').innerHTML =
-      '<div class="r"><span class="k">Amount</span><span><b>' + money(rc.amount, rc.currency) + '</b></span></div>' +
-      (rc.reference ? '<div class="r"><span class="k">Reference</span><span>' + rc.reference + '</span></div>' : '') +
-      (rc.description ? '<div class="r"><span class="k">For</span><span>' + rc.description + '</span></div>' : '') +
-      (rc.asset ? '<div class="r"><span class="k">Paid in</span><span>' + String(rc.asset).replace(/_/g, ' ') + '</span></div>' : '') +
-      (rc.txHash ? '<div class="r"><span class="k">Transaction</span><span style="font-family:var(--mono);font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
-      '<div class="r"><span class="k">Date</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString() + '</span></div>';
+      '<div class="r"><span class="k">' + t('checkout.amount') + '</span><span><b>' + money(rc.amount, rc.currency) + '</b></span></div>' +
+      (rc.reference ? '<div class="r"><span class="k">' + t('checkout.reference') + '</span><span>' + rc.reference + '</span></div>' : '') +
+      (rc.description ? '<div class="r"><span class="k">' + t('checkout.for') + '</span><span>' + rc.description + '</span></div>' : '') +
+      (rc.asset ? '<div class="r"><span class="k">' + t('checkout.paidIn') + '</span><span>' + String(rc.asset).replace(/_/g, ' ') + '</span></div>' : '') +
+      (rc.txHash ? '<div class="r"><span class="k">' + t('checkout.transaction') + '</span><span style="font-family:var(--mono);font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
+      '<div class="r"><span class="k">' + t('checkout.date') + '</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString(A ? A.locale : undefined) + '</span></div>';
     view('successView');
   }
 
-  $('copyAddr').addEventListener('click', function () { var b = this; navigator.clipboard.writeText($('pAddr').textContent).catch(function(){}); b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); });
+  $('copyAddr').addEventListener('click', function () { var b = this; navigator.clipboard.writeText($('pAddr').textContent).catch(function(){}); b.textContent = t('checkout.copied'); setTimeout(function () { b.textContent = t('checkout.copy'); }, 1500); });
   $('changeRail').addEventListener('click', function () { clearInterval(poll); clearInterval(countdown); boot(); });
 
   boot();

@@ -140,100 +140,104 @@
   <header class="topbar">
     <a class="brand" href="/">
       <img src="/assets/atomic-mark.png" alt="Atomic" onerror="this.style.display='none'">
-      <span><strong>Atomic</strong><span>Payments &amp; Conversions</span></span>
+      <span><strong>Atomic</strong><span data-i18n="n.brandSub">Payments &amp; Conversions</span></span>
     </a>
     <nav class="nav">
-      <a href="/defi-swap">Swap</a>
-      <a href="/transfers">Transfers</a>
-      <a href="/checkout">Checkout</a>
-      <a href="/help" class="active">Help</a>
-      <a href="/releases">Releases</a>
+      <a href="/defi-swap" data-i18n="n.swap">Swap</a>
+      <a href="/transfers" data-i18n="n.transfers">Transfers</a>
+      <a href="/checkout" data-i18n="n.checkout">Checkout</a>
+      <a href="/help" class="active" data-i18n="n.help">Help</a>
+      <a href="/releases" data-i18n="n.releases">Releases</a>
+      <select data-atomic-language-select aria-label="Language" style="width:auto;padding:0 8px;font-size:13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);font-family:inherit"></select>
     </nav>
   </header>
 
   <main class="wrap">
-    <h1>Help &amp; Bug Tracker</h1>
-    <p class="sub">Answers to common questions, the issues we're already tracking, and a place to report anything that's broken or confusing. We read every report.</p>
+    <h1 data-i18n="h.title">Help &amp; Bug Tracker</h1>
+    <p class="sub" data-i18n="h.sub">Answers to common questions, the issues we're already tracking, and a place to report anything that's broken or confusing. We read every report.</p>
 
     <!-- FAQ -->
-    <h2>Frequently asked</h2>
-    <p class="section-sub">The essentials — how Atomic works and what to do when something goes wrong.</p>
+    <h2 data-i18n="h.faq">Frequently asked</h2>
+    <p class="section-sub" data-i18n="h.faqSub">The essentials — how Atomic works and what to do when something goes wrong.</p>
     <div class="grid">
       <div class="card">
-        <h3>How does a swap work?</h3>
-        <p>Pick a from/to asset and amount, connect your wallet, and confirm. Your wallet signs the transaction — Atomic routes it across chains and settles to your destination address.</p>
+        <h3 data-i18n="h.q1">How does a swap work?</h3>
+        <p data-i18n="h.a1">Pick a from/to asset and amount, connect your wallet, and confirm. Your wallet signs the transaction — Atomic routes it across chains and settles to your destination address.</p>
       </div>
       <div class="card">
-        <h3>Is Atomic custodial?</h3>
-        <p>No. Funds move directly from your wallet through the swap route. Atomic never holds your balance — you sign every transaction yourself.</p>
+        <h3 data-i18n="h.q2">Is Atomic custodial?</h3>
+        <p data-i18n="h.a2">No. Funds move directly from your wallet through the swap route. Atomic never holds your balance — you sign every transaction yourself.</p>
       </div>
       <div class="card">
-        <h3>What are the fees?</h3>
-        <p>A flat platform fee of 2.5%. All-in cost is typically ~2.75% once the routing fee and network gas are included. The exact received amount is always shown before you confirm.</p>
+        <h3 data-i18n="h.q3">What are the fees?</h3>
+        <p data-i18n="h.a3">A flat platform fee of 2.5%. All-in cost is typically ~2.75% once the routing fee and network gas are included. The exact received amount is always shown before you confirm.</p>
       </div>
       <div class="card">
-        <h3>My wallet won't connect</h3>
-        <p>Use a Chrome-based browser for now (a Safari connect issue is being fixed — see the tracker below). Make sure only one wallet extension is set as default, or pick your wallet from the connect list.</p>
+        <h3 data-i18n="h.q4">My wallet won't connect</h3>
+        <p data-i18n="h.a4">Use a Chrome-based browser for now (a Safari connect issue is being fixed — see the tracker below). Make sure only one wallet extension is set as default, or pick your wallet from the connect list.</p>
       </div>
       <div class="card">
-        <h3>Which assets are supported?</h3>
-        <p>15 assets are certified for live routing today — BTC, ETH, SOL, USDC, USDT, WBTC, DAI, UNI, LINK, ARB, OP, POL, BNB, AVAX. More are added as they're verified.</p>
+        <h3 data-i18n="h.q5">Which assets are supported?</h3>
+        <p data-i18n="h.a5">15 assets are certified for live routing today — BTC, ETH, SOL, USDC, USDT, WBTC, DAI, UNI, LINK, ARB, OP, POL, BNB, AVAX. More are added as they're verified.</p>
       </div>
       <div class="card">
-        <h3>Still stuck?</h3>
-        <p>File a report below, or <a href="#" onclick="atomicSupport();return false;">email support</a>. Include what you were doing and your browser/wallet — it helps us reproduce fast.</p>
+        <h3 data-i18n="h.q6">Still stuck?</h3>
+        <p data-i18n-html="h.a6">File a report below, or <a href="#" onclick="atomicSupport();return false;">email support</a>. Include what you were doing and your browser/wallet — it helps us reproduce fast.</p>
       </div>
     </div>
 
     <!-- Report -->
-    <h2>Report a bug or send feedback</h2>
-    <p class="section-sub">Takes 20 seconds. You'll get a reference number to follow up.</p>
+    <h2 data-i18n="h.reportTitle">Report a bug or send feedback</h2>
+    <p class="section-sub" data-i18n="h.reportSub">Takes 20 seconds. You'll get a reference number to follow up.</p>
     <div class="form-card">
       <form id="bug-form">
         <div class="row">
           <div class="field">
-            <label for="category">Type</label>
+            <label for="category" data-i18n="h.type">Type</label>
             <select id="category">
-              <option value="bug">🐞 Bug — something's broken</option>
-              <option value="feedback">💡 Feedback / idea</option>
-              <option value="question">❓ Question</option>
+              <option value="bug" data-i18n="h.optBug">🐞 Bug — something's broken</option>
+              <option value="feedback" data-i18n="h.optFeedback">💡 Feedback / idea</option>
+              <option value="question" data-i18n="h.optQuestion">❓ Question</option>
             </select>
           </div>
           <div class="field">
-            <label for="title">Summary</label>
-            <input id="title" maxlength="140" placeholder="e.g. Connect wallet does nothing in Safari" required>
+            <label for="title" data-i18n="h.summary">Summary</label>
+            <input id="title" maxlength="140" data-i18n-placeholder="h.summaryPh" placeholder="e.g. Connect wallet does nothing in Safari" required>
           </div>
         </div>
         <div class="field">
-          <label for="description">Details</label>
-          <textarea id="description" maxlength="4000" placeholder="What happened, what you expected, and steps to reproduce. Include the assets/amount and your wallet if it's a swap issue." required></textarea>
+          <label for="description" data-i18n="h.details">Details</label>
+          <textarea id="description" maxlength="4000" data-i18n-placeholder="h.detailsPh" placeholder="What happened, what you expected, and steps to reproduce. Include the assets/amount and your wallet if it's a swap issue." required></textarea>
         </div>
         <div class="field">
-          <label for="contact">Email <span class="opt">— optional, only if you want a reply</span></label>
+          <label for="contact" data-i18n-html="h.emailLabel">Email <span class="opt">— optional, only if you want a reply</span></label>
           <input id="contact" type="email" maxlength="200" placeholder="you@example.com">
         </div>
-        <button class="btn" type="submit" id="submit-btn">Submit report</button>
-        <p class="form-note">We capture your browser/version automatically. Don't include seed phrases, private keys, or passwords — we never need them.</p>
+        <button class="btn" type="submit" id="submit-btn" data-i18n="h.submit">Submit report</button>
+        <p class="form-note" data-i18n="h.formNote">We capture your browser/version automatically. Don't include seed phrases, private keys, or passwords — we never need them.</p>
         <div class="result" id="result"></div>
       </form>
     </div>
 
     <!-- Tracker -->
-    <h2>Known issues <span class="hint" id="updated"></span></h2>
-    <p class="section-sub">What we're already aware of and working on. Transparency first — if you hit one of these, you don't need to report it (but more detail always helps).</p>
+    <h2><span data-i18n="h.knownIssues">Known issues</span> <span class="hint" id="updated"></span></h2>
+    <p class="section-sub" data-i18n="h.knownSub">What we're already aware of and working on. Transparency first — if you hit one of these, you don't need to report it (but more detail always helps).</p>
     <div class="filters" id="filters">
-      <button data-f="all" class="active">All</button>
-      <button data-f="open">Open</button>
-      <button data-f="investigating">Investigating</button>
-      <button data-f="fixed">Recently fixed</button>
+      <button data-f="all" class="active" data-i18n="h.fAll">All</button>
+      <button data-f="open" data-i18n="h.fOpen">Open</button>
+      <button data-f="investigating" data-i18n="h.fInvestigating">Investigating</button>
+      <button data-f="fixed" data-i18n="h.fFixed">Recently fixed</button>
     </div>
     <div class="tracker" id="tracker">
-      <div class="tloading">Loading known issues…</div>
+      <div class="tloading" data-i18n="h.loadingIssues">Loading known issues…</div>
     </div>
-    <p class="legend">Severity: <span style="color:var(--red)">●</span> blocker &nbsp; <span style="color:var(--amber)">●</span> major &nbsp; <span style="color:#eab308">●</span> minor &nbsp; <span style="color:#94a3b8">●</span> tracked / by-design</p>
+    <p class="legend" data-i18n-html="h.legend">Severity: <span style="color:var(--red)">●</span> blocker &nbsp; <span style="color:var(--amber)">●</span> major &nbsp; <span style="color:#eab308">●</span> minor &nbsp; <span style="color:#94a3b8">●</span> tracked / by-design</p>
   </main>
 
+  <script src="/assets/i18n.js?v=223"></script>
   <script>
+    window.atomicI18n?.init();
+    const _t = (k, v) => window.atomicI18n ? window.atomicI18n.t(k, v) : k;
     const $ = (id) => document.getElementById(id);
     function esc(v){ return String(v==null?'':v).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -241,7 +245,7 @@
     $('bug-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = $('submit-btn'); const result = $('result');
-      result.className = 'result'; btn.disabled = true; btn.textContent = 'Submitting…';
+      result.className = 'result'; btn.disabled = true; btn.textContent = _t('h.submitting');
       // Read values before any reset so the analytics event reflects the submission.
       const category = $('category').value;
       const title = $('title').value;
@@ -260,7 +264,7 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
         result.className = 'result ok';
-        result.innerHTML = 'Thanks — received. Your reference is <code>' + esc(data.reference) + '</code>. We\'ll take a look.';
+        result.innerHTML = _t('h.thanks', { ref: '<code>' + esc(data.reference) + '</code>' });
         try {
           if (window.posthog) window.posthog.capture('bug_reported', {
             reference: data.reference, category: category, title: title,
@@ -270,9 +274,9 @@
         $('bug-form').reset();
       } catch (err) {
         result.className = 'result err';
-        result.textContent = 'Could not submit: ' + err.message + '. You can also email support instead.';
+        result.textContent = _t('h.submitError', { e: err.message });
       } finally {
-        btn.disabled = false; btn.textContent = 'Submit report';
+        btn.disabled = false; btn.textContent = _t('h.submit');
       }
     });
 
@@ -280,7 +284,7 @@
     let ISSUES = []; let filter = 'all';
     function renderTracker() {
       const list = filter === 'all' ? ISSUES : ISSUES.filter((i) => i.status === filter);
-      if (!list.length) { $('tracker').innerHTML = '<div class="tloading">Nothing here right now.</div>'; return; }
+      if (!list.length) { $('tracker').innerHTML = '<div class="tloading">' + _t('h.nothingHere') + '</div>'; return; }
       $('tracker').innerHTML = list.map((i) => `
         <div class="issue">
           <span class="sev ${esc(i.severity)}" title="${esc(i.severity)}"></span>
@@ -305,10 +309,10 @@
         const res = await fetch('/v1/bugs', { headers: { accept: 'application/json' } });
         const data = await res.json();
         ISSUES = data.issues || [];
-        if (data.updatedAt) $('updated').textContent = 'updated ' + data.updatedAt;
+        if (data.updatedAt) $('updated').textContent = _t('h.updated', { d: data.updatedAt });
         renderTracker();
       } catch (e) {
-        $('tracker').innerHTML = '<div class="tloading">Could not load the tracker. Please refresh.</div>';
+        $('tracker').innerHTML = '<div class="tloading">' + _t('h.trackerError') + '</div>';
       }
     })();
   </script>

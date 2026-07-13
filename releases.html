@@ -79,18 +79,19 @@
       <span><strong>Atomic</strong><span>Payments &amp; Conversions</span></span>
     </a>
     <nav class="nav">
-      <a href="/defi-swap">Swap</a>
-      <a href="/transfers">Transfers</a>
-      <a href="/checkout">Checkout</a>
-      <a href="/help">Help</a>
-      <a href="/releases" class="active">Releases</a>
+      <a href="/defi-swap" data-i18n="n.swap">Swap</a>
+      <a href="/transfers" data-i18n="n.transfers">Transfers</a>
+      <a href="/checkout" data-i18n="n.checkout">Checkout</a>
+      <a href="/help" data-i18n="n.help">Help</a>
+      <a href="/releases" class="active" data-i18n="n.releases">Releases</a>
+      <select data-atomic-language-select aria-label="Language" style="width:auto;padding:0 8px;font-size:13px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--muted);font-family:inherit"></select>
     </nav>
   </header>
 
   <main class="wrap">
-    <h1>Release Notes</h1>
-    <p class="sub">What's new in Atomic. We ship continuously — this is the human-readable log.</p>
-    <span class="curbadge" id="curbadge">Live version —</span>
+    <h1 data-i18n="rel.title">Release Notes</h1>
+    <p class="sub" data-i18n="rel.sub">What's new in Atomic. We ship continuously — this is the human-readable log.</p>
+    <span class="curbadge" id="curbadge" data-i18n="rel.liveVersion">Live version —</span>
 
     <div class="rel latest">
       <div class="rel-head"><span class="ver">1.2.0</span><span class="tag">Latest</span><span class="date">Jul 6, 2026</span></div>
@@ -127,18 +128,21 @@
       </ul>
     </div>
 
-    <p class="foot-link">Found something off? <a href="/help">Report it on the Help &amp; bug tracker →</a></p>
+    <p class="foot-link" data-i18n-html="rel.footLink">Found something off? <a href="/help">Report it on the Help &amp; bug tracker →</a></p>
   </main>
 
+  <script src="/assets/i18n.js?v=223"></script>
   <script>
+    window.atomicI18n?.init();
+    var _t = function (k, v) { return window.atomicI18n ? window.atomicI18n.t(k, v) : k; };
     (async () => {
       try {
         const res = await fetch('/v1/build', { headers: { accept: 'application/json' } });
         const data = await res.json();
         const v = data.version || data.build?.version;
-        if (v) document.getElementById('curbadge').textContent = 'Live version v' + v;
+        if (v) document.getElementById('curbadge').textContent = _t('rel.liveVersionV', { v: v });
       } catch (_) {
-        document.getElementById('curbadge').textContent = 'Live version v1.2.0';
+        document.getElementById('curbadge').textContent = _t('rel.liveVersionV', { v: '1.2.0' });
       }
     })();
   </script>
