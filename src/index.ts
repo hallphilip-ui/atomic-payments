@@ -22,6 +22,7 @@ import gasRoutes from './routes/gas';
 import partnerRoutes from './routes/partner';
 import assistantRoutes from './routes/assistant';
 import observabilityRoutes from './routes/observability';
+import { startPaymentWatcher } from './payments/paymentWatcher';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
 import { renderSwapHub, renderSwapLandingPage, resolvePairSlug, swapPairSlugs } from './seo/swapLandingPages';
@@ -216,7 +217,7 @@ const CSP_WALLET_BRIDGE = [
 // /defi-swap and /wallet-test set theirs inline below). Keyed on exact path so the
 // /v1 API and static assets are untouched.
 const CONTENT_PAGES = new Set([
-  '/', '/transfers', '/partners', '/help', '/releases', '/partner-docs', '/partner-verify', '/terms', '/privacy', '/admin-compliance'
+  '/', '/transfers', '/partners', '/merchant', '/help', '/releases', '/partner-docs', '/partner-verify', '/terms', '/privacy', '/admin-compliance'
 ]);
 app.use((req: Request, res: Response, next?: () => void) => {
   const p = req.path || '';
@@ -371,6 +372,13 @@ app.use('/partners', (_req: Request, res: Response) => {
   return res.send(html);
 });
 
+app.use('/merchant', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'merchant.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
 app.use('/partner-docs', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'partner-docs.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
@@ -507,4 +515,7 @@ app.use('/assets/passkey-wallet.js', (_req: Request, res: Response) => {
 // directly on the public IP (which would bypass Cloudflare's WAF + our CF-IP
 // controls). Override with ATOMIC_BIND_HOST if a different bind is ever needed.
 const bindHost = process.env.ATOMIC_BIND_HOST ?? '127.0.0.1';
-app.listen(port, bindHost, () => console.log(`🚀 Atomic Admin Engine Live on ${bindHost}:${port}`));
+app.listen(port, bindHost, () => {
+  console.log(`🚀 Atomic Admin Engine Live on ${bindHost}:${port}`);
+  startPaymentWatcher();
+});

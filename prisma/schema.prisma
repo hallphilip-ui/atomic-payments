@@ -8,11 +8,15 @@ generator client {
 }
 
 model Merchant {
-  id           String          @id @default(uuid())
-  apiKey       String          @unique
-  businessName String
-  createdAt    DateTime        @default(now())
-  intents      PaymentIntent[]
+  id            String          @id @default(uuid())
+  apiKey        String          @unique
+  businessName  String
+  email         String?
+  receiveAddress String?        // merchant's own EVM wallet — payments settle here directly (non-custodial)
+  webhookUrl    String?
+  webhookSecret String?         // HMAC-SHA256 signing secret for payment webhooks
+  createdAt     DateTime        @default(now())
+  intents       PaymentIntent[]
 }
 
 model PaymentIntent {
@@ -22,11 +26,17 @@ model PaymentIntent {
   amount               Float
   currency             String
   status               String   @default("PENDING")
+  description          String?  // line item / memo shown on checkout + receipt
+  customerEmail        String?  // optional, for invoices + emailed receipts
+  reference            String?  // merchant's invoice / order number
+  source               String   @default("api") // api | pos | invoice
   selectedChain        String?
   cryptoAmountRequired String?
   depositAddress       String?
   liveMarketRate       String?
   txHash               String?
+  watchFromBlock       Int?     // chain height when the pay address was issued — the watcher scans from here
+  confirmedAt          DateTime?
   expiresAt            DateTime
   createdAt            DateTime @default(now())
 }

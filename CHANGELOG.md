@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0 - 2026-07-13
+
+**Payment gateway + merchant portal — accept crypto payments end-to-end.**
+
+- **Real on-chain payment confirmation** — replaces the simulated confirm with a watcher that detects the ERC20 `Transfer` paying an invoice (via our own RPC proxy, 2-conf), flips the intent to `CONFIRMED`, and fires a **signed `payment.confirmed` webhook**. Non-custodial — funds settle straight to the merchant's wallet. Verified against a real Base USDC payment.
+- **Merchant portal** (`/merchant`) — self-serve signup + a full dashboard: **POS** (amount → QR → live paid status), **invoices** (payable links), **payments/reports** (filter + totals + CSV export), **printable receipts**, and **settings** (receiving wallet + webhook).
+- **Merchant API** — `POST /v1/merchant/register`, `GET /v1/merchant/me`, `GET /v1/merchant/payments`, `POST /v1/merchant/settings`, `GET /v1/payment_intents/:id/receipt`; payment intents now carry description / reference / customer / source. A tiny per-invoice amount entropy makes each payment match exactly one invoice.
+- **Rails** — added **USDC on Base** (low-fee) alongside USDC/USDT/PYUSD on Ethereum.
+- **Fixes** — fallback swap quotes no longer show a simulated "You receive"; partner earnings/statements count only on-chain-broadcast swaps; duplicate-script hardening.
+
 ## 2.0.0 - 2026-07-12
 
 **Platform launch: an AI assistant front door, a hybrid browser wallet, the Partner Swap API, and a full security + discovery pass.**

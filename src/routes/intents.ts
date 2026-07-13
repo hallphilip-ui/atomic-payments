@@ -1,11 +1,33 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
+import { rpcCall } from './rpc';
+import { isSafeWebhookUrl } from '../security/partnerWebhook';
 
 const prisma = new PrismaClient();
 const router = Router();
 
-const STABLECOIN_RAILS: Record<string, {
+const MERCHANT_EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+// Self-serve signup creates a row + key — tight per-IP limit.
+const merchantRegisterLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: (req: any) => { const cf = req.headers['cf-connecting-ip']; return typeof cf === 'string' && cf.length ? cf : req.ip || 'unknown'; }
+});
+function newMerchantKey(): string { return 'mk_live_' + crypto.randomBytes(24).toString('hex'); }
+
+// Resolve the merchant from the x-atomic-key header (portal + API auth).
+async function authMerchant(req: any): Promise<{ merchant?: any; error?: string }> {
+  const header = req.headers['x-atomic-key'];
+  const apiKey = Array.isArray(header) ? header[0] : header;
+  if (!apiKey) return { error: 'Merchant API key is required' };
+  const merchant = await prisma.merchant.findUnique({ where: { apiKey } });
+  if (!merchant) return { error: 'Merchant API key is invalid' };
+  return { merchant };
+}
+
+export const STABLECOIN_RAILS: Record<string, {
   symbol: string;
   name: string;
   network: string;
@@ -13,7 +35,18 @@ const STABLECOIN_RAILS: Record<string, {
   tokenAddress?: string;
   decimals: number;
   uriScheme: 'ethereum' | 'solana' | 'tron';
+  chainId?: number; // EVM only — the RPC chain the payment watcher scans
 }> = {
+  USD_COIN_BASE: {
+    symbol: 'USDC',
+    name: 'USD Coin',
+    network: 'Base',
+    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
+    tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    decimals: 6,
+    uriScheme: 'ethereum',
+    chainId: 8453
+  },
   USD_COIN_SOLANA: {
     symbol: 'USDC',
     name: 'USD Coin',
@@ -30,7 +63,8 @@ const STABLECOIN_RAILS: Record<string, {
     address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
     tokenAddress: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
     decimals: 6,
-    uriScheme: 'ethereum'
+    uriScheme: 'ethereum',
+    chainId: 1
   },
   TETHER_ETHEREUM: {
     symbol: 'USDT',
@@ -39,7 +73,8 @@ const STABLECOIN_RAILS: Record<string, {
     address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
     tokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
     decimals: 6,
-    uriScheme: 'ethereum'
+    uriScheme: 'ethereum',
+    chainId: 1
   },
   TETHER_TRON: {
     symbol: 'USDT',
@@ -57,7 +92,8 @@ const STABLECOIN_RAILS: Record<string, {
     address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
     tokenAddress: '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8',
     decimals: 6,
-    uriScheme: 'ethereum'
+    uriScheme: 'ethereum',
+    chainId: 1
   }
 };
 
@@ -84,20 +120,23 @@ function amountToBaseUnits(amount: number, decimals: number): string {
   return Math.round(amount * 10 ** decimals).toString();
 }
 
-function buildStablecoinPaymentUri(chain: string, intent: any, amount: number): string {
+function buildStablecoinPaymentUri(chain: string, intent: any, amount: number, toAddress?: string): string {
   const rail = STABLECOIN_RAILS[chain];
+  const addr = toAddress || rail.address;
   const encodedMemo = encodeURIComponent(`Intent_${intent.id}`);
   const encodedLabel = encodeURIComponent('AtomicPay');
 
   if (rail.uriScheme === 'solana') {
-    return `solana:${rail.address}?amount=${amount}&spl-token=${rail.tokenAddress}&label=${encodedLabel}&memo=${encodedMemo}`;
+    return `solana:${addr}?amount=${amount}&spl-token=${rail.tokenAddress}&label=${encodedLabel}&memo=${encodedMemo}`;
   }
 
   if (rail.uriScheme === 'tron') {
-    return `tron:${rail.address}?amount=${amount}&token=${rail.tokenAddress}&memo=${encodedMemo}`;
+    return `tron:${addr}?amount=${amount}&token=${rail.tokenAddress}&memo=${encodedMemo}`;
   }
 
-  return `ethereum:${rail.tokenAddress}/transfer?address=${rail.address}&uint256=${amountToBaseUnits(amount, rail.decimals)}`;
+  // EIP-681 ERC20 transfer; some chains want a chainId hint (`@8453`).
+  const target = rail.chainId ? `${rail.tokenAddress}@${rail.chainId}` : rail.tokenAddress;
+  return `ethereum:${target}/transfer?address=${addr}&uint256=${amountToBaseUnits(amount, rail.decimals)}`;
 }
 
 function requestOrigin(req: any): string {
@@ -207,11 +246,16 @@ router.post('/v1/payment_intents', async (req, res) => {
       return res.status(400).json({ error: 'ttlMinutes must be between 1 and 120' });
     }
 
+    const source = ['pos', 'invoice', 'api'].includes(String(req.body.source)) ? String(req.body.source) : 'api';
     const intent = await prisma.paymentIntent.create({
       data: {
         merchantId: merchant.id,
         amount,
         currency,
+        description: req.body.description ? String(req.body.description).slice(0, 300) : null,
+        customerEmail: req.body.customerEmail && MERCHANT_EMAIL_RE.test(String(req.body.customerEmail).trim()) ? String(req.body.customerEmail).trim() : null,
+        reference: req.body.reference ? String(req.body.reference).slice(0, 60) : null,
+        source,
         expiresAt: new Date(Date.now() + ttlMinutes * 60 * 1000)
       }
     });
@@ -251,20 +295,35 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
       });
     }
 
+    const merchant = await prisma.merchant.findUnique({ where: { id: intent.merchantId } });
+    const EVM_ADDR = /^0x[0-9a-fA-F]{40}$/;
+
     let currentPrice = 1;
     let merchantWalletAddress = "";
     let web3PaymentUri = "";
     let assetSymbol = chain.split('_')[0];
     let railName = chain;
+    let watchFromBlock: number | null = null;
+    let cryptoAmountRequired: number;
 
     const stablecoinRail = STABLECOIN_RAILS[chain];
     if (stablecoinRail) {
-      merchantWalletAddress = stablecoinRail.address;
       currentPrice = 1.00;
       assetSymbol = stablecoinRail.symbol;
       railName = `${stablecoinRail.name} on ${stablecoinRail.network}`;
-      web3PaymentUri = buildStablecoinPaymentUri(chain, intent, intent.amount);
-
+      const isEvm = stablecoinRail.uriScheme === 'ethereum' && !!stablecoinRail.chainId;
+      // Watched EVM rails get a tiny per-invoice amount entropy so the on-chain
+      // watcher can match THIS payment to THIS invoice unambiguously, even when
+      // several invoices target the same merchant wallet.
+      const entropy = isEvm ? (((parseInt(crypto.createHash('sha1').update(intent.id).digest('hex').slice(0, 4), 16) % 9000) + 1) / 10 ** stablecoinRail.decimals) : 0;
+      cryptoAmountRequired = parseFloat((intent.amount / currentPrice + entropy).toFixed(stablecoinRail.decimals));
+      // Non-custodial: funds settle to the MERCHANT's own wallet. Fall back to the
+      // rail demo address only until the merchant sets a receiving address.
+      merchantWalletAddress = (isEvm && merchant?.receiveAddress && EVM_ADDR.test(merchant.receiveAddress)) ? merchant.receiveAddress : stablecoinRail.address;
+      web3PaymentUri = buildStablecoinPaymentUri(chain, intent, cryptoAmountRequired, merchantWalletAddress);
+      if (isEvm) {
+        try { watchFromBlock = parseInt(String(await rpcCall(stablecoinRail.chainId!, 'eth_blockNumber', [])), 16); } catch { /* watcher falls back to a lookback window */ }
+      }
     } else {
       // Fallback to Volatile Layer-1 Price Oracle Feed
       try {
@@ -276,19 +335,17 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
         const fallbacks: Record<string, number> = { BITCOIN_ONCHAIN: 65000, SOLANA: 145, ETHEREUM: 3400 };
         currentPrice = fallbacks[chain] || 1;
       }
-
+      cryptoAmountRequired = parseFloat((intent.amount / currentPrice).toFixed(6));
       if (chain === 'SOLANA') {
         merchantWalletAddress = "HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2";
         assetSymbol = 'SOL';
-        web3PaymentUri = `solana:${merchantWalletAddress}?amount=${parseFloat((intent.amount / currentPrice).toFixed(6))}`;
+        web3PaymentUri = `solana:${merchantWalletAddress}?amount=${cryptoAmountRequired}`;
       } else {
         merchantWalletAddress = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
         assetSymbol = chain === 'BITCOIN_ONCHAIN' ? 'BTC' : chain === 'ETHEREUM' ? 'ETH' : assetSymbol;
-        web3PaymentUri = `ethereum:${merchantWalletAddress}?value=${parseFloat((intent.amount / currentPrice).toFixed(6))}e18`;
+        web3PaymentUri = `ethereum:${merchantWalletAddress}?value=${cryptoAmountRequired}e18`;
       }
     }
-
-    const cryptoAmountRequired = parseFloat((intent.amount / currentPrice).toFixed(6));
 
     await prisma.paymentIntent.update({
       where: { id },
@@ -296,7 +353,9 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
         selectedChain: chain,
         cryptoAmountRequired: String(cryptoAmountRequired),
         depositAddress: merchantWalletAddress,
-        liveMarketRate: `$${currentPrice.toFixed(2)} USD`
+        liveMarketRate: `$${currentPrice.toFixed(2)} USD`,
+        watchFromBlock,
+        status: 'PROCESSING'
       }
     });
 
@@ -336,6 +395,123 @@ router.post('/v1/payment_intents/:id/simulate_payment', async (req, res) => {
 
     return res.json({ message: "⚡ Payment successfully signed!", txHash: txHash || "0x_signature_verified", signatureVerified: computedSignature });
   } catch (error: any) { return res.status(500).json({ error: error.message }); }
+});
+
+// Merchant-authed: set the receiving wallet + webhook. Payments settle DIRECTLY to
+// receiveAddress (non-custodial); the watcher fires payment.confirmed webhooks.
+router.post('/v1/merchant/settings', async (req, res) => {
+  try {
+    const header = req.headers['x-atomic-key'];
+    const apiKey = Array.isArray(header) ? header[0] : header;
+    if (!apiKey) return res.status(401).json({ error: 'Merchant API key is required' });
+    const merchant = await prisma.merchant.findUnique({ where: { apiKey } });
+    if (!merchant) return res.status(401).json({ error: 'Merchant API key is invalid' });
+
+    const EVM_ADDR = /^0x[0-9a-fA-F]{40}$/;
+    const data: { receiveAddress?: string | null; webhookUrl?: string | null; webhookSecret?: string | null } = {};
+
+    if (req.body.receiveAddress !== undefined) {
+      const a = String(req.body.receiveAddress).trim();
+      if (a && !EVM_ADDR.test(a)) return res.status(400).json({ error: 'receiveAddress must be a valid EVM address (0x…).' });
+      data.receiveAddress = a || null;
+    }
+    if (req.body.webhookUrl !== undefined) {
+      const u = String(req.body.webhookUrl).trim();
+      if (u && !/^https:\/\//i.test(u)) return res.status(400).json({ error: 'webhookUrl must be https://.' });
+      if (u && !(await isSafeWebhookUrl(u))) return res.status(400).json({ error: 'webhookUrl host must be a public https endpoint (private/internal addresses are not allowed).' });
+      data.webhookUrl = u || null;
+      data.webhookSecret = u ? (merchant.webhookSecret || 'whsec_' + crypto.randomBytes(24).toString('hex')) : null;
+    }
+
+    const updated = await prisma.merchant.update({ where: { id: merchant.id }, data });
+    return res.json({
+      businessName: updated.businessName,
+      receiveAddress: updated.receiveAddress,
+      webhookUrl: updated.webhookUrl,
+      webhookSecret: updated.webhookSecret,
+      note: 'Payments settle directly to receiveAddress (non-custodial). Verify webhooks with HMAC-SHA256(rawBody, webhookSecret) == the x-atomic-signature header.'
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Public: self-serve merchant signup. Returns the API key ONCE (it is the login).
+router.post('/v1/merchant/register', merchantRegisterLimiter, async (req, res) => {
+  try {
+    const businessName = String(req.body.businessName ?? '').trim().slice(0, 120);
+    const email = String(req.body.email ?? '').trim().slice(0, 200);
+    if (businessName.length < 2) return res.status(400).json({ error: 'A business name is required.' });
+    if (!MERCHANT_EMAIL_RE.test(email)) return res.status(400).json({ error: 'A valid email is required.' });
+    const receiveAddress = req.body.receiveAddress && EVM_ADDRESS.test(String(req.body.receiveAddress).trim()) ? String(req.body.receiveAddress).trim() : null;
+    const apiKey = newMerchantKey();
+    const merchant = await prisma.merchant.create({ data: { businessName, email, apiKey, receiveAddress } });
+    return res.status(201).json({
+      id: merchant.id, businessName, email, receiveAddress, apiKey,
+      warning: 'Save this API key now — it is shown once and is your merchant login. Anyone with it can act as your account.'
+    });
+  } catch (error: any) { return res.status(500).json({ error: error.message }); }
+});
+
+// Merchant-authed: account summary + lifetime totals for the portal overview.
+router.get('/v1/merchant/me', async (req, res) => {
+  const a = await authMerchant(req);
+  if (!a.merchant) return res.status(401).json({ error: a.error });
+  const m = a.merchant;
+  const confirmed = await prisma.paymentIntent.findMany({ where: { merchantId: m.id, status: 'CONFIRMED' }, select: { amount: true, currency: true } });
+  const totalPaid = confirmed.reduce((s, r) => s + (r.amount || 0), 0);
+  const pending = await prisma.paymentIntent.count({ where: { merchantId: m.id, status: { in: ['PENDING', 'PROCESSING'] } } });
+  return res.json({
+    id: m.id, businessName: m.businessName, email: m.email,
+    receiveAddress: m.receiveAddress, receiveConfigured: !!m.receiveAddress,
+    webhookUrl: m.webhookUrl, webhookConfigured: !!m.webhookUrl,
+    stats: { paidCount: confirmed.length, paidVolume: Number(totalPaid.toFixed(2)), pendingCount: pending, currency: confirmed[0]?.currency || 'USD' }
+  });
+});
+
+// Merchant-authed: payments/invoices list for reports — filterable, paginated, with totals.
+router.get('/v1/merchant/payments', async (req, res) => {
+  const a = await authMerchant(req);
+  if (!a.merchant) return res.status(401).json({ error: a.error });
+  const status = typeof req.query.status === 'string' && ['PENDING', 'PROCESSING', 'CONFIRMED', 'EXPIRED'].includes(req.query.status) ? req.query.status : undefined;
+  const source = typeof req.query.source === 'string' && ['pos', 'invoice', 'api'].includes(req.query.source) ? req.query.source : undefined;
+  const page = Math.max(0, parseInt(String(req.query.page ?? '0'), 10) || 0);
+  const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize ?? '25'), 10) || 25));
+  const where: any = { merchantId: a.merchant.id, ...(status ? { status } : {}), ...(source ? { source } : {}) };
+  const [rows, total, agg] = await Promise.all([
+    prisma.paymentIntent.findMany({ where, orderBy: { createdAt: 'desc' }, skip: page * pageSize, take: pageSize }),
+    prisma.paymentIntent.count({ where }),
+    prisma.paymentIntent.aggregate({ where: { merchantId: a.merchant.id, status: 'CONFIRMED' }, _sum: { amount: true }, _count: true })
+  ]);
+  return res.json({
+    payments: rows.map((r) => ({
+      id: r.id, amount: r.amount, currency: r.currency, status: r.status, source: r.source,
+      description: r.description, reference: r.reference, customerEmail: r.customerEmail,
+      asset: r.selectedChain, cryptoAmount: r.cryptoAmountRequired, txHash: r.txHash,
+      createdAt: r.createdAt.toISOString(), confirmedAt: r.confirmedAt ? r.confirmedAt.toISOString() : null
+    })),
+    page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    totals: { confirmedCount: agg._count, confirmedVolume: Number((agg._sum.amount || 0).toFixed(2)) }
+  });
+});
+
+// Public (id-gated): receipt for a payment — shareable with the customer.
+router.get('/v1/payment_intents/:id/receipt', async (req, res) => {
+  const intent = await prisma.paymentIntent.findUnique({ where: { id: req.params.id }, include: { merchant: true } });
+  if (!intent) return res.status(404).json({ error: 'Payment not found.' });
+  const rail = STABLECOIN_RAILS[intent.selectedChain || ''];
+  return res.json({
+    receipt: {
+      id: intent.id, businessName: intent.merchant.businessName,
+      status: intent.status, paid: intent.status === 'CONFIRMED',
+      amount: intent.amount, currency: intent.currency,
+      description: intent.description, reference: intent.reference,
+      asset: rail ? `${rail.symbol} on ${rail.network}` : intent.selectedChain,
+      cryptoAmount: intent.cryptoAmountRequired, txHash: intent.txHash, paidTo: intent.depositAddress,
+      createdAt: intent.createdAt.toISOString(),
+      confirmedAt: intent.confirmedAt ? intent.confirmedAt.toISOString() : null
+    }
+  });
 });
 
 router.get('/v1/admin/dashboard', async (req, res) => {
