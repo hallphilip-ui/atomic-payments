@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import { rpcCall } from './rpc';
 import { isSafeWebhookUrl } from '../security/partnerWebhook';
+import { sendInvoiceEmail } from '../notify/merchantEmail';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -259,6 +260,14 @@ router.post('/v1/payment_intents', async (req, res) => {
         expiresAt: new Date(Date.now() + ttlMinutes * 60 * 1000)
       }
     });
+
+    // Email the customer an invoice + pay link (best-effort; never blocks the response).
+    if (source === 'invoice' && intent.customerEmail) {
+      sendInvoiceEmail({
+        to: intent.customerEmail, businessName: merchant.businessName, replyTo: merchant.email,
+        amount: intent.amount, currency: intent.currency, description: intent.description, reference: intent.reference, intentId: intent.id
+      }).catch(() => {});
+    }
 
     return res.status(201).json({ intent: toPublicIntent(intent, req) });
   } catch (error: any) {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1 - 2026-07-13
+
+**Merchant customer emails.**
+
+- **Invoice email** — creating an invoice with a customer email sends the customer a branded email with the amount, description, and a "Pay with crypto" button.
+- **Receipt email** — on payment confirmation the watcher emails the customer a receipt (amount paid, asset, transaction), alongside the merchant webhook.
+- Best-effort (never blocks a request or the watcher), Reply-To is the merchant, reuses the existing SMTP config.
+
 ## 2.1.0 - 2026-07-13
 
 **Payment gateway + merchant portal — accept crypto payments end-to-end.**

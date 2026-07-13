@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { rpcCall } from '../routes/rpc';
 import { STABLECOIN_RAILS } from '../routes/intents';
 import { isSafeWebhookUrl } from '../security/partnerWebhook';
+import { sendReceiptEmail } from '../notify/merchantEmail';
 
 const prisma = new PrismaClient();
 
@@ -80,6 +81,14 @@ async function checkIntent(intent: any): Promise<void> {
           paidTo: full.depositAddress, confirmedAt: (full.confirmedAt || new Date()).toISOString()
         }
       });
+      // Email the customer a receipt (best-effort).
+      if (full.customerEmail) {
+        sendReceiptEmail({
+          to: full.customerEmail, businessName: full.merchant.businessName, replyTo: full.merchant.email,
+          amount: full.amount, currency: full.currency, description: full.description, reference: full.reference,
+          asset: `${rail.symbol} on ${rail.network}`, txHash: log.transactionHash, intentId: full.id
+        }).catch(() => {});
+      }
     }
     return;
   }
