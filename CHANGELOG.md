@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.2.0 - 2026-07-13
+
+**Merchant fiat cash-out — a global off-ramp aggregator.**
+
+- **"Cash out" tab** in the merchant portal (`/merchant`) — converts received crypto to local currency, paid to the merchant's bank or card. Non-custodial: the merchant sells straight from their own wallet through a **licensed partner** that runs KYC, custodies only during conversion, and pays out fiat — Atomic never holds funds.
+- **Global coverage via aggregation** — auto-detects the merchant's country (`/v1/geo`) and lists every off-ramp that covers it: MoonPay, Transak, Ramp, Banxa, Mercuryo and Unlimit (global), plus Coinbase (US/EU) and Kado (Americas/Africa/SE-Asia). 25 payout currencies, 31 countries + a Global/Other default so every jurisdiction has options.
+- **Stubbed integration** — provider keys live in an `OFFRAMP_KEYS` config; until they're filled, buttons open each provider's public off-ramp. Add partner keys to enable prefilled deep-links (amount, wallet, currency) and referral-fee attribution.
+
+## 2.1.2 - 2026-07-13
+
+**Customer checkout rebuild, longer-lived invoices, and gateway marketing.**
+
+- **Rebuilt hosted checkout** (`/checkout`) — replaced the operator "gateway simulator" with a real customer checkout: auto-loads the invoice from `?intentId=`, shows the merchant, amount, description and reference, offers only the watcher-confirmable stablecoin rails (USDC on Base flagged lowest-fee, plus USDC/USDT/PYUSD on Ethereum), then renders the exact amount + deposit address + QR + open-in-wallet + live status → printable receipt on confirmation. Mobile-first, theme-aware, embeddable.
+- **Invoice expiry fix** — payment-intent TTL now defaults by source: a POS QR stays a tight 15 min, but an **emailed invoice is payable for 7 days** (was 15 min, so emailed links expired almost immediately). Max TTL raised to 30 days. The checkout countdown now formats multi-hour/day windows.
+- **Merchant gateway on marketing + AI** — landing page gains an "Accept payments" section, nav and footer links, and a sitemap entry (`/merchant`); the AI assistant now explains the merchant gateway and points businesses to `/merchant` to accept crypto.
+
 ## 2.1.1 - 2026-07-13
 
 **Merchant customer emails.**

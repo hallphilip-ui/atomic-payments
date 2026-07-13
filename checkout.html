@@ -1,1283 +1,192 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#06111d">
-  <link rel="icon" href="/assets/atomic-mark.png" type="image/png">
-  <link rel="apple-touch-icon" href="/assets/atomic-mark.png">
-  <title>Crypto Checkout — Accept Cross-Chain Payments | Atomic Pay</title>
-  <meta name="description" content="Accept crypto payments with Atomic Pay checkout — non-custodial settlement across chains, no wallet lock-in for your customers.">
-  <link rel="canonical" href="https://atomicpay.cloud/checkout">
-  <meta name="theme-color" content="#6d5cf5">
-  <meta property="og:site_name" content="Atomic Pay">
-  <meta property="og:title" content="Crypto Checkout | Atomic Pay">
-  <meta property="og:description" content="Accept crypto payments with non-custodial cross-chain settlement.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://atomicpay.cloud/checkout">
-  <meta property="og:image" content="https://atomicpay.cloud/assets/atomic-og.png">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Crypto Checkout | Atomic Pay">
-  <meta name="twitter:description" content="Accept crypto payments with non-custodial cross-chain settlement.">
-  <meta name="twitter:image" content="https://atomicpay.cloud/assets/atomic-og.png">
-  <script>
-    (function() {
-      const storedMode = localStorage.getItem('atomic-theme-mode') || 'light';
-      const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const resolved = storedMode === 'system' ? (systemDark ? 'dark' : 'light') : storedMode;
-      document.documentElement.dataset.theme = resolved;
-      document.documentElement.dataset.themeMode = storedMode;
-    })();
-  </script>
-  <style>
-    :root {
-      color-scheme: dark;
-      --ink: #edf7ff;
-      --muted: #8da8ba;
-      --soft: #c6d8e8;
-      --paper: #06111d;
-      --panel: rgba(10, 24, 36, 0.92);
-      --panel-strong: #0f2435;
-      --line: rgba(128, 200, 235, 0.22);
-      --blue: #0877d8;
-      --cyan: #19d2f2;
-      --green: #39d98a;
-      --amber: #f0a54a;
-      --red: #f05b68;
-      --shadow: 0 28px 90px rgba(0, 0, 0, 0.38);
-    }
-
-    :root[data-theme="light"] {
-      color-scheme: light;
-      --ink: #14161c;
-      --muted: #667085;
-      --soft: #344054;
-      --paper: #fbfbfd;
-      --panel: #ffffff;
-      --panel-strong: #ffffff;
-      --line: #e8e9f0;
-      --blue: #6d5cf5;
-      --cyan: #6d5cf5;
-      --green: #16b364;
-      --amber: #d97706;
-      --red: #e5484d;
-      --accent: #6d5cf5;
-      --shadow: 0 1px 2px rgba(16,18,30,0.04), 0 8px 24px rgba(16,18,30,0.06);
-    }
-
-    * { box-sizing: border-box; }
-
-    html {
-      min-height: 100%;
-      -webkit-text-size-adjust: 100%;
-    }
-
-    body {
-      min-height: 100vh;
-      margin: 0;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--ink);
-      background:
-        linear-gradient(rgba(25, 210, 242, 0.055) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(25, 210, 242, 0.045) 1px, transparent 1px),
-        radial-gradient(circle at 15% 12%, rgba(25, 210, 242, 0.16), transparent 30%),
-        radial-gradient(circle at 88% 22%, rgba(57, 217, 138, 0.1), transparent 26%),
-        linear-gradient(135deg, #06101a 0%, #0b1723 48%, #11141b 100%);
-      background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%, 100% 100%;
-    }
-
-    :root[data-theme="light"] body {
-      background: radial-gradient(900px 480px at 85% -12%, rgba(109,92,245,0.08), transparent 60%), #fbfbfd;
-    }
-
-    button, input {
-      font: inherit;
-    }
-
-    button {
-      border: 0;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    button:disabled {
-      cursor: wait;
-      opacity: 0.58;
-    }
-
-    .page {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-    }
-
-    .shell {
-      width: min(100%, 1080px);
-      display: grid;
-      grid-template-columns: minmax(280px, 0.86fr) minmax(320px, 1fr);
-      min-height: min(760px, calc(100vh - 36px));
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      overflow: hidden;
-      background: rgba(4, 13, 22, 0.78);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(18px);
-    }
-
-    :root[data-theme="light"] .shell {
-      background: rgba(255, 255, 255, 0.74);
-    }
-
-    .brand-pane {
-      position: relative;
-      display: grid;
-      align-content: space-between;
-      gap: 36px;
-      padding: clamp(22px, 4vw, 44px);
-      overflow: hidden;
-      border-right: 1px solid var(--line);
-      background:
-        linear-gradient(145deg, rgba(8, 119, 216, 0.24), transparent 38%),
-        linear-gradient(315deg, rgba(25, 210, 242, 0.18), transparent 36%),
-        rgba(5, 16, 27, 0.72);
-    }
-
-    :root[data-theme="light"] .brand-pane {
-      background:
-        linear-gradient(145deg, rgba(8, 119, 216, 0.14), transparent 38%),
-        linear-gradient(315deg, rgba(25, 210, 242, 0.16), transparent 36%),
-        rgba(245, 251, 255, 0.86);
-    }
-
-    .brand-pane::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 30%);
-      pointer-events: none;
-    }
-
-    :root[data-theme="light"] .brand-pane::before {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent 34%);
-    }
-
-    .brand-lockup {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-    }
-
-    .brand-lockup img {
-      width: 74px;
-      height: 58px;
-      object-fit: contain;
-      filter: drop-shadow(0 12px 28px rgba(25, 210, 242, 0.28));
-      flex: 0 0 auto;
-    }
-
-    .brand-lockup strong {
-      display: block;
-      font-size: 17px;
-      line-height: 1.1;
-      color: #fff;
-    }
-
-    .brand-lockup span {
-      display: block;
-      margin-top: 4px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .brand-top {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .theme-control {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      padding: 3px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(4, 13, 22, 0.5);
-      flex: 0 0 auto;
-    }
-
-    :root[data-theme="light"] .theme-control {
-      background: rgba(255, 255, 255, 0.66);
-    }
-
-    .theme-option {
-      min-height: 30px;
-      min-width: 34px;
-      border-radius: 999px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      background: transparent;
-    }
-
-    .theme-option svg {
-      width: 15px;
-      height: 15px;
-      stroke-width: 2.4;
-    }
-
-    .theme-option[aria-pressed="true"] {
-      color: #fff;
-      background: linear-gradient(135deg, var(--blue), var(--cyan));
-      box-shadow: 0 10px 24px rgba(6, 151, 255, 0.2);
-    }
-
-    .intro {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      gap: 14px;
-      max-width: 440px;
-    }
-
-    h1, h2, h3, p {
-      margin: 0;
-    }
-
-    h1 {
-      color: #fff;
-      font-size: clamp(32px, 6vw, 58px);
-      line-height: 0.98;
-      letter-spacing: 0;
-    }
-
-    .intro p {
-      color: var(--soft);
-      font-size: 15px;
-      line-height: 1.55;
-    }
-
-    .trust-grid {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .trust-item {
-      min-height: 76px;
-      padding: 12px;
-      border: 1px solid rgba(128, 200, 235, 0.18);
-      border-radius: 8px;
-      background: rgba(4, 13, 22, 0.58);
-    }
-
-    .trust-item span {
-      display: block;
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-
-    .trust-item strong {
-      color: #fff;
-      font-size: 14px;
-    }
-
-    :root[data-theme="light"] .trust-item {
-      background: rgba(255, 255, 255, 0.68);
-      border-color: rgba(36, 78, 108, 0.16);
-      box-shadow: 0 12px 28px rgba(30, 59, 88, 0.08);
-    }
-
-    .checkout-pane {
-      display: grid;
-      align-content: center;
-      padding: clamp(18px, 4vw, 42px);
-      background: rgba(7, 17, 27, 0.88);
-    }
-
-    :root[data-theme="light"] .checkout-pane {
-      background: rgba(249, 253, 255, 0.88);
-    }
-
-    .card {
-      width: min(100%, 480px);
-      margin: 0 auto;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
-    }
-
-    :root[data-theme="light"] .card {
-      box-shadow: 0 20px 60px rgba(30, 59, 88, 0.14);
-    }
-
-    .view {
-      display: grid;
-      gap: 20px;
-      padding: clamp(18px, 5vw, 28px);
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .view-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      padding-bottom: 18px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .view-title {
-      display: grid;
-      gap: 6px;
-    }
-
-    .eyebrow {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
-
-    h2 {
-      color: #fff;
-      font-size: clamp(24px, 6vw, 34px);
-      line-height: 1.05;
-    }
-
-    h3 {
-      color: #fff;
-      font-size: 16px;
-    }
-
-    .pill {
-      min-height: 32px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 0 10px;
-      border: 1px solid rgba(25, 210, 242, 0.22);
-      border-radius: 999px;
-      background: rgba(25, 210, 242, 0.08);
-      color: #c6f6ff;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    :root[data-theme="light"] .pill {
-      color: #075a80;
-      background: rgba(25, 210, 242, 0.12);
-      border-color: rgba(8, 119, 216, 0.18);
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 16px rgba(57, 217, 138, 0.56);
-    }
-
-    :root[data-theme="light"] .dot {
-      box-shadow: 0 0 16px rgba(20, 140, 92, 0.28);
-    }
-
-    .field {
-      display: grid;
-      gap: 8px;
-    }
-
-    label {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0;
-      text-transform: uppercase;
-    }
-
-    input {
-      width: 100%;
-      min-height: 48px;
-      padding: 0 14px;
-      border: 1px solid rgba(128, 200, 235, 0.22);
-      border-radius: 6px;
-      outline: none;
-      background: rgba(4, 13, 22, 0.78);
-      color: var(--ink);
-    }
-
-    :root[data-theme="light"] input {
-      background: rgba(255, 255, 255, 0.78);
-    }
-
-    input:focus {
-      border-color: var(--cyan);
-      box-shadow: 0 0 0 3px rgba(25, 210, 242, 0.12);
-    }
-
-    .helper {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .status-note {
-      min-height: 38px;
-      display: none;
-      align-items: center;
-      padding: 10px 12px;
-      border: 1px solid rgba(128, 200, 235, 0.18);
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.35;
-    }
-
-    .status-note.is-visible {
-      display: flex;
-    }
-
-    .status-note.is-error {
-      border-color: rgba(255, 94, 122, 0.32);
-      background: rgba(255, 94, 122, 0.1);
-      color: #ffd6de;
-    }
-
-    :root[data-theme="light"] .status-note.is-error {
-      color: #8f1f35;
-    }
-
-    .primary, .secondary, .rail-button {
-      min-height: 48px;
-      border-radius: 6px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      font-weight: 800;
-    }
-
-    .primary {
-      width: 100%;
-      color: #fff;
-      background: linear-gradient(135deg, var(--blue), var(--cyan));
-      box-shadow: 0 14px 32px rgba(6, 151, 255, 0.24);
-    }
-
-    .secondary {
-      width: 100%;
-      color: var(--ink);
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    :root[data-theme="light"] .secondary {
-      background: rgba(8, 119, 216, 0.04);
-    }
-
-    .amount-line {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .amount {
-      font-size: clamp(30px, 8vw, 42px);
-      line-height: 1;
-      color: #fff;
-      font-weight: 900;
-      overflow-wrap: anywhere;
-    }
-
-    .rail-grid {
-      display: grid;
-      gap: 10px;
-    }
-
-    .rail-button {
-      width: 100%;
-      justify-content: space-between;
-      padding: 12px;
-      text-align: left;
-      color: #fff;
-      border: 1px solid rgba(128, 200, 235, 0.18);
-      background: rgba(4, 13, 22, 0.62);
-    }
-
-    :root[data-theme="light"] .rail-button {
-      background: rgba(255, 255, 255, 0.68);
-    }
-
-    .rail-button:hover {
-      border-color: rgba(25, 210, 242, 0.46);
-      background: rgba(9, 30, 45, 0.76);
-    }
-
-    :root[data-theme="light"] .rail-button:hover {
-      background: rgba(235, 249, 255, 0.94);
-    }
-
-    .rail-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
-    .asset-badge {
-      width: 42px;
-      height: 42px;
-      border-radius: 8px;
-      display: grid;
-      place-items: center;
-      flex: 0 0 auto;
-      font-size: 12px;
-      font-weight: 900;
-      color: #fff;
-      background: rgba(25, 210, 242, 0.14);
-      border: 1px solid rgba(25, 210, 242, 0.2);
-    }
-
-    :root[data-theme="light"] .asset-badge {
-      color: #071522;
-    }
-
-    .asset-badge.btc { color: #ffd37d; background: rgba(240, 165, 74, 0.12); border-color: rgba(240, 165, 74, 0.28); }
-    .asset-badge.eth { color: #9fc8ff; background: rgba(8, 119, 216, 0.14); }
-    .asset-badge.sol { color: #d6b8ff; background: rgba(158, 123, 255, 0.14); border-color: rgba(158, 123, 255, 0.28); }
-    .asset-badge.xrp { color: #9ee7ff; }
-    .asset-badge.ada { color: #9ef5ff; }
-    .asset-badge.doge { color: #ffc38f; background: rgba(240, 165, 74, 0.1); }
-
-    .rail-name {
-      display: block;
-      font-size: 14px;
-      overflow-wrap: anywhere;
-    }
-
-    .rail-code {
-      display: block;
-      margin-top: 3px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .quote-box {
-      display: grid;
-      gap: 8px;
-      border: 1px solid rgba(57, 217, 138, 0.24);
-      border-radius: 8px;
-      padding: 16px;
-      background: rgba(57, 217, 138, 0.08);
-      text-align: center;
-    }
-
-    .quote-box span {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-
-    .quote-box strong {
-      color: var(--green);
-      font-size: clamp(24px, 7vw, 32px);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      overflow-wrap: anywhere;
-    }
-
-    .qr-wrap {
-      display: grid;
-      place-items: center;
-    }
-
-    .qr-card {
-      padding: 10px;
-      border-radius: 8px;
-      background: #fff;
-      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
-    }
-
-    .qr-card img {
-      display: block;
-      width: 152px;
-      height: 152px;
-    }
-
-    .address-box {
-      width: 100%;
-      min-height: 58px;
-      padding: 12px;
-      border: 1px solid rgba(128, 200, 235, 0.18);
-      border-radius: 8px;
-      background: rgba(4, 13, 22, 0.78);
-      color: #c6f6ff;
-      font-size: 12px;
-      line-height: 1.45;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      overflow-wrap: anywhere;
-      text-align: center;
-    }
-
-    :root[data-theme="light"] .address-box,
-    :root[data-theme="light"] .receipt {
-      background: rgba(255, 255, 255, 0.72);
-    }
-
-    .timer {
-      min-height: 42px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      border: 1px solid rgba(240, 165, 74, 0.28);
-      border-radius: 8px;
-      background: rgba(240, 165, 74, 0.09);
-      color: var(--amber);
-      font-size: 13px;
-      font-weight: 800;
-      text-align: center;
-    }
-
-    :root[data-theme="light"] .timer {
-      background: rgba(240, 165, 74, 0.12);
-    }
-
-    :root[data-theme="light"] .brand-lockup strong,
-    :root[data-theme="light"] h1,
-    :root[data-theme="light"] h2,
-    :root[data-theme="light"] h3,
-    :root[data-theme="light"] .trust-item strong,
-    :root[data-theme="light"] .amount,
-    :root[data-theme="light"] .rail-button {
-      color: #071522;
-    }
-
-    .success-mark {
-      width: 68px;
-      height: 68px;
-      margin: 0 auto;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      color: var(--green);
-      background: rgba(57, 217, 138, 0.1);
-      border: 1px solid rgba(57, 217, 138, 0.32);
-    }
-
-    .success-mark svg {
-      width: 34px;
-      height: 34px;
-    }
-
-    .receipt {
-      display: grid;
-      gap: 12px;
-      padding: 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(128, 200, 235, 0.18);
-      background: rgba(4, 13, 22, 0.78);
-    }
-
-    .receipt span {
-      display: block;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-    }
-
-    .receipt strong {
-      color: #c6f6ff;
-      font-size: 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      overflow-wrap: anywhere;
-    }
-
-    .receipt-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(128, 200, 235, 0.14);
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .receipt-row strong {
-      color: var(--green);
-      font-family: inherit;
-      white-space: nowrap;
-    }
-
-    .center {
-      text-align: center;
-    }
-
-    @media (max-width: 860px) {
-      .page {
-        display: block;
-        padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-      }
-
-      .shell {
-        min-height: calc(100vh - 24px);
-        grid-template-columns: 1fr;
-      }
-
-      .brand-pane {
-        min-height: auto;
-        border-right: 0;
-        border-bottom: 1px solid var(--line);
-        gap: 18px;
-      }
-
-      .intro {
-        max-width: none;
-      }
-
-      .intro p {
-        max-width: 620px;
-      }
-
-      .trust-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-
-      .checkout-pane {
-        align-content: start;
-      }
-    }
-
-    @media (max-width: 600px) {
-      .brand-lockup img {
-        width: 58px;
-        height: 46px;
-      }
-
-      .brand-top {
-        display: grid;
-      }
-
-      .theme-control {
-        justify-self: start;
-        width: auto;
-      }
-
-      .trust-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .view-head, .amount-line, .receipt-row {
-        display: grid;
-      }
-
-      .pill {
-        justify-self: start;
-      }
-
-      .card {
-        border-left: 0;
-        border-right: 0;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-      }
-    }
-  </style>
-</head>
-<body>
-  <main class="page">
-    <div class="shell">
-      <section class="brand-pane" aria-label="Atomic Payments">
-        <div class="brand-top">
-          <a class="brand-lockup" href="/" style="text-decoration:none;color:inherit;cursor:pointer">
-            <img src="/assets/atomic-mark.png" alt="Atomic Payments logo">
-            <div>
-              <strong>Atomic Payments</strong>
-              <span>Cross-rail settlement gateway</span>
-            </div>
-          </a>
-
-          <div class="theme-control" aria-label="Theme mode">
-            <button class="theme-option" type="button" data-theme-option="light" aria-label="Light mode" aria-pressed="false" title="Light mode">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="4"></circle>
-                <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41"></path>
-              </svg>
-            </button>
-            <button class="theme-option" type="button" data-theme-option="dark" aria-label="Dark mode" aria-pressed="false" title="Dark mode">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a7 7 0 1 0 11 11Z"></path>
-              </svg>
-            </button>
-            <button class="theme-option" type="button" data-theme-option="system" aria-label="System theme" aria-pressed="false" title="System theme">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-                <path d="M8 20h8M12 16v4"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <style>
-          .mininav { display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; }
-          .mininav a { min-height:32px; display:inline-flex; align-items:center; padding:0 12px; border:1px solid var(--line); border-radius:9px; font-size:12.5px; color:var(--muted); font-weight:500; background:transparent; text-decoration:none; }
-          .mininav a:hover, .mininav a.active { border-color:var(--accent); color:var(--accent); }
-        </style>
-        <nav class="mininav" aria-label="Site">
-          <a href="/defi-swap">Swap</a>
-          <a href="/transfers">Transfers</a>
-          <a href="/checkout" class="active">Checkout</a>
-          <a href="/help">Help</a>
-          <a href="/releases">Releases</a>
-        </nav>
-
-        <div class="intro">
-          <h1>Checkout built for every screen.</h1>
-          <p>Fast crypto rail selection, clear quote locks, and settlement confirmation in a UI that behaves cleanly across mobile, tablet, desktop, and kiosk surfaces.</p>
-        </div>
-
-        <div class="trust-grid" aria-label="Checkout guarantees">
-          <div class="trust-item"><span>Rails</span><strong>12 active</strong></div>
-          <div class="trust-item"><span>Quote lock</span><strong>Live expiry</strong></div>
-          <div class="trust-item"><span>Status</span><strong>Webhook ready</strong></div>
-          <div class="trust-item"><span>Mode</span><strong>Gateway Simulator</strong></div>
-        </div>
-      </section>
-
-      <section class="checkout-pane" aria-label="Checkout flow">
-        <div class="card">
-          <div id="setup-view" class="view">
-            <div class="view-head">
-              <div class="view-title">
-                <span class="eyebrow">Gateway Simulator</span>
-                <h2>Start payment</h2>
-                <p class="helper">Provide a dynamic Payment Intent ID to launch the checkout context.</p>
-              </div>
-              <span class="pill"><span class="dot"></span>Ready</span>
-            </div>
-
-            <div class="field">
-              <label for="intent-id-input">Intent ID</label>
-              <input type="text" id="intent-id-input" placeholder="Paste generated intent ID" autocomplete="off" spellcheck="false">
-            </div>
-
-            <div id="intent-status" class="status-note" role="status" aria-live="polite"></div>
-
-            <button onclick="loadIntent()" id="launch-btn" class="primary">Launch Gateway</button>
-          </div>
-
-          <div id="checkout-view" class="view hidden">
-            <div class="amount-line">
-              <div>
-                <span class="eyebrow">Amount Due</span>
-                <div id="fiat-amount" class="amount">$120.00 USD</div>
-              </div>
-              <span id="intent-pill" class="pill"><span class="dot"></span>12 Rails Active</span>
-            </div>
-
-            <div id="chain-selector" class="rail-grid">
-              <h3>Select payment rail</h3>
-              <button onclick="selectChain('USD_COIN_SOLANA')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge sol">USDC</span><span><span class="rail-name">USD Coin</span><span class="rail-code">Solana stable rail</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('USD_COIN_ETHEREUM')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge eth">USDC</span><span><span class="rail-name">USD Coin</span><span class="rail-code">Ethereum ERC-20</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('TETHER_ETHEREUM')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge eth">USDT</span><span><span class="rail-name">Tether USD</span><span class="rail-code">Ethereum ERC-20</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('TETHER_TRON')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge">USDT</span><span><span class="rail-name">Tether USD</span><span class="rail-code">Tron TRC-20</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('PYUSD_ETHEREUM')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge eth">PYUSD</span><span><span class="rail-name">PayPal USD</span><span class="rail-code">Ethereum ERC-20</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('BITCOIN_ONCHAIN')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge btc">BTC</span><span><span class="rail-name">Bitcoin Layer 1</span><span class="rail-code">BTC</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('ETHEREUM')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge eth">ETH</span><span><span class="rail-name">Ethereum Network</span><span class="rail-code">ETH</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('BNB_CHAIN')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge">BNB</span><span><span class="rail-name">BNB Smart Chain</span><span class="rail-code">BSC</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('SOLANA')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge sol">SOL</span><span><span class="rail-name">Solana High-Speed</span><span class="rail-code">SOL</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('RIPPLE')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge xrp">XRP</span><span><span class="rail-name">Ripple Ledger</span><span class="rail-code">XRP</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('CARDANO')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge ada">ADA</span><span><span class="rail-name">Cardano Settlement</span><span class="rail-code">ADA</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-              <button onclick="selectChain('DOGECOIN')" class="rail-button">
-                <span class="rail-left"><span class="asset-badge doge">DOGE</span><span><span class="rail-name">Dogecoin Core</span><span class="rail-code">DOGE</span></span></span>
-                <span aria-hidden="true">›</span>
-              </button>
-            </div>
-
-            <div id="payment-instructions" class="hidden view" style="padding:0;">
-              <div class="quote-box">
-                <span>Total Required Remittance</span>
-                <strong id="crypto-required">0.00</strong>
-                <p id="oracle-rate" class="helper">-</p>
-              </div>
-
-              <div class="qr-wrap">
-                <div class="qr-card">
-                  <img id="qr-code-img" src="" alt="Payment address QR code">
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="deposit-address">Target Address</label>
-                <div class="address-box" id="deposit-address">-</div>
-              </div>
-
-              <div class="timer">Rate lock expires in <strong id="countdown-timer">15:00</strong></div>
-              <button onclick="triggerSimulatePayment()" id="sim-btn" class="primary">Simulate Network Settlement</button>
-            </div>
-          </div>
-
-          <div id="success-view" class="view hidden center">
-            <div class="success-mark" aria-hidden="true">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
-              </svg>
-            </div>
-            <div>
-              <span class="eyebrow">Settlement confirmed</span>
-              <h2>Invoice cleared</h2>
-              <p class="helper">Payment successfully cleared on-chain and the merchant webhook was delivered.</p>
-            </div>
-            <div class="receipt">
-              <div>
-                <span>Transaction Signature</span>
-                <strong id="res-hash">0x_</strong>
-              </div>
-              <div class="receipt-row">
-                <span>Webhook Dispatch</span>
-                <strong>Delivered 200</strong>
-              </div>
-            </div>
-            <button onclick="window.location.reload()" class="secondary">Reset Gateway Simulator</button>
-          </div>
-        </div>
-      </section>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pay — Atomic Pay</title>
+<meta name="description" content="Pay this invoice with crypto — USDC and stablecoins, any wallet, non-custodial.">
+<link rel="canonical" href="https://atomicpay.cloud/checkout">
+<meta property="og:site_name" content="Atomic Pay">
+<meta property="og:title" content="Crypto Checkout | Atomic Pay">
+<meta property="og:description" content="Pay with crypto — non-custodial, settles straight to the merchant.">
+<meta property="og:image" content="https://atomicpay.cloud/assets/atomic-og.png">
+<style>
+  :root { --ink:#14161c; --muted:#667085; --faint:#98a2b3; --line:#e9eaf2; --accent:#6d5cf5; --accent-soft:#efedff; --bg:#eef0f7; --surface:#fff; --live:#0a7d33; --live-soft:#e7f5ec; --pend:#8a5a00; --err:#c0392b; --mono:ui-monospace,Menlo,Consolas,monospace; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e9ebf2; --muted:#9aa2b2; --faint:#6b7383; --line:#252a37; --accent:#8f81ff; --accent-soft:#211f3a; --bg:#0e1016; --surface:#161923; --live:#52c982; --live-soft:#14241b; --pend:#e0a83a; } }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; font-family:Inter,system-ui,-apple-system,sans-serif; color:var(--ink); background:var(--bg); display:flex; align-items:flex-start; justify-content:center; padding:clamp(16px,5vw,48px) 16px; }
+  .card { width:100%; max-width:440px; background:var(--surface); border:1px solid var(--line); border-radius:20px; box-shadow:0 12px 44px rgba(20,22,28,.10); overflow:hidden; }
+  .head { padding:20px 24px 0; display:flex; align-items:center; gap:9px; }
+  .head img { width:26px; height:20px; } .head b { font-size:14px; } .head .tag { margin-left:auto; font-size:11px; color:var(--faint); font-weight:600; }
+  .body { padding:18px 24px 26px; }
+  .biz { font-size:13px; color:var(--muted); }
+  .amt { font-size:40px; font-weight:800; letter-spacing:-.02em; margin:2px 0; }
+  .desc { font-size:14px; color:var(--muted); }
+  .ref { font-family:var(--mono); font-size:11.5px; color:var(--faint); margin-top:4px; }
+  .lbl { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--faint); margin:22px 0 10px; }
+  .rail { display:flex; align-items:center; gap:12px; width:100%; text-align:left; border:1px solid var(--line); background:var(--surface); border-radius:13px; padding:13px 15px; margin-bottom:9px; cursor:pointer; font-family:inherit; color:var(--ink); }
+  .rail:hover { border-color:var(--accent); }
+  .rail .ic { width:30px; height:30px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .rail .t { font-weight:700; font-size:14.5px; } .rail .s { font-size:12px; color:var(--muted); }
+  .rail .rec { margin-left:auto; font-size:10.5px; font-weight:700; color:var(--live); background:var(--live-soft); padding:3px 8px; border-radius:6px; }
+  .rail .arw { color:var(--faint); margin-left:auto; }
+  .rail .rec ~ .arw { margin-left:8px; }
+  .qr { width:212px; height:212px; margin:14px auto 6px; background:#fff; border:1px solid var(--line); border-radius:14px; display:flex; align-items:center; justify-content:center; }
+  .qr img { width:200px; height:200px; }
+  .payamt { text-align:center; font-size:24px; font-weight:800; }
+  .payamt .r { display:block; font-size:13px; color:var(--muted); font-weight:600; margin-bottom:2px; }
+  .addr { display:flex; gap:8px; align-items:center; background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:10px 12px; margin-top:12px; }
+  .addr code { flex:1; min-width:0; font-family:var(--mono); font-size:12px; word-break:break-all; }
+  .btn { font-family:inherit; font-weight:700; font-size:14px; border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:11px; padding:11px 14px; cursor:pointer; text-decoration:none; text-align:center; display:inline-block; }
+  .btn.sm { padding:7px 11px; font-size:12.5px; border-radius:9px; }
+  .btn.pri { background:var(--accent); border-color:var(--accent); color:#fff; width:100%; padding:13px; margin-top:12px; }
+  .status { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:16px; font-weight:700; font-size:14px; color:var(--pend); text-align:center; }
+  .status .spin { width:15px; height:15px; border:2px solid var(--line); border-top-color:var(--pend); border-radius:50%; animation:sp .8s linear infinite; flex:0 0 auto; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .meta { display:flex; justify-content:space-between; font-size:12px; color:var(--faint); margin-top:12px; }
+  .back { background:none; border:none; color:var(--accent); font-weight:600; font-size:13px; cursor:pointer; padding:0; margin-top:16px; font-family:inherit; }
+  .success { text-align:center; padding:8px 0 4px; }
+  .success .check { width:60px; height:60px; border-radius:50%; background:var(--live-soft); color:var(--live); font-size:32px; display:flex; align-items:center; justify-content:center; margin:6px auto 12px; }
+  .success h2 { margin:0 0 4px; font-size:20px; } .success p { color:var(--muted); font-size:14px; margin:0; }
+  .rc { margin:16px 0 4px; font-size:13.5px; } .rc .r { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); } .rc .k { color:var(--muted); }
+  .center { text-align:center; color:var(--muted); font-size:14px; padding:40px 10px; }
+  .errbox { background:#fdecea; border:1px solid #f5c6c0; color:var(--err); border-radius:12px; padding:12px 14px; font-size:13.5px; text-align:center; }
+  @media (prefers-color-scheme: dark){ .errbox{ background:#2a1614; border-color:#4a2420; } }
+  [hidden] { display:none !important; }
+  .foot { text-align:center; font-size:11px; color:var(--faint); padding:0 0 16px; } .foot a { color:var(--faint); }
+</style>
+
+<div class="card">
+  <div class="head"><img src="/assets/atomic-mark.png" alt="" onerror="this.style.display='none'"><b>Atomic Pay</b><span class="tag">🔒 Non-custodial</span></div>
+  <div class="body">
+    <div id="loading" class="center">Loading payment…</div>
+    <div id="errorView" hidden><div class="errbox" id="errMsg">This payment link is invalid or has expired.</div></div>
+
+    <div id="chooseView" hidden>
+      <div class="biz" id="cBiz"></div>
+      <div class="amt" id="cAmt"></div>
+      <div class="desc" id="cDesc"></div>
+      <div class="ref" id="cRef"></div>
+      <div class="lbl">Pay with</div>
+      <div id="railList"></div>
     </div>
-  </main>
 
-  <script>
-    const API_BASE = window.location.origin;
-    const THEME_STORAGE_KEY = 'atomic-theme-mode';
-    const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const FALLBACK_PAYMENT_RAILS = [
-      { id: 'USD_COIN_SOLANA', symbol: 'USDC', name: 'USD Coin', network: 'Solana stable rail', stable: true, badgeClass: 'sol' },
-      { id: 'USD_COIN_ETHEREUM', symbol: 'USDC', name: 'USD Coin', network: 'Ethereum ERC-20', stable: true, badgeClass: 'eth' },
-      { id: 'TETHER_ETHEREUM', symbol: 'USDT', name: 'Tether USD', network: 'Ethereum ERC-20', stable: true, badgeClass: 'eth' },
-      { id: 'TETHER_TRON', symbol: 'USDT', name: 'Tether USD', network: 'Tron TRC-20', stable: true, badgeClass: '' },
-      { id: 'PYUSD_ETHEREUM', symbol: 'PYUSD', name: 'PayPal USD', network: 'Ethereum ERC-20', stable: true, badgeClass: 'eth' },
-      { id: 'BITCOIN_ONCHAIN', symbol: 'BTC', name: 'Bitcoin Layer 1', network: 'BTC', stable: false, badgeClass: 'btc' },
-      { id: 'ETHEREUM', symbol: 'ETH', name: 'Ethereum Network', network: 'ETH', stable: false, badgeClass: 'eth' },
-      { id: 'BNB_CHAIN', symbol: 'BNB', name: 'BNB Smart Chain', network: 'BSC', stable: false, badgeClass: '' },
-      { id: 'SOLANA', symbol: 'SOL', name: 'Solana High-Speed', network: 'SOL', stable: false, badgeClass: 'sol' },
-      { id: 'RIPPLE', symbol: 'XRP', name: 'Ripple Ledger', network: 'XRP', stable: false, badgeClass: 'xrp' },
-      { id: 'CARDANO', symbol: 'ADA', name: 'Cardano Settlement', network: 'ADA', stable: false, badgeClass: 'ada' },
-      { id: 'DOGECOIN', symbol: 'DOGE', name: 'Dogecoin Core', network: 'DOGE', stable: false, badgeClass: 'doge' }
-    ];
-    let currentIntentId = '';
-    let countdownInterval;
-    let currentIntent = null;
+    <div id="payView" hidden>
+      <div style="text-align:center" class="biz" id="pBiz"></div>
+      <div class="qr" id="qr">…</div>
+      <div class="payamt"><span class="r" id="pRailName"></span><span id="pCryptoAmt"></span></div>
+      <div class="addr"><code id="pAddr"></code><button class="btn sm" id="copyAddr">Copy</button></div>
+      <a class="btn pri" id="openWallet">Open in wallet</a>
+      <div class="status" id="payStatus"><span class="spin"></span> Waiting for payment…</div>
+      <div class="meta"><span id="pExpiry"></span><span id="pFiat"></span></div>
+      <button class="back" id="changeRail">← Pay with a different coin</button>
+    </div>
 
-    function resolveTheme(mode) {
-      return mode === 'system' ? (systemThemeQuery.matches ? 'dark' : 'light') : mode;
+    <div id="successView" hidden>
+      <div class="success"><div class="check">✓</div><h2>Payment complete</h2><p id="sBiz"></p></div>
+      <div class="rc" id="sReceipt"></div>
+      <button class="btn" style="width:100%;margin-top:12px" onclick="window.print()">Save receipt (PDF)</button>
+    </div>
+  </div>
+  <div class="foot">Secured by <a href="/" target="_blank" rel="noopener">Atomic Pay</a> · funds settle directly to the merchant</div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var qs = new URLSearchParams(location.search);
+  var ID = qs.get('intentId') || qs.get('id') || '';
+  var SYM = { USD:'$', EUR:'€', GBP:'£' };
+  // Only rails the payment watcher can auto-confirm today (EVM stablecoins).
+  var RAILS = [
+    { key:'USD_COIN_BASE', sym:'USDC', net:'Base', rec:true },
+    { key:'USD_COIN_ETHEREUM', sym:'USDC', net:'Ethereum' },
+    { key:'TETHER_ETHEREUM', sym:'USDT', net:'Ethereum' },
+    { key:'PYUSD_ETHEREUM', sym:'PYUSD', net:'Ethereum' }
+  ];
+  var poll = null, countdown = null;
+  function money(a, c) { return (SYM[c] || '') + Number(a).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (SYM[c] ? '' : ' ' + c); }
+  function view(id) { ['loading','errorView','chooseView','payView','successView'].forEach(function (v) { $(v).hidden = v !== id; }); }
+  function fail(m) { clearInterval(poll); clearInterval(countdown); $('errMsg').textContent = m; view('errorView'); }
+
+  async function getReceipt() {
+    try { var r = await fetch('/v1/payment_intents/' + encodeURIComponent(ID) + '/receipt'); if (!r.ok) return null; var d = await r.json(); return d.receipt || null; }
+    catch (e) { return null; }
+  }
+
+  async function boot() {
+    if (!ID) return fail('No payment specified.');
+    var rc = await getReceipt();
+    if (!rc) return fail('This payment link is invalid or has expired.');
+    if (rc.paid) return success(rc);
+    $('cBiz').textContent = rc.businessName || 'Payment';
+    $('cAmt').textContent = money(rc.amount, rc.currency);
+    $('cDesc').textContent = rc.description || '';
+    $('cRef').textContent = rc.reference ? 'Ref: ' + rc.reference : '';
+    renderRails(rc); view('chooseView');
+  }
+
+  function renderRails(rc) {
+    var list = $('railList'); list.innerHTML = '';
+    RAILS.forEach(function (rail) {
+      var b = document.createElement('button'); b.className = 'rail';
+      b.innerHTML = '<span class="ic">' + rail.sym.slice(0, 2) + '</span>' +
+        '<span><span class="t">' + rail.sym + '</span><br><span class="s">on ' + rail.net + '</span></span>' +
+        (rail.rec ? '<span class="rec">Lowest fees</span>' : '') + '<span class="arw">›</span>';
+      b.addEventListener('click', function () { selectRail(rail, rc); });
+      list.appendChild(b);
+    });
+  }
+
+  async function selectRail(rail, rc) {
+    view('payView'); $('pBiz').textContent = rc.businessName || '';
+    $('payStatus').innerHTML = '<span class="spin"></span> Setting up…'; $('qr').textContent = '…';
+    var d;
+    try { var r = await fetch('/v1/payment_intents/' + ID + '/select_chain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chain: rail.key }) }); d = await r.json(); if (!r.ok) throw new Error(d.error || 'Could not set up this payment.'); }
+    catch (e) { $('payStatus').innerHTML = '<span style="color:var(--err)">' + (e.message || 'Setup failed.') + '</span>'; return; }
+    $('pRailName').textContent = 'Send ' + rail.sym + ' on ' + rail.net;
+    $('pCryptoAmt').textContent = d.cryptoAmountRequired + ' ' + rail.sym;
+    $('pAddr').textContent = d.depositAddress;
+    $('pFiat').textContent = '= ' + money(rc.amount, rc.currency);
+    $('openWallet').href = d.web3PaymentUri || '#';
+    $('payStatus').innerHTML = '<span class="spin"></span> Waiting for payment…'; $('payStatus').style.color = 'var(--pend)';
+    makeQr(d.web3PaymentUri || d.depositAddress);
+    startCountdown(d.expiresAt);
+    clearInterval(poll);
+    poll = setInterval(async function () { var x = await getReceipt(); if (x && x.paid) success(x); }, 4000);
+  }
+
+  async function makeQr(text) {
+    try { var M = await import('/assets/vendor/esm/qrcode.mjs'); var u = await (M.toDataURL || M.default.toDataURL)(text, { width: 200, margin: 1, color: { dark: '#14161c', light: '#ffffff' } }); $('qr').innerHTML = '<img alt="Payment QR" src="' + u + '">'; }
+    catch (e) { $('qr').innerHTML = '<span style="font-size:12px;color:var(--muted);padding:12px;text-align:center">Copy the address below to pay</span>'; }
+  }
+
+  function startCountdown(expiresAt) {
+    clearInterval(countdown);
+    var end = new Date(expiresAt).getTime();
+    function tick() {
+      var ms = end - Date.now();
+      if (ms <= 0) { clearInterval(countdown); clearInterval(poll); $('pExpiry').textContent = 'Expired'; $('payStatus').innerHTML = '<span style="color:var(--err)">This payment window expired — refresh to retry.</span>'; return; }
+      var totalS = Math.floor(ms / 1000), d = Math.floor(totalS / 86400), h = Math.floor((totalS % 86400) / 3600), m = Math.floor((totalS % 3600) / 60), s = totalS % 60;
+      var txt = d > 0 ? d + 'd ' + h + 'h' : h > 0 ? h + 'h ' + m + 'm' : m + ':' + (s < 10 ? '0' : '') + s;
+      $('pExpiry').textContent = 'Expires in ' + txt;
     }
+    tick(); countdown = setInterval(tick, 1000);
+  }
 
-    function setThemeMode(mode) {
-      const nextMode = ['light', 'dark', 'system'].includes(mode) ? mode : 'system';
-      const resolvedTheme = resolveTheme(nextMode);
-      localStorage.setItem(THEME_STORAGE_KEY, nextMode);
-      document.documentElement.dataset.themeMode = nextMode;
-      document.documentElement.dataset.theme = resolvedTheme;
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#06111d' : '#f4f8fb');
+  function success(rc) {
+    clearInterval(poll); clearInterval(countdown);
+    $('sBiz').textContent = 'Paid to ' + (rc.businessName || 'merchant');
+    $('sReceipt').innerHTML =
+      '<div class="r"><span class="k">Amount</span><span><b>' + money(rc.amount, rc.currency) + '</b></span></div>' +
+      (rc.reference ? '<div class="r"><span class="k">Reference</span><span>' + rc.reference + '</span></div>' : '') +
+      (rc.description ? '<div class="r"><span class="k">For</span><span>' + rc.description + '</span></div>' : '') +
+      (rc.asset ? '<div class="r"><span class="k">Paid in</span><span>' + String(rc.asset).replace(/_/g, ' ') + '</span></div>' : '') +
+      (rc.txHash ? '<div class="r"><span class="k">Transaction</span><span style="font-family:var(--mono);font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
+      '<div class="r"><span class="k">Date</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString() + '</span></div>';
+    view('successView');
+  }
 
-      for (const button of document.querySelectorAll('[data-theme-option]')) {
-        button.setAttribute('aria-pressed', String(button.dataset.themeOption === nextMode));
-      }
-    }
+  $('copyAddr').addEventListener('click', function () { var b = this; navigator.clipboard.writeText($('pAddr').textContent).catch(function(){}); b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); });
+  $('changeRail').addEventListener('click', function () { clearInterval(poll); clearInterval(countdown); boot(); });
 
-    function initializeThemeControl() {
-      const storedMode = localStorage.getItem(THEME_STORAGE_KEY) || 'system';
-      setThemeMode(storedMode);
-
-      for (const button of document.querySelectorAll('[data-theme-option]')) {
-        button.addEventListener('click', () => setThemeMode(button.dataset.themeOption));
-      }
-
-      systemThemeQuery.addEventListener?.('change', () => {
-        if ((localStorage.getItem(THEME_STORAGE_KEY) || 'system') === 'system') {
-          setThemeMode('system');
-        }
-      });
-    }
-
-    function showView(viewId) {
-      document.getElementById('setup-view').className = 'hidden';
-      document.getElementById('checkout-view').className = 'hidden';
-      document.getElementById('success-view').className = 'hidden';
-      document.getElementById(viewId).className = 'view';
-    }
-
-    function formatCurrency(amount, currency) {
-      try {
-        return new Intl.NumberFormat(undefined, {
-          style: 'currency',
-          currency: currency || 'USD',
-          maximumFractionDigits: 2
-        }).format(Number(amount || 0));
-      } catch {
-        return Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
-      }
-    }
-
-    function setIntentStatus(message, isError = false) {
-      const status = document.getElementById('intent-status');
-      status.textContent = message || '';
-      status.classList.toggle('is-visible', Boolean(message));
-      status.classList.toggle('is-error', isError);
-    }
-
-    function setLaunchLoading(isLoading) {
-      const button = document.getElementById('launch-btn');
-      button.disabled = isLoading;
-      button.textContent = isLoading ? 'Loading Intent...' : 'Launch Gateway';
-    }
-
-    function resetPaymentSelection() {
-      clearInterval(countdownInterval);
-      document.getElementById('chain-selector').classList.remove('hidden');
-      document.getElementById('payment-instructions').classList.add('hidden');
-      document.getElementById('crypto-required').innerText = '0.00';
-      document.getElementById('oracle-rate').innerText = '-';
-      document.getElementById('deposit-address').innerText = '-';
-      document.getElementById('qr-code-img').src = '';
-    }
-
-    function renderPaymentRails(rails) {
-      const selector = document.getElementById('chain-selector');
-      const heading = selector.querySelector('h3');
-      selector.replaceChildren(heading);
-
-      for (const rail of rails) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'rail-button';
-        button.addEventListener('click', () => selectChain(rail.id));
-
-        const left = document.createElement('span');
-        left.className = 'rail-left';
-
-        const badge = document.createElement('span');
-        badge.className = `asset-badge ${rail.badgeClass || ''}`.trim();
-        badge.textContent = rail.symbol;
-
-        const copy = document.createElement('span');
-        const name = document.createElement('span');
-        name.className = 'rail-name';
-        name.textContent = rail.name;
-        const code = document.createElement('span');
-        code.className = 'rail-code';
-        code.textContent = rail.stable ? rail.network : rail.symbol;
-        copy.append(name, code);
-
-        const chevron = document.createElement('span');
-        chevron.setAttribute('aria-hidden', 'true');
-        chevron.textContent = '›';
-
-        left.append(badge, copy);
-        button.append(left, chevron);
-        selector.append(button);
-      }
-    }
-
-    async function initializePaymentRails() {
-      try {
-        const response = await fetch(`${API_BASE}/v1/payment_rails`);
-        const data = await response.json();
-        if (!response.ok || !Array.isArray(data.rails)) throw new Error('Payment rail catalog unavailable.');
-        renderPaymentRails(data.rails);
-      } catch {
-        renderPaymentRails(FALLBACK_PAYMENT_RAILS);
-      }
-    }
-
-    function renderIntent(intent) {
-      currentIntent = intent;
-      currentIntentId = intent.id;
-      document.getElementById('intent-id-input').value = intent.id;
-      document.getElementById('fiat-amount').innerText = `${formatCurrency(intent.amount, intent.currency)} ${intent.currency}`;
-      document.getElementById('intent-pill').innerHTML = `<span class="dot"></span>${intent.status || 'PENDING'}`;
-      resetPaymentSelection();
-      showView('checkout-view');
-    }
-
-    async function loadIntent() {
-      const idInput = document.getElementById('intent-id-input').value.trim();
-      if (!idInput) {
-        setIntentStatus('Provide an active payment intent ID.', true);
-        return;
-      }
-
-      setLaunchLoading(true);
-      setIntentStatus('Loading payment context...');
-
-      try {
-        const response = await fetch(`${API_BASE}/v1/payment_intents/${encodeURIComponent(idInput)}`);
-        const data = await response.json();
-        if (!response.ok || data.error) {
-          setIntentStatus(data.error || 'Could not load this payment intent.', true);
-          return;
-        }
-
-        setIntentStatus('');
-        renderIntent(data.intent);
-      } catch (err) {
-        setIntentStatus('Payment intent service is not reachable.', true);
-      } finally {
-        setLaunchLoading(false);
-      }
-    }
-
-    async function selectChain(blockchainName) {
-      try {
-        const response = await fetch(`${API_BASE}/v1/payment_intents/${currentIntentId}/select_chain`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chain: blockchainName })
-        });
-
-        const data = await response.json();
-        if (data.error) return alert(data.error);
-
-        document.getElementById('crypto-required').innerText = `${data.cryptoAmountRequired} ${data.assetSymbol || blockchainName.split('_')[0]}`;
-        document.getElementById('oracle-rate').innerText = `${data.railName || 'Payment rail'} · Live Price: ${data.liveMarketRate}`;
-        document.getElementById('deposit-address').innerText = data.depositAddress;
-        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=152x152&color=0f172a&data=${encodeURIComponent(data.web3PaymentUri || data.depositAddress)}`;
-
-        document.getElementById('chain-selector').classList.add('hidden');
-        document.getElementById('payment-instructions').classList.remove('hidden');
-        startTimer(new Date(data.expiresAt));
-      } catch (err) {
-        alert('Payment processing node connection error.');
-      }
-    }
-
-    async function triggerSimulatePayment() {
-      const btn = document.getElementById('sim-btn');
-      btn.innerText = 'Processing On-Chain Block...';
-      btn.disabled = true;
-
-      try {
-        const response = await fetch(`${API_BASE}/v1/payment_intents/${currentIntentId}/simulate_payment`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ txHash: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('') })
-        });
-
-        const data = await response.json();
-        if (data.error) {
-          alert(data.error);
-          btn.innerText = 'Simulate Network Settlement';
-          btn.disabled = false;
-          return;
-        }
-
-        clearInterval(countdownInterval);
-        document.getElementById('res-hash').innerText = data.txHash;
-        document.getElementById('checkout-view').classList.add('hidden');
-        document.getElementById('success-view').classList.remove('hidden');
-      } catch (err) {
-        alert('Could not deliver transactional block to settlement layer.');
-        btn.innerText = 'Simulate Network Settlement';
-        btn.disabled = false;
-      }
-    }
-
-    function startTimer(expiryDate) {
-      clearInterval(countdownInterval);
-      function update() {
-        const now = new Date().getTime();
-        const distance = expiryDate.getTime() - now;
-        if (distance < 0) {
-          document.getElementById('countdown-timer').innerText = 'EXPIRED';
-          clearInterval(countdownInterval);
-          return;
-        }
-        const mins = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const secs = Math.floor((distance % (1000 * 60)) / 1000);
-        document.getElementById('countdown-timer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      }
-      update();
-      countdownInterval = setInterval(update, 1000);
-    }
-
-    initializeThemeControl();
-    initializePaymentRails();
-
-    const params = new URLSearchParams(window.location.search);
-    const deepLinkIntentId = params.get('intentId') || params.get('intent') || params.get('payment_intent');
-    const amountPreview = params.get('amount');
-    if (amountPreview && !deepLinkIntentId) {
-      document.getElementById('fiat-amount').innerText = `${formatCurrency(amountPreview, params.get('currency') || 'USD')} ${(params.get('currency') || 'USD').toUpperCase()}`;
-    }
-    if (deepLinkIntentId) {
-      document.getElementById('intent-id-input').value = deepLinkIntentId;
-      loadIntent();
-    }
-  </script>
-  <script src="/assets/analytics.js" defer></script>
-</body>
-</html>
+  boot();
+})();
+</script>

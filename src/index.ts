@@ -253,6 +253,7 @@ app.get('/sitemap.xml', (_req: Request, res: Response) => {
     ['/', 'weekly', '1.0'],
     ['/defi-swap', 'weekly', '0.9'],
     ['/swap', 'weekly', '0.8'],
+    ['/merchant', 'weekly', '0.8'],
     ['/partners', 'weekly', '0.8'],
     ['/partner-docs', 'monthly', '0.7'],
     ['/help', 'monthly', '0.7'],

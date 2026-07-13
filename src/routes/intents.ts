@@ -235,7 +235,12 @@ router.post('/v1/payment_intents', async (req, res) => {
 
     const amount = Number(req.body.amount);
     const currency = String(req.body.currency || 'USD').trim().toUpperCase();
-    const ttlMinutes = Number(req.body.ttlMinutes || 15);
+    const source = ['pos', 'invoice', 'api'].includes(String(req.body.source)) ? String(req.body.source) : 'api';
+    // A POS QR is scanned on the spot, so a tight window is right; an emailed
+    // invoice must stay payable long after it's sent. Default the TTL by source.
+    const DEFAULT_TTL_MIN: Record<string, number> = { pos: 15, api: 15, invoice: 60 * 24 * 7 };
+    const MAX_TTL_MIN = 60 * 24 * 30;   // 30 days
+    const ttlMinutes = Number(req.body.ttlMinutes || DEFAULT_TTL_MIN[source] || 15);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive number' });
@@ -243,11 +248,9 @@ router.post('/v1/payment_intents', async (req, res) => {
     if (!/^[A-Z]{3,10}$/.test(currency)) {
       return res.status(400).json({ error: 'Currency must be a valid uppercase code' });
     }
-    if (!Number.isFinite(ttlMinutes) || ttlMinutes < 1 || ttlMinutes > 120) {
-      return res.status(400).json({ error: 'ttlMinutes must be between 1 and 120' });
+    if (!Number.isFinite(ttlMinutes) || ttlMinutes < 1 || ttlMinutes > MAX_TTL_MIN) {
+      return res.status(400).json({ error: `ttlMinutes must be between 1 and ${MAX_TTL_MIN}` });
     }
-
-    const source = ['pos', 'invoice', 'api'].includes(String(req.body.source)) ? String(req.body.source) : 'api';
     const intent = await prisma.paymentIntent.create({
       data: {
         merchantId: merchant.id,
