@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.1 - 2026-07-14
+
+- **Operator UI for the sanctions review queue** (`/admin-review`) — lists each held payment with the flagged payer (linked to the block explorer), amount, merchant, and transaction, and lets an operator **clear** (settle + release the withheld webhook/receipt) or **reject** it. Authenticates with the operator key (`x-atomic-operator-key`). Payments now record the `flaggedPayer` address when parked in REVIEW.
+
 ## 2.7.0 - 2026-07-14
 
 **Compliance hardening + localization polish (counsel-doc follow-ups).**

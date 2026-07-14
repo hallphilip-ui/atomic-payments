@@ -1,0 +1,133 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sanctions Review Queue — Atomic Operator</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root { --bg:#0e1117; --panel:#161b24; --line:#232b38; --ink:#e6edf3; --muted:#8b98a9; --faint:#5c6a7d; --accent:#6d5cf5; --live:#3fb950; --live-soft:#132b1a; --err:#f85149; --err-soft:#2a1416; --pend:#e0a83a; --mono:ui-monospace,Menlo,Consolas,monospace; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter,system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); line-height:1.5; }
+  .top { display:flex; align-items:center; gap:12px; padding:16px clamp(16px,4vw,32px); border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:5; }
+  .top b { font-size:15px; } .top .sub { color:var(--faint); font-size:13px; }
+  main { max-width:960px; margin:0 auto; padding:clamp(18px,4vw,32px); }
+  h1 { font-size:20px; margin:0 0 4px; } .lede { color:var(--muted); font-size:14px; margin:0 0 22px; }
+  .auth { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:20px; }
+  input { font-family:inherit; font-size:14px; padding:9px 12px; border:1px solid var(--line); border-radius:9px; background:#0b0e14; color:var(--ink); min-width:260px; flex:1; }
+  .btn { font-family:inherit; font-weight:600; font-size:13.5px; border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:9px; padding:9px 14px; cursor:pointer; }
+  .btn.pri { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.ok { background:var(--live-soft); border-color:#1f5130; color:var(--live); }
+  .btn.no { background:var(--err-soft); border-color:#5a2224; color:var(--err); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:12px; }
+  .card .row { display:flex; justify-content:space-between; gap:12px; align-items:baseline; flex-wrap:wrap; }
+  .amt { font-size:20px; font-weight:800; }
+  .biz { color:var(--muted); font-size:13px; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; font-size:12.5px; margin:12px 0; }
+  .kv .k { color:var(--faint); } .kv .v { font-family:var(--mono); word-break:break-all; }
+  .kv a { color:var(--accent); text-decoration:none; } .kv a:hover { text-decoration:underline; }
+  .flag { display:inline-block; font-size:11px; font-weight:700; color:var(--err); background:var(--err-soft); border:1px solid #5a2224; border-radius:6px; padding:2px 8px; }
+  .actions { display:flex; gap:8px; margin-top:8px; }
+  .msg { padding:12px 14px; border-radius:10px; font-size:13.5px; margin-bottom:16px; }
+  .msg.err { background:var(--err-soft); border:1px solid #5a2224; color:var(--err); }
+  .msg.ok { background:var(--live-soft); border:1px solid #1f5130; color:var(--live); }
+  .empty { color:var(--muted); text-align:center; padding:40px 10px; }
+  .hint { color:var(--faint); font-size:12px; margin-top:6px; }
+</style>
+
+<div class="top"><b>Atomic · Operator</b><span class="sub">· Sanctions review queue</span></div>
+<main>
+  <h1>Held payments awaiting disposition</h1>
+  <p class="lede">These payments were detected on-chain but the <b>payer screened as sanctioned</b>, so confirmation, the merchant webhook, and the customer receipt were withheld. Review each and <b>clear</b> (settle + release the withheld notifications) or <b>reject</b>.</p>
+
+  <div class="auth">
+    <input id="opkey" type="password" placeholder="Operator key (x-atomic-operator-key)" autocomplete="off">
+    <button class="btn pri" id="load">Load queue</button>
+    <button class="btn" id="forget">Forget key</button>
+  </div>
+
+  <div id="msg"></div>
+  <div id="list"></div>
+</main>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = 'atomic_operator_key';
+  var saved = sessionStorage.getItem(KEY) || '';
+  if (saved) $('opkey').value = saved;
+
+  function headers() { return { 'Content-Type': 'application/json', 'x-atomic-operator-key': $('opkey').value.trim() }; }
+  function msg(kind, text) { $('msg').innerHTML = text ? '<div class="msg ' + kind + '">' + text + '</div>' : ''; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' })[c]; }); }
+  function explorer(asset, kind, val) {
+    var base = (asset === 'USD_COIN_BASE') ? 'https://basescan.org' : 'https://etherscan.io';
+    return base + '/' + kind + '/' + val;
+  }
+
+  async function load() {
+    var k = $('opkey').value.trim();
+    if (!k) { msg('err', 'Enter your operator key.'); return; }
+    sessionStorage.setItem(KEY, k);
+    msg('', ''); $('list').innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      var r = await fetch('/v1/admin/review-queue', { headers: headers() });
+      if (r.status === 401) { msg('err', 'Operator key rejected (401). Check the key.'); $('list').innerHTML = ''; return; }
+      if (r.status === 503) { msg('err', 'Operator authentication is not configured on this deployment.'); $('list').innerHTML = ''; return; }
+      var d = await r.json();
+      if (!r.ok) { msg('err', esc(d.error || 'Failed to load.')); $('list').innerHTML = ''; return; }
+      render(d.items || []);
+    } catch (e) { msg('err', 'Network error: ' + esc(e.message)); $('list').innerHTML = ''; }
+  }
+
+  function render(items) {
+    if (!items.length) { $('list').innerHTML = '<div class="empty">✅ No payments held for review.</div>'; return; }
+    $('list').innerHTML = items.map(function (i) {
+      var payer = i.flaggedPayer
+        ? '<span class="flag">SANCTIONED PAYER</span> <a href="' + explorer(i.asset, 'address', i.flaggedPayer) + '" target="_blank" rel="noopener">' + esc(i.flaggedPayer) + '</a>'
+        : '<span class="muted">unknown</span>';
+      var tx = i.txHash ? '<a href="' + explorer(i.asset, 'tx', i.txHash) + '" target="_blank" rel="noopener">' + esc(i.txHash.slice(0, 14)) + '…</a>' : '—';
+      return '<div class="card" data-id="' + esc(i.id) + '">' +
+        '<div class="row"><span class="amt">' + esc(i.amount) + ' ' + esc(i.currency) + '</span>' +
+        '<span class="biz">' + esc(i.merchant && i.merchant.businessName || 'merchant') + ' · ' + esc((i.asset || '').replace(/_/g, ' ')) + '</span></div>' +
+        '<div class="kv">' +
+          '<span class="k">Payer</span><span class="v">' + payer + '</span>' +
+          '<span class="k">Transaction</span><span class="v">' + tx + '</span>' +
+          '<span class="k">Merchant wallet</span><span class="v">' + esc(i.depositAddress || '—') + '</span>' +
+          (i.reference ? '<span class="k">Reference</span><span class="v">' + esc(i.reference) + '</span>' : '') +
+          (i.customerEmail ? '<span class="k">Customer</span><span class="v">' + esc(i.customerEmail) + '</span>' : '') +
+          '<span class="k">Created</span><span class="v">' + esc(new Date(i.createdAt).toLocaleString()) + '</span>' +
+        '</div>' +
+        '<div class="actions">' +
+          '<button class="btn ok" data-act="clear">Clear → settle + notify</button>' +
+          '<button class="btn no" data-act="reject">Reject</button>' +
+        '</div></div>';
+    }).join('');
+    $('list').querySelectorAll('[data-act]').forEach(function (b) {
+      b.addEventListener('click', function () { decide(b.closest('.card'), b.dataset.act); });
+    });
+  }
+
+  async function decide(card, decision) {
+    var id = card.dataset.id;
+    var warn = decision === 'clear'
+      ? 'CLEAR this payment? It will be confirmed and the merchant webhook + customer receipt will be sent.'
+      : 'REJECT this payment? It will be marked rejected and no notifications are sent.';
+    if (!window.confirm(warn)) return;
+    card.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+    try {
+      var r = await fetch('/v1/admin/review-queue/' + encodeURIComponent(id) + '/decision', {
+        method: 'POST', headers: headers(), body: JSON.stringify({ decision: decision, reviewedBy: 'operator-ui' })
+      });
+      var d = await r.json();
+      if (!r.ok) { msg('err', esc(d.error || 'Decision failed.')); card.querySelectorAll('button').forEach(function (x) { x.disabled = false; }); return; }
+      msg('ok', 'Payment ' + esc(id.slice(0, 8)) + '… → ' + esc(d.status) + '.');
+      card.parentNode.removeChild(card);
+      if (!$('list').querySelector('.card')) $('list').innerHTML = '<div class="empty">✅ No payments held for review.</div>';
+    } catch (e) { msg('err', 'Network error: ' + esc(e.message)); card.querySelectorAll('button').forEach(function (x) { x.disabled = false; }); }
+  }
+
+  $('load').addEventListener('click', load);
+  $('opkey').addEventListener('keydown', function (e) { if (e.key === 'Enter') load(); });
+  $('forget').addEventListener('click', function () { sessionStorage.removeItem(KEY); $('opkey').value = ''; msg('', ''); $('list').innerHTML = ''; });
+  if (saved) load();
+})();
+</script>

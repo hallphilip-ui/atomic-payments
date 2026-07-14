@@ -41,6 +41,7 @@ model PaymentIntent {
   txHash               String?
   watchFromBlock       Int?     // chain height when the pay address was issued — the watcher scans from here
   confirmedAt          DateTime?
+  flaggedPayer         String?  // set when a payment is parked in REVIEW: the sanctioned payer address
   expiresAt            DateTime
   createdAt            DateTime @default(now())
 }

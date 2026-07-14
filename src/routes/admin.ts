@@ -23,8 +23,8 @@ router.get('/v1/admin/review-queue', async (_req, res) => {
     count: items.length,
     items: items.map((i) => ({
       id: i.id, amount: i.amount, currency: i.currency, asset: i.selectedChain,
-      depositAddress: i.depositAddress, txHash: i.txHash, reference: i.reference,
-      customerEmail: i.customerEmail, createdAt: i.createdAt,
+      depositAddress: i.depositAddress, txHash: i.txHash, flaggedPayer: i.flaggedPayer,
+      reference: i.reference, customerEmail: i.customerEmail, createdAt: i.createdAt,
       merchant: i.merchant ? { businessName: i.merchant.businessName, email: i.merchant.email } : null
     }))
   });

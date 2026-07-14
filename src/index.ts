@@ -226,7 +226,7 @@ const CSP_WALLET_BRIDGE = [
 // /defi-swap and /wallet-test set theirs inline below). Keyed on exact path so the
 // /v1 API and static assets are untouched.
 const CONTENT_PAGES = new Set([
-  '/', '/transfers', '/partners', '/merchant', '/help', '/releases', '/partner-docs', '/partner-verify', '/terms', '/privacy', '/admin-compliance', '/arb-desk'
+  '/', '/transfers', '/partners', '/merchant', '/help', '/releases', '/partner-docs', '/partner-verify', '/terms', '/privacy', '/admin-compliance', '/admin-review', '/arb-desk'
 ]);
 app.use((req: Request, res: Response, next?: () => void) => {
   const p = req.path || '';
@@ -319,6 +319,16 @@ app.use('/checkout', (_req: Request, res: Response) => {
 
 app.use('/admin-compliance', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'admin-compliance.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
+// Operator UI for the sanctions REVIEW queue. The PAGE is public HTML (like the other
+// operator consoles); the /v1/admin API it calls is operator-gated, and the page sends
+// the operator key. Keep behind the same edge (CF Access) protection in production.
+app.use('/admin-review', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'admin-review.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');
   res.header('Cache-Control', 'no-cache, must-revalidate');
   return res.send(html);

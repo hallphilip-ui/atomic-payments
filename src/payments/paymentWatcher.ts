@@ -86,7 +86,7 @@ async function checkIntent(intent: any): Promise<void> {
       if (sanctioned) {
         await prisma.paymentIntent.updateMany({
           where: { id: intent.id, status: { in: ['PENDING', 'PROCESSING'] } },
-          data: { status: 'REVIEW', txHash: log.transactionHash }
+          data: { status: 'REVIEW', txHash: log.transactionHash, flaggedPayer: payer }
         });
         // eslint-disable-next-line no-console
         console.warn('[sanctions] payment held for review — sanctioned payer', JSON.stringify({
