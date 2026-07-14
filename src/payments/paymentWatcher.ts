@@ -103,26 +103,34 @@ async function checkIntent(intent: any): Promise<void> {
       data: { status: 'CONFIRMED', txHash: log.transactionHash, confirmedAt: new Date() }
     });
     if (claimed.count !== 1) return;
-    const full = await prisma.paymentIntent.findUnique({ where: { id: intent.id }, include: { merchant: true } });
-    if (full?.merchant) {
-      await fireMerchantWebhook(full.merchant, {
-        event: 'payment.confirmed',
-        data: {
-          id: full.id, amount: full.amount, currency: full.currency,
-          asset: rail.symbol, network: rail.network, txHash: log.transactionHash,
-          paidTo: full.depositAddress, confirmedAt: (full.confirmedAt || new Date()).toISOString()
-        }
-      });
-      // Email the customer a receipt (best-effort).
-      if (full.customerEmail) {
-        sendReceiptEmail({
-          to: full.customerEmail, businessName: full.merchant.businessName, replyTo: full.merchant.email,
-          amount: full.amount, currency: full.currency, description: full.description, reference: full.reference,
-          asset: `${rail.symbol} on ${rail.network}`, txHash: log.transactionHash, intentId: full.id
-        }).catch(() => {});
-      }
-    }
+    await notifyConfirmedIntent(intent.id);
     return;
+  }
+}
+
+// Fire the merchant webhook + customer receipt for a CONFIRMED payment. Shared by the
+// watcher and the operator REVIEW-clear path (which withholds these until an operator
+// clears a sanctions-held payment). Best-effort; never throws into the caller.
+export async function notifyConfirmedIntent(intentId: string): Promise<void> {
+  const full = await prisma.paymentIntent.findUnique({ where: { id: intentId }, include: { merchant: true } });
+  if (!full?.merchant) return;
+  const rail = STABLECOIN_RAILS[full.selectedChain || ''];
+  const asset = rail ? rail.symbol : 'USDC';
+  const network = rail ? rail.network : '';
+  await fireMerchantWebhook(full.merchant, {
+    event: 'payment.confirmed',
+    data: {
+      id: full.id, amount: full.amount, currency: full.currency,
+      asset, network, txHash: full.txHash,
+      paidTo: full.depositAddress, confirmedAt: (full.confirmedAt || new Date()).toISOString()
+    }
+  });
+  if (full.customerEmail) {
+    sendReceiptEmail({
+      to: full.customerEmail, businessName: full.merchant.businessName, replyTo: full.merchant.email,
+      amount: full.amount, currency: full.currency, description: full.description, reference: full.reference,
+      asset: network ? `${asset} on ${network}` : asset, txHash: full.txHash || undefined, intentId: full.id
+    }).catch(() => {});
   }
 }
 

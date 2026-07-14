@@ -27,6 +27,7 @@ import marketRoutes from './routes/markets';
 import fxRoutes from './routes/fx';
 import offrampRoutes from './routes/offramp';
 import { startPaymentWatcher } from './payments/paymentWatcher';
+import { startSanctionsRescreen } from './compliance/rescreen';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
 import { renderSwapHub, renderSwapLandingPage, resolvePairSlug, swapPairSlugs } from './seo/swapLandingPages';
@@ -550,4 +551,5 @@ const bindHost = process.env.ATOMIC_BIND_HOST ?? '127.0.0.1';
 app.listen(port, bindHost, () => {
   console.log(`🚀 Atomic Admin Engine Live on ${bindHost}:${port}`);
   startPaymentWatcher();
+  startSanctionsRescreen();
 });

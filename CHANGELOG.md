@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.7.0 - 2026-07-14
+
+**Compliance hardening + localization polish (counsel-doc follow-ups).**
+
+- **Sanctions re-screening** — a periodic job re-screens every merchant's payout wallet against the OFAC list + keyless on-chain oracle (designations change over time). A wallet that becomes sanctioned flags the merchant, who can then no longer create charges (`ACCOUNT_UNDER_REVIEW`). Env: `ATOMIC_RESCREEN_POLL_MS` (default 12h), `ATOMIC_RESCREEN=0` to disable.
+- **Operator disposition workflow for held payments** — sanctioned-payer payments (status `REVIEW`) now have operator-gated endpoints: `GET /v1/admin/review-queue` and `POST /v1/admin/review-queue/:id/decision` (`clear` settles + fires the withheld webhook/receipt; `reject` marks it rejected). Every decision is audit-logged. Portal shows a `REVIEW` pill + filter.
+- **Treasury placeholder removed** — `/v1/swaps/config` no longer publishes a hard-coded example `platformTreasuryAddress`; it's env-driven (`ATOMIC_PLATFORM_TREASURY_ADDRESS`) and omitted when unset.
+- **Cash-out fully localized** — off-ramp provider coverage notes are now translated (15 languages), and country names localize automatically via `Intl.DisplayNames`; both re-render live on a language switch.
+
 ## 2.6.0 - 2026-07-14
 
 **Security + AML release. Closes a fund-loss path and screens the payment gateway for sanctions.**

@@ -66,7 +66,7 @@ router.get('/v1/swaps/config', (_req, res) => {
   return res.json({
     platformSpreadPercent: PLATFORM_SPREAD_PERCENT,
     platformSpreadBps: PLATFORM_SPREAD_BPS,
-    platformTreasuryAddress: PLATFORM_TREASURY_ADDRESS,
+    ...(PLATFORM_TREASURY_ADDRESS ? { platformTreasuryAddress: PLATFORM_TREASURY_ADDRESS } : {}),
     thorAffiliateName: THOR_AFFILIATE_NAME,
     quoteTtlSeconds: QUOTE_TTL_SECONDS,
     priceImpactLimitPct: PRICE_IMPACT_LIMIT_PCT,

@@ -24,7 +24,10 @@ export const SWAP_MAX_USD = (() => {
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : 1000000;   // 0 disables the cap
 })();
-export const PLATFORM_TREASURY_ADDRESS = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+// Informational only — surfaced as metadata on a swap quote, never a fund
+// destination (swap fees are collected by LI.FI to wallets configured in the LI.FI
+// portal). Env-driven; when unset we publish nothing rather than a placeholder.
+export const PLATFORM_TREASURY_ADDRESS = (process.env.ATOMIC_PLATFORM_TREASURY_ADDRESS || '').trim();
 export const THOR_AFFILIATE_NAME = 'ATOMIC_MOBILE_PROD';
 // Quote lifetime. 30s was too tight for a hand-driven test (re-quote churn, B9);
 // default 90s and allow tuning via env without a redeploy. LI.FI's own tx carries

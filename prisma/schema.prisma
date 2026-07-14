@@ -17,6 +17,8 @@ model Merchant {
   webhookSecret String?         // HMAC-SHA256 signing secret for payment webhooks
   minChargeAmount Float?        // per-transaction limits (in the charge currency); null = no limit
   maxChargeAmount Float?
+  sanctionsFlagged Boolean      @default(false)  // set by the periodic re-screen if receiveAddress becomes sanctioned
+  sanctionsCheckedAt DateTime?  // last time the payout wallet was re-screened
   createdAt     DateTime        @default(now())
   intents       PaymentIntent[]
 }

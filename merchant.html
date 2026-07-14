@@ -251,7 +251,7 @@
 <!-- RECEIPT -->
 <div id="receiptModal"><div class="receipt" id="receiptBody"></div></div>
 
-<script src="/assets/i18n.js?v=226"></script>
+<script src="/assets/i18n.js?v=227"></script>
 <script src="/assets/fx.js?v=4"></script>
 <script>
 (function () {
@@ -499,9 +499,10 @@
       var live = !!CONFIGURED[p.id];
       var label = p.setup ? t('m.setupArrow') : t('m.continueArrow');
       var badge = live ? '<span style="font-size:10px;font-weight:700;color:var(--live);background:var(--live-soft);padding:2px 7px;border-radius:6px">' + t('m.offLive') + '</span>' : '';
+      var note = t('m.offNote.' + p.id); if (note === 'm.offNote.' + p.id) note = p.note;   // fall back to English if unkeyed
       return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)">' +
         '<div style="font-size:22px;width:26px;text-align:center">' + p.emoji + '</div>' +
-        '<div style="flex:1"><div style="font-weight:700;display:flex;align-items:center;gap:7px">' + p.name + badge + '</div><div style="font-size:12px;color:var(--muted)">' + p.note + '</div></div>' +
+        '<div style="flex:1"><div style="font-weight:700;display:flex;align-items:center;gap:7px">' + p.name + badge + '</div><div style="font-size:12px;color:var(--muted)">' + note + '</div></div>' +
         '<button class="btn sm pri" data-off="' + p.id + '">' + label + '</button></div>';
     }).join('');
     host.querySelectorAll('[data-off]').forEach(function(b){ b.addEventListener('click', function(){ openProvider(b.dataset.off); }); });
@@ -519,6 +520,20 @@
       if (url) { if (w) w.location.href = url; else window.open(url, '_blank', 'noopener'); }
       else if (w) w.close();
     }).catch(function(){ if (w) w.close(); });
+  }
+
+  // Country names localized from ISO codes via Intl.DisplayNames — no dictionary to
+  // maintain; falls back to the English label if the browser can't resolve one.
+  function renderCountryOptions() {
+    var loc = (window.atomicI18n && window.atomicI18n.locale) || 'en';
+    var dn = null; try { dn = new Intl.DisplayNames([loc], { type: 'region' }); } catch (e) {}
+    var prev = $('coCountry').value;
+    $('coCountry').innerHTML = '<option value="">' + t('m.globalOther') + '</option>' +
+      COUNTRIES.map(function(c){
+        var name = c[1]; if (dn) { try { name = dn.of(c[0]) || c[1]; } catch (e) {} }
+        return '<option value="' + c[0] + '">' + name + '</option>';
+      }).join('');
+    $('coCountry').value = prev;
   }
 
   var cashoutInit = false;
@@ -539,8 +554,10 @@
     if (cashoutInit) return;
     cashoutInit = true;
     $('coFiat').innerHTML = FIATS.map(function(f){ return '<option>' + f + '</option>'; }).join('');
-    $('coCountry').innerHTML = '<option value="">' + t('m.globalOther') + '</option>' + COUNTRIES.map(function(c){ return '<option value="' + c[0] + '">' + c[1] + '</option>'; }).join('');
+    renderCountryOptions();
     $('coCountry').addEventListener('change', function(){ var f = FIAT_BY_CC[$('coCountry').value]; if (f) $('coFiat').value = f; renderProviders(); });
+    // Live re-localize the country list + provider notes when the language changes.
+    window.addEventListener('atomic-i18n-change', function(){ if (cashoutInit) { renderCountryOptions(); renderProviders(); } });
     $('coDemoNote').textContent = t('m.coDemoNote');
     renderProviders();
     fetch('/v1/geo').then(function(r){ return r.json(); }).then(function(d){

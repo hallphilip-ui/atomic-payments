@@ -242,6 +242,11 @@ router.post('/v1/payment_intents', async (req, res) => {
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
+    // AML: a merchant whose payout wallet was flagged by the periodic re-screen
+    // (its address became sanctioned after it was set) cannot create new charges.
+    if (merchant.sanctionsFlagged) {
+      return res.status(403).json({ error: 'This account is under review and cannot create charges. Contact support.', code: 'ACCOUNT_UNDER_REVIEW' });
+    }
     // FUND SAFETY: refuse to mint a charge the merchant cannot actually be paid for.
     // Without a receiving wallet there is no address to settle to, and an invoice
     // emailed to a customer would be unpayable (previously: payable to a placeholder).

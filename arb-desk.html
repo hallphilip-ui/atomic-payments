@@ -79,7 +79,7 @@
     <!-- desk -->
     <div id="desk" style="display:none">
       <div class="banner">
-        <b>Paper / log-only.</b> These are simulated round-trips from the market scanner — <b>no real orders, no funds moved</b>. Opportunities are for a human to review and decide. Nothing here auto-executes.
+        <b>Paper / log-only.</b> These are simulated round-trips from the market scanner — <b>no real orders, no funds moved</b>. Fills are modeled honestly: an edge is re-quoted against <b>fresh order books after a realistic execution delay</b> (the two legs aren't instant), and the amortized cost of rebalancing pre-positioned inventory is deducted — so the paper return reflects what could actually be captured, not the instantaneous mid-quote. Opportunities are for a human to review and decide. Nothing here auto-executes.
       </div>
 
       <div class="card">
@@ -117,7 +117,7 @@
       </div>
 
       <div class="card">
-        <h2>Paper trades · <span id="tradesWindow">last 12h</span> <span style="font-weight:400;color:var(--muted);font-size:12px">(best edge per scan, re-checked after latency)</span></h2>
+        <h2>Paper trades · <span id="tradesWindow">last 12h</span> <span style="font-weight:400;color:var(--muted);font-size:12px">(best edge per scan, re-quoted on fresh books after execution latency, net of rebalancing)</span></h2>
         <div class="scroll"><table id="trades"><thead><tr>
           <th>Time (UTC)</th><th>Asset</th><th>Route</th><th>Size $</th>
           <th>Detected %</th><th>Fill %</th><th>Status</th><th>PnL $</th><th>Balance $</th>
@@ -259,9 +259,13 @@
       var tw=document.getElementById('tradesWindow'); if(tw) tw.textContent='last '+wh;
       var age=d.snapshot_age_sec;
       var stale=age!=null&&age>600;
+      var lat=(parseFloat(c.exec_latency_sec)||0)+(parseFloat(c.leg_stagger_sec)||0);
+      var honest=(c.exec_latency_sec!=null)
+        ? ' · fills modeled after ~'+lat+'s execution latency, minus rebalancing ($'+c.withdrawal_fee_usd+'/'+c.rebalance_every_n+' trades)'
+        : '';
       document.getElementById('meta').innerHTML=
         'Threshold ≥'+c.threshold_pct+'% · alert ≥'+c.alert_pct+'% · size $'+c.notional_usd+
-        ' · '+c.max_assets+' assets · every '+c.interval_sec+'s · started '+esc(p.started_at||'?')+
+        ' · '+c.max_assets+' assets · every '+c.interval_sec+'s'+honest+' · started '+esc(p.started_at||'?')+
         ' · updated '+esc(d.updated||'?')+(age!=null?' ('+age+'s ago'+(stale?' — ⚠ scanner may be stalled':'')+')':'');
 
       var tb=document.querySelector('#trades tbody'), tr=d.recent_trades||[];
