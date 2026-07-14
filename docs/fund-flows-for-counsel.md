@@ -157,7 +157,13 @@ These were found during preparation of this document and are disclosed deliberat
 
 **What it was.** If a merchant had not set a `receiveAddress`, the code substituted a hard-coded public *example* address (`0xde0B29…697BAe`, taken from Ethereum documentation) as the invoice's deposit address. **Nobody controls that address.** A customer paying such an invoice would have sent real USDC to it, and the funds would be permanently unrecoverable. Equivalent placeholders existed on the Solana and Tron rails.
 
-**Exposure.** The path was reachable in production. Engineering is **not aware of any customer funds having been lost** to it — no merchant without a receiving wallet is known to have had an invoice paid — but *this should be verified against on-chain history before it is relied upon*. (The address is public; its balance can be checked.)
+**Exposure — investigated and closed out; NO FUNDS WERE LOST.** The path was reachable in production. It has been verified on-chain and against our own records that **no customer funds were lost**:
+
+- **Our records:** exactly **one** payment intent ever rendered the placeholder address — an internal **test invoice** created by engineering on 2026-07-13 for $1.00 (requiring `1.003201` USDC on Base). It was never paid. **Across the gateway's entire history there have been 3 payment intents and ZERO confirmed payments** — no real merchant or customer had transacted before the defect was fixed.
+- **On-chain (BaseScan, USDC on Base):** the placeholder address has received exactly **three** USDC transfers in its entire history — 0.0001, 2.969999 and 0.1 USDC — which sum precisely to its current balance (3.070099), confirming the list is complete. All three are **81–345 days old**, i.e. they **predate this product entirely**, and **none matches the `1.003201` amount** of the only exposed invoice.
+- The address's other balances (≈9,774 ETH, ≈1,021 USDC and ≈1,074 USDT on Ethereum) are unrelated third-party funds: it is a widely-published *example* address from Ethereum documentation and has accumulated mistaken sends from the public for years.
+
+**Conclusion:** the defect was genuine and would have destroyed customer funds, but it was remediated before any customer was exposed to it.
 
 **Fix.** A deposit address may now **only** be the merchant's own verified wallet. Specifically: (a) every placeholder address has been deleted from the codebase; (b) the payment-URI builder now *requires* a destination and has no fallback; (c) a charge **cannot be created** unless the merchant has set a valid receiving wallet; (d) `select_chain` refuses to render a payable address without one; and (e) rails that cannot be safely settled or confirmed (BTC/SOL/ETH/etc.) are now refused outright.
 
