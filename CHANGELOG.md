@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.8.0 - 2026-07-14
+
+**Installable iOS + Android apps (PWA) — Atomic Pay, Atomic POS, and Atomic Exchange.**
+
+- **Three installable apps**, all served from their own origin so the **passkey wallet derives the same key and the same address** — a native app deriving it elsewhere would hand the user a different wallet:
+  - **Atomic Pay** (`/defi-swap`) — the swap + wallet app.
+  - **Atomic Merchant POS** (`/merchant`) — its own manifest and scope, so a merchant installs the point-of-sale to their phone home screen.
+  - **Atomic Exchange** — the market dashboard.
+- Full icon set (192/512/maskable/apple-touch), standalone display, theme colors, an Android install prompt and an iOS "Add to Home Screen" hint (dismissible, never blocking, disabled inside the embeddable checkout iframe).
+- **The service worker deliberately caches no code.** This is a non-custodial wallet: a stale `passkey-wallet.js` or SRI-pinned `ethers` would be a security hole, so scripts, styles and API calls always go to the network. The only cached asset is a static offline page.
+
 ## 2.7.1 - 2026-07-14
 
 - **Operator UI for the sanctions review queue** (`/admin-review`) — lists each held payment with the flagged payer (linked to the block explorer), amount, merchant, and transaction, and lets an operator **clear** (settle + release the withheld webhook/receipt) or **reject** it. Authenticates with the operator key (`x-atomic-operator-key`). Payments now record the `flaggedPayer` address when parked in REVIEW.

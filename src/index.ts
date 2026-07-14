@@ -453,6 +453,45 @@ app.use('/favicon.ico', (_req: Request, res: Response) => {
   return res.send(logo);
 });
 
+// ---- PWA (installable iOS/Android app from the same origin) -------------------
+// The wallet is a WebAuthn PRF key bound to this origin's rpId, so the app MUST run
+// here — a native app deriving the key elsewhere would produce a different address.
+// sw.js must be served from the ROOT so it can claim scope '/'.
+app.use('/sw.js', (_req: Request, res: Response) => {
+  const js = readFileSync(join(process.cwd(), 'public', 'sw.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  res.header('Service-Worker-Allowed', '/');
+  res.header('Cache-Control', 'no-cache, must-revalidate');   // never pin a stale worker
+  return res.send(js);
+});
+app.use('/offline.html', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'public', 'offline.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  return res.send(html);
+});
+['/manifest.webmanifest', '/manifest-merchant.webmanifest'].forEach((route) => {
+  app.use(route, (_req: Request, res: Response) => {
+    const json = readFileSync(join(process.cwd(), 'public', route.replace(/^\//, '')), 'utf8');
+    res.header('Content-Type', 'application/manifest+json; charset=utf-8');
+    res.header('Cache-Control', 'public, max-age=3600');
+    return res.send(json);
+  });
+});
+app.use('/assets/pwa.js', (_req: Request, res: Response) => {
+  const js = readFileSync(join(process.cwd(), 'public', 'pwa.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(js);
+});
+['icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'].forEach((f) => {
+  app.use(`/assets/pwa/${f}`, (_req: Request, res: Response) => {
+    const buf = readFileSync(join(process.cwd(), 'public', 'pwa', f));
+    res.header('Content-Type', 'image/png');
+    res.header('Cache-Control', 'public, max-age=604800');
+    return res.send(buf);
+  });
+});
+
 app.use('/assets/i18n.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'i18n.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');

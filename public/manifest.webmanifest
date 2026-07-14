@@ -1,0 +1,22 @@
+{
+  "name": "Atomic Pay — Swap & Wallet",
+  "short_name": "Atomic Pay",
+  "description": "Swap crypto across chains with just email and Face ID. Non-custodial — your keys, your coins.",
+  "id": "/defi-swap",
+  "start_url": "/defi-swap",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#6d5cf5",
+  "background_color": "#fbfbfd",
+  "categories": ["finance"],
+  "icons": [
+    { "src": "/assets/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/pwa/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/pwa/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Swap", "url": "/defi-swap" },
+    { "name": "Transfers", "url": "/transfers" }
+  ]
+}

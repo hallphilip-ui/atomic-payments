@@ -3,6 +3,15 @@
 <title>Merchant Portal — Atomic Pay</title>
 <meta name="description" content="Accept crypto payments — POS, invoices, reports and receipts. Non-custodial, settles to your own wallet.">
 <link rel="canonical" href="https://atomicpay.cloud/merchant">
+<!-- PWA: the merchant installs the POS as its own app (own manifest, scoped to /merchant). -->
+<link rel="manifest" href="/manifest-merchant.webmanifest">
+<link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
+<meta name="theme-color" content="#6d5cf5">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Atomic POS">
+<script src="/assets/pwa.js" defer></script>
 <style>
   :root { --ink:#14161c; --muted:#667085; --faint:#98a2b3; --line:#e8e9f0; --accent:#6d5cf5; --accent-soft:#efedff; --bg:#f7f8fc; --surface:#fff; --live:#0a7d33; --live-soft:#e7f5ec; --pend:#8a5a00; --pend-soft:#fbf1df; --mono:ui-monospace,Menlo,Consolas,monospace; }
   * { box-sizing:border-box; }

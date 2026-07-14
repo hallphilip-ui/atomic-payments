@@ -1,0 +1,23 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offline — Atomic Pay</title>
+<style>
+  :root { --ink:#14161c; --muted:#667085; --accent:#6d5cf5; --bg:#fbfbfd; --line:#e8e9f0; --surface:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e9ebf2; --muted:#9aa2b2; --bg:#0e1016; --surface:#161923; --line:#252a37; } }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
+         font-family:Inter,system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--ink); }
+  .card { max-width:380px; text-align:center; background:var(--surface); border:1px solid var(--line);
+          border-radius:18px; padding:32px 26px; }
+  img { width:56px; height:56px; margin-bottom:14px; }
+  h1 { font-size:19px; margin:0 0 8px; }
+  p { color:var(--muted); font-size:14.5px; line-height:1.55; margin:0 0 20px; }
+  button { font:inherit; font-weight:700; font-size:14px; background:var(--accent); color:#fff; border:none;
+           border-radius:11px; padding:12px 22px; cursor:pointer; }
+</style>
+<div class="card">
+  <img src="/assets/pwa/icon-192.png" alt="" onerror="this.style.display='none'">
+  <h1>You're offline</h1>
+  <p>Atomic needs a connection to fetch live prices and reach the blockchain. Your wallet is safe — it lives on your device, not in this app.</p>
+  <button onclick="location.reload()">Try again</button>
+</div>

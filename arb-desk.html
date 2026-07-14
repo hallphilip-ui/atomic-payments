@@ -149,8 +149,8 @@
       </div>
 
       <div class="card">
-        <h2>Liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· at-risk on-chain loans</span></h2>
-        <div id="liquidations"><div class="empty">Not connected. There's no keyless feed for at-risk positions — wire a free <a href="https://thegraph.com/studio/" target="_blank" rel="noopener" style="color:var(--accent)">The Graph</a> API key (Aave V3 subgraph) to populate this. Note: <b>detection</b> only — on-chain liquidation <b>capture</b> is elite MEV (private mempools + flash loans) and not winnable for a retail bot.</div></div>
+        <h2>Liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· recent on-chain liquidations — market-risk radar, DETECTION only (capture = elite MEV)</span></h2>
+        <div id="liquidations"><div class="empty">Loading…</div></div>
       </div>
     </div>
   </main>
@@ -313,6 +313,25 @@
               '<div class="pr up">'+esc(t.net_pct)+'%</div></div>';
           }).join('')
         : '<div class="empty">No profitable triangle right now — expected. On liquid pairs the 3 taker fees (~0.3%) usually exceed the triangle mispricing.</div>';
+
+      var lq=d.liquidations||{};
+      var lqEl=document.getElementById('liquidations');
+      if(!lq.enabled){
+        lqEl.innerHTML='<div class="empty">Not connected — add a The Graph API key to populate.</div>';
+      } else if(lq.error){
+        lqEl.innerHTML='<div class="empty">Feed error: '+esc(lq.error)+'</div>';
+      } else {
+        var rec=lq.recent||[];
+        var head='<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">'+esc(lq.protocol||'')+
+          ' · last 24h: <b class="up">'+esc(lq.count_24h||0)+'</b> liquidations, <b class="up">$'+num(lq.total_24h_usd||0,0)+'</b> seized</div>';
+        lqEl.innerHTML = head + (rec.length
+          ? rec.map(function(l){
+              return '<div class="row"><div class="nm" style="flex:1"><b>'+esc(l.collateral)+'</b>'+
+                '<small style="text-transform:none"> '+esc(l.ts)+' · repaid '+esc(l.repaid)+'</small></div>'+
+                '<div class="pr">'+(l.usd!=null?'$'+num(l.usd,0):esc(l.collateral_amt)+' '+esc(l.collateral))+'</div></div>';
+            }).join('')
+          : '<div class="empty">No recent liquidations.</div>');
+      }
 
       buildTicket(d);
       fillCtl(d.config||{});

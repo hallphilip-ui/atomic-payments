@@ -12,6 +12,15 @@
   <!-- Google Search Console: replace CONTENT with your verification token, then redeploy -->
   <meta name="google-site-verification" content="REPLACE_WITH_GOOGLE_VERIFICATION_TOKEN">
   <link rel="icon" href="/assets/atomic-mark.png">
+  <!-- PWA: installable on iOS + Android from this origin (the passkey wallet is bound
+       to this rpId, so the app must live here). -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Atomic Pay">
+  <script src="/assets/pwa.js" defer></script>
   <!-- Open Graph (Facebook, LinkedIn, Telegram, Discord link previews) -->
   <meta property="og:site_name" content="Atomic Pay">
   <meta property="og:title" content="Atomic Pay — Swap Crypto With Just Email + Face ID">
@@ -283,7 +292,7 @@
         <a href="/terms" data-i18n="landing.foot.terms">Terms</a>
         <a href="/privacy" data-i18n="landing.foot.privacy">Privacy</a>
       </div>
-      <div>© 2026 Atomic · v2.7.1</div>
+      <div>© 2026 Atomic · v2.8.0</div>
     </div>
     <p class="disclaimer" data-i18n="landing.disclaimer">Atomic is a non-custodial interface to decentralized cross-chain liquidity. It does not take custody of user funds. Digital assets are volatile and swaps are irreversible; use at your own risk and comply with the laws of your jurisdiction. Currently in beta.</p>
   </footer>

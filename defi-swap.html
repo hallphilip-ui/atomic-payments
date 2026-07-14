@@ -7,6 +7,15 @@
   <meta name="description" content="Swap any coin across any chain with just email and Face ID. No seed phrase, no wallet app, no gas token. Non-custodial — you keep your keys.">
   <link rel="canonical" href="https://atomicpay.cloud/defi-swap">
   <meta name="theme-color" content="#6d5cf5">
+  <!-- PWA: the installable Atomic Pay app. Must be served from this origin — the
+       passkey wallet derives its key from this rpId. -->
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/pwa/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Atomic Pay">
+  <script src="/assets/pwa.js" defer></script>
   <meta property="og:site_name" content="Atomic Pay">
   <meta property="og:title" content="Swap crypto across chains — no wallet, no seed phrase">
   <meta property="og:description" content="Swap any coin, any chain, with just email + Face ID. No seed phrase, no gas token. Non-custodial.">
