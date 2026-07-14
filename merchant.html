@@ -377,12 +377,13 @@
     if (!r.d.payments.length) { tb.innerHTML = '<tr><td style="color:var(--muted)">' + t('m.noInvoices') + '</td></tr>'; return; }
     r.d.payments.forEach(function (p) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (p.reference || '—') + '</td><td>' + money(p.amount, p.currency) + '</td><td><span class="pill ' + p.status + '">' + p.status + '</span></td>' +
+      tr.innerHTML = '<td>' + (p.reference || '—') + '</td><td>' + money(p.amount, p.currency) + '<div class="fxsub" data-fx-usd="' + p.amount + '" data-fx-from="' + (p.currency || 'USD') + '"></div></td><td><span class="pill ' + p.status + '">' + p.status + '</span></td>' +
         '<td class="mono">' + new Date(p.createdAt).toLocaleDateString(LOC()) + '</td>' +
         '<td style="text-align:right"><button class="btn sm" data-link="' + checkoutUrl(p.id) + '">' + t('m.copyLink') + '</button>' + (p.status === 'CONFIRMED' ? ' <button class="btn sm" data-receipt="' + p.id + '">' + t('m.receipt') + '</button>' : '') + '</td>';
       tb.appendChild(tr);
     });
     wireRowButtons(tb);
+    if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate(); });
   }
 
   // ---------- Reports ----------
