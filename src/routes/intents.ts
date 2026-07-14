@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { rpcCall } from './rpc';
 import { isSafeWebhookUrl } from '../security/partnerWebhook';
 import { sendInvoiceEmail } from '../notify/merchantEmail';
+import { screenAddresses } from '../compliance/sanctions';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -32,7 +33,6 @@ export const STABLECOIN_RAILS: Record<string, {
   symbol: string;
   name: string;
   network: string;
-  address: string;
   tokenAddress?: string;
   decimals: number;
   uriScheme: 'ethereum' | 'solana' | 'tron';
@@ -42,7 +42,6 @@ export const STABLECOIN_RAILS: Record<string, {
     symbol: 'USDC',
     name: 'USD Coin',
     network: 'Base',
-    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
     tokenAddress: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     decimals: 6,
     uriScheme: 'ethereum',
@@ -52,7 +51,6 @@ export const STABLECOIN_RAILS: Record<string, {
     symbol: 'USDC',
     name: 'USD Coin',
     network: 'Solana',
-    address: 'HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2',
     tokenAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
     decimals: 6,
     uriScheme: 'solana'
@@ -61,7 +59,6 @@ export const STABLECOIN_RAILS: Record<string, {
     symbol: 'USDC',
     name: 'USD Coin',
     network: 'Ethereum',
-    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
     tokenAddress: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
     decimals: 6,
     uriScheme: 'ethereum',
@@ -71,7 +68,6 @@ export const STABLECOIN_RAILS: Record<string, {
     symbol: 'USDT',
     name: 'Tether USD',
     network: 'Ethereum',
-    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
     tokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
     decimals: 6,
     uriScheme: 'ethereum',
@@ -81,7 +77,6 @@ export const STABLECOIN_RAILS: Record<string, {
     symbol: 'USDT',
     name: 'Tether USD',
     network: 'Tron',
-    address: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
     tokenAddress: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',
     decimals: 6,
     uriScheme: 'tron'
@@ -90,7 +85,6 @@ export const STABLECOIN_RAILS: Record<string, {
     symbol: 'PYUSD',
     name: 'PayPal USD',
     network: 'Ethereum',
-    address: '0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe',
     tokenAddress: '0x6c3ea9036406852006290770BEdFcAbA0e23A0e8',
     decimals: 6,
     uriScheme: 'ethereum',
@@ -121,9 +115,12 @@ function amountToBaseUnits(amount: number, decimals: number): string {
   return Math.round(amount * 10 ** decimals).toString();
 }
 
-function buildStablecoinPaymentUri(chain: string, intent: any, amount: number, toAddress?: string): string {
+// `toAddress` is REQUIRED and is always the merchant's own verified wallet. There is
+// no fallback by design: inventing a destination here would send real funds to an
+// address nobody controls.
+function buildStablecoinPaymentUri(chain: string, intent: any, amount: number, toAddress: string): string {
   const rail = STABLECOIN_RAILS[chain];
-  const addr = toAddress || rail.address;
+  const addr = toAddress;
   const encodedMemo = encodeURIComponent(`Intent_${intent.id}`);
   const encodedLabel = encodeURIComponent('AtomicPay');
 
@@ -245,6 +242,15 @@ router.post('/v1/payment_intents', async (req, res) => {
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
+    // FUND SAFETY: refuse to mint a charge the merchant cannot actually be paid for.
+    // Without a receiving wallet there is no address to settle to, and an invoice
+    // emailed to a customer would be unpayable (previously: payable to a placeholder).
+    if (!merchant.receiveAddress || !EVM_ADDRESS.test(merchant.receiveAddress)) {
+      return res.status(409).json({
+        error: 'Set a receiving wallet in Settings before creating a charge — payments settle directly to your own wallet.',
+        code: 'MERCHANT_WALLET_NOT_SET'
+      });
+    }
     // Per-transaction limits, if the merchant set them (in the charge currency).
     if (merchant.minChargeAmount != null && amount < merchant.minChargeAmount) {
       return res.status(400).json({ error: `Amount is below this merchant's minimum of ${merchant.minChargeAmount}.` });
@@ -317,54 +323,45 @@ router.post('/v1/payment_intents/:id/select_chain', async (req, res) => {
     const merchant = await prisma.merchant.findUnique({ where: { id: intent.merchantId } });
     const EVM_ADDR = /^0x[0-9a-fA-F]{40}$/;
 
-    let currentPrice = 1;
-    let merchantWalletAddress = "";
-    let web3PaymentUri = "";
-    let assetSymbol = chain.split('_')[0];
-    let railName = chain;
-    let watchFromBlock: number | null = null;
-    let cryptoAmountRequired: number;
-
+    // FUND SAFETY: a deposit address may ONLY ever be the merchant's own verified
+    // wallet. There is deliberately no fallback — a placeholder/demo address here
+    // would send a real customer payment to an address nobody controls, and the
+    // funds would be unrecoverable. If the merchant hasn't set a receiving wallet,
+    // we refuse to render a payable address at all.
     const stablecoinRail = STABLECOIN_RAILS[chain];
-    if (stablecoinRail) {
-      currentPrice = 1.00;
-      assetSymbol = stablecoinRail.symbol;
-      railName = `${stablecoinRail.name} on ${stablecoinRail.network}`;
-      const isEvm = stablecoinRail.uriScheme === 'ethereum' && !!stablecoinRail.chainId;
-      // Watched EVM rails get a tiny per-invoice amount entropy so the on-chain
-      // watcher can match THIS payment to THIS invoice unambiguously, even when
-      // several invoices target the same merchant wallet.
-      const entropy = isEvm ? (((parseInt(crypto.createHash('sha1').update(intent.id).digest('hex').slice(0, 4), 16) % 9000) + 1) / 10 ** stablecoinRail.decimals) : 0;
-      cryptoAmountRequired = parseFloat((intent.amount / currentPrice + entropy).toFixed(stablecoinRail.decimals));
-      // Non-custodial: funds settle to the MERCHANT's own wallet. Fall back to the
-      // rail demo address only until the merchant sets a receiving address.
-      merchantWalletAddress = (isEvm && merchant?.receiveAddress && EVM_ADDR.test(merchant.receiveAddress)) ? merchant.receiveAddress : stablecoinRail.address;
-      web3PaymentUri = buildStablecoinPaymentUri(chain, intent, cryptoAmountRequired, merchantWalletAddress);
-      if (isEvm) {
-        try { watchFromBlock = parseInt(String(await rpcCall(stablecoinRail.chainId!, 'eth_blockNumber', [])), 16); } catch { /* watcher falls back to a lookback window */ }
-      }
-    } else {
-      // Fallback to Volatile Layer-1 Price Oracle Feed
-      try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,solana,ethereum&vs_currencies=usd');
-        const marketData = await response.json() as any;
-        const fallbacks: Record<string, number> = { BITCOIN_ONCHAIN: 65000, SOLANA: 145, ETHEREUM: 3400 };
-        currentPrice = marketData[chain.toLowerCase()]?.usd || fallbacks[chain] || 1;
-      } catch (err) {
-        const fallbacks: Record<string, number> = { BITCOIN_ONCHAIN: 65000, SOLANA: 145, ETHEREUM: 3400 };
-        currentPrice = fallbacks[chain] || 1;
-      }
-      cryptoAmountRequired = parseFloat((intent.amount / currentPrice).toFixed(6));
-      if (chain === 'SOLANA') {
-        merchantWalletAddress = "HN7c7w8DmQCvVx4jYdgY8rCDAMiNkaRPQE6vgbZTk6Z2";
-        assetSymbol = 'SOL';
-        web3PaymentUri = `solana:${merchantWalletAddress}?amount=${cryptoAmountRequired}`;
-      } else {
-        merchantWalletAddress = "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe";
-        assetSymbol = chain === 'BITCOIN_ONCHAIN' ? 'BTC' : chain === 'ETHEREUM' ? 'ETH' : assetSymbol;
-        web3PaymentUri = `ethereum:${merchantWalletAddress}?value=${cryptoAmountRequired}e18`;
-      }
+    const isEvmStablecoin = !!stablecoinRail && stablecoinRail.uriScheme === 'ethereum' && !!stablecoinRail.chainId && !!stablecoinRail.tokenAddress;
+    if (!isEvmStablecoin) {
+      // Only the watcher-confirmable EVM stablecoin rails can be settled safely: they
+      // are the ones we can (a) pay to the merchant's own wallet and (b) confirm
+      // on-chain. The volatile/non-EVM rails had no payout wallet and no watcher.
+      return res.status(400).json({
+        error: 'This payment rail is not supported. Pay with a stablecoin (USDC on Base, or USDC/USDT/PYUSD on Ethereum).',
+        supportedRails: Object.keys(STABLECOIN_RAILS).filter((k) => {
+          const r = STABLECOIN_RAILS[k];
+          return r.uriScheme === 'ethereum' && !!r.chainId && !!r.tokenAddress;
+        })
+      });
     }
+    if (!merchant?.receiveAddress || !EVM_ADDR.test(merchant.receiveAddress)) {
+      return res.status(409).json({
+        error: 'This merchant has not set a receiving wallet yet, so this charge cannot be paid. No payment should be sent.',
+        code: 'MERCHANT_WALLET_NOT_SET'
+      });
+    }
+
+    const currentPrice = 1.00;
+    const merchantWalletAddress = merchant.receiveAddress;
+    const assetSymbol = stablecoinRail.symbol;
+    const railName = `${stablecoinRail.name} on ${stablecoinRail.network}`;
+    let watchFromBlock: number | null = null;
+
+    // A tiny per-invoice amount entropy so the on-chain watcher can match THIS
+    // payment to THIS invoice unambiguously, even when several invoices target the
+    // same merchant wallet.
+    const entropy = ((parseInt(crypto.createHash('sha1').update(intent.id).digest('hex').slice(0, 4), 16) % 9000) + 1) / 10 ** stablecoinRail.decimals;
+    const cryptoAmountRequired = parseFloat((intent.amount / currentPrice + entropy).toFixed(stablecoinRail.decimals));
+    const web3PaymentUri = buildStablecoinPaymentUri(chain, intent, cryptoAmountRequired, merchantWalletAddress);
+    try { watchFromBlock = parseInt(String(await rpcCall(stablecoinRail.chainId!, 'eth_blockNumber', [])), 16); } catch { /* watcher falls back to a lookback window */ }
 
     await prisma.paymentIntent.update({
       where: { id },
@@ -432,6 +429,11 @@ router.post('/v1/merchant/settings', async (req, res) => {
     if (req.body.receiveAddress !== undefined) {
       const a = String(req.body.receiveAddress).trim();
       if (a && !EVM_ADDR.test(a)) return res.status(400).json({ error: 'receiveAddress must be a valid EVM address (0x…).' });
+      // AML: never let a sanctioned address be set as the payout wallet.
+      if (a) {
+        const hit = await screenAddresses([a]);
+        if (hit) return res.status(403).json({ error: 'This address cannot be used as a receiving wallet.', code: 'SANCTIONS_BLOCKED' });
+      }
       data.receiveAddress = a || null;
     }
     if (req.body.webhookUrl !== undefined) {
@@ -485,6 +487,11 @@ router.post('/v1/merchant/register', merchantRegisterLimiter, async (req, res) =
     if (businessName.length < 2) return res.status(400).json({ error: 'A business name is required.' });
     if (!MERCHANT_EMAIL_RE.test(email)) return res.status(400).json({ error: 'A valid email is required.' });
     const receiveAddress = req.body.receiveAddress && EVM_ADDRESS.test(String(req.body.receiveAddress).trim()) ? String(req.body.receiveAddress).trim() : null;
+    // AML: screen the payout wallet at signup too (settings is not the only way in).
+    if (receiveAddress) {
+      const hit = await screenAddresses([receiveAddress]);
+      if (hit) return res.status(403).json({ error: 'This address cannot be used as a receiving wallet.', code: 'SANCTIONS_BLOCKED' });
+    }
     const apiKey = newMerchantKey();
     const merchant = await prisma.merchant.create({ data: { businessName, email, apiKey, receiveAddress } });
     return res.status(201).json({

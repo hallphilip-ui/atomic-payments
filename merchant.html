@@ -50,6 +50,7 @@
   .panel h2 { font-size:15px; margin:0 0 12px; }
   .pill { font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; padding:3px 8px; border-radius:6px; text-transform:uppercase; }
   .pill.CONFIRMED { background:var(--live-soft); color:var(--live); } .pill.PENDING,.pill.PROCESSING { background:var(--pend-soft); color:var(--pend); } .pill.EXPIRED { background:#f2f3f7; color:var(--faint); }
+  .pill.REVIEW { background:#fdecea; color:#c0392b; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th { text-align:left; color:var(--muted); font-weight:600; font-size:12px; padding:8px; border-bottom:1px solid var(--line); }
   td { padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
@@ -184,7 +185,7 @@
       </div>
       <div class="panel">
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-          <select id="rpStatus" style="width:auto"><option value="" data-i18n="m.allStatuses">All statuses</option><option>CONFIRMED</option><option>PROCESSING</option><option>PENDING</option><option>EXPIRED</option></select>
+          <select id="rpStatus" style="width:auto"><option value="" data-i18n="m.allStatuses">All statuses</option><option>CONFIRMED</option><option>PROCESSING</option><option>PENDING</option><option>REVIEW</option><option>EXPIRED</option></select>
           <select id="rpSource" style="width:auto"><option value="" data-i18n="m.allSources">All sources</option><option value="pos" data-i18n="m.srcPos">POS</option><option value="invoice" data-i18n="m.srcInvoice">Invoice</option><option value="api" data-i18n="m.srcApi">API</option></select>
           <button class="btn sm" id="rpExport" style="margin-left:auto" data-i18n="m.exportCsv">Export CSV</button>
         </div>

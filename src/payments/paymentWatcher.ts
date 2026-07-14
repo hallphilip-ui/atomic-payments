@@ -11,6 +11,7 @@ import { rpcCall } from '../routes/rpc';
 import { STABLECOIN_RAILS } from '../routes/intents';
 import { isSafeWebhookUrl } from '../security/partnerWebhook';
 import { sendReceiptEmail } from '../notify/merchantEmail';
+import { screenAddresses } from '../compliance/sanctions';
 
 const prisma = new PrismaClient();
 
@@ -23,6 +24,14 @@ const MAX_LOOKBACK = 100000n;                    // hard cap on the eth_getLogs 
 
 function toTopicAddr(addr: string): string {
   return '0x000000000000000000000000' + addr.toLowerCase().replace(/^0x/, '');
+}
+
+// The ERC20 Transfer sender is the 2nd topic (indexed `from`), left-padded to 32 bytes.
+function payerFromLog(log: any): string | null {
+  const t = log?.topics?.[1];
+  if (typeof t !== 'string' || t.length < 42) return null;
+  const addr = '0x' + t.slice(-40);
+  return /^0x[0-9a-fA-F]{40}$/.test(addr) ? addr : null;
 }
 
 async function fireMerchantWebhook(m: { webhookUrl: string | null; webhookSecret: string | null }, payload: unknown): Promise<void> {
@@ -64,6 +73,29 @@ async function checkIntent(intent: any): Promise<void> {
     let amt: bigint;
     try { amt = BigInt(log.data); } catch { continue; }
     if (amt !== expected) continue;                                                // exact match (entropy guarantees uniqueness)
+
+    // AML: screen the PAYER before we confirm. The sender is topic[1] of the ERC20
+    // Transfer we just matched, so this costs us nothing to check. A hit is NOT
+    // auto-confirmed: we park it in REVIEW and withhold the webhook and the customer
+    // receipt, so a sanctioned payment is never silently settled and receipted.
+    const payer = payerFromLog(log);
+    if (payer) {
+      let sanctioned = false;
+      try { sanctioned = !!(await screenAddresses([payer])); }
+      catch { sanctioned = false; }                                                // screening outage must not stall settlement
+      if (sanctioned) {
+        await prisma.paymentIntent.updateMany({
+          where: { id: intent.id, status: { in: ['PENDING', 'PROCESSING'] } },
+          data: { status: 'REVIEW', txHash: log.transactionHash }
+        });
+        // eslint-disable-next-line no-console
+        console.warn('[sanctions] payment held for review — sanctioned payer', JSON.stringify({
+          intentId: intent.id, payer, txHash: log.transactionHash, asset: rail.symbol, network: rail.network
+        }));
+        return;
+      }
+    }
+
     // Claim atomically — only if still awaiting payment — so we never double-fire
     // or race the operator simulate endpoint.
     const claimed = await prisma.paymentIntent.updateMany({

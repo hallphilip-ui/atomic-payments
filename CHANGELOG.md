@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.6.0 - 2026-07-14
+
+**Security + AML release. Closes a fund-loss path and screens the payment gateway for sanctions.**
+
+- **🔴 Fund-loss path closed.** If a merchant had not set a receiving wallet, invoices rendered a hard-coded *example* address (`0xde0B29…697BAe`) that **nobody controls** — a customer paying one would have lost the funds permanently. A deposit address may now **only** be the merchant's own verified wallet: every placeholder address is deleted from the codebase, the payment-URI builder requires a destination (no fallback), a charge cannot be created or rendered without a receiving wallet, and rails that cannot be settled or confirmed (BTC/SOL/ETH) are refused outright.
+- **🔴 Sanctions screening added to the merchant gateway**, which previously had none. The merchant payout wallet is now screened at signup and whenever it changes (a listed address is rejected). The **payer is screened before a payment is confirmed** — the address is read from the on-chain `Transfer` event the watcher already parses — and a hit parks the payment in a new **`REVIEW`** state with the merchant webhook and customer receipt **withheld**. Screening uses the local OFAC list plus the keyless on-chain Chainalysis oracle (US/EU/UN); a screening outage fails open so it cannot stall settlement.
+- **Fund-flows summary for regulatory counsel** added at `docs/fund-flows-for-counsel.md` — documents every value path, where custody does and does not exist, both defects above (including the historical exposure window), and the open compliance gaps.
+
 ## 2.5.5 - 2026-07-14
 
 **Off-ramp sandbox toggle — validate cash-out with test keys before KYB.**
