@@ -9,7 +9,9 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
+import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
 const router = Router();
 
 const EVM = /^0x[0-9a-fA-F]{40}$/;
@@ -158,14 +160,34 @@ const linkLimiter = rateLimit({ windowMs: 60 * 1000, max: 40, standardHeaders: t
 
 // Build a prefilled off-ramp link (signed where the partner requires it). We only
 // return a URL for the client to open — we never fetch it, so no SSRF surface.
-router.post('/v1/offramp/link', linkLimiter, (req: Request, res: Response) => {
+// Merchant-authed. This endpoint mints links signed with OUR partner credentials, so
+// it must not be open: an unauthenticated caller could generate signed off-ramp links
+// for ANY address using our MoonPay/Mercuryo keys — letting an arbitrary (or sanctioned)
+// party cash out "through" our integrator account. The destination is therefore taken
+// from the AUTHENTICATED merchant's own receiving wallet and a client-supplied address
+// is ignored entirely, which removes the whole abuse class.
+router.post('/v1/offramp/link', linkLimiter, async (req: Request, res: Response) => {
+  const header = req.headers['x-atomic-key'];
+  const apiKey = Array.isArray(header) ? header[0] : header;
+  if (!apiKey) return res.status(401).json({ error: 'Merchant API key is required' });
+  const merchant = await prisma.merchant.findUnique({ where: { apiKey: String(apiKey) } });
+  if (!merchant) return res.status(401).json({ error: 'Merchant API key is invalid' });
+  if (merchant.sanctionsFlagged) {
+    return res.status(403).json({ error: 'This account is under review and cannot cash out.', code: 'ACCOUNT_UNDER_REVIEW' });
+  }
+
   const provider = String(req.body?.provider || '');
-  const address = String(req.body?.address || '').trim();
   const fiat = String(req.body?.fiat || 'USD').trim().toUpperCase();
   const amount = req.body?.amount != null ? String(req.body.amount).trim() : '';
   if (!(provider in HOMES)) return res.status(400).json({ error: 'Unknown provider.' });
-  if (!EVM.test(address)) return res.status(400).json({ error: 'A valid receiving wallet (0x…) is required to cash out.' });
   if (!FIAT.test(fiat)) return res.status(400).json({ error: 'Invalid payout currency.' });
+
+  // Destination = the merchant's OWN wallet, from the server. Never the request body.
+  const address = String(merchant.receiveAddress || '');
+  if (!EVM.test(address)) {
+    return res.status(409).json({ error: 'Set a receiving wallet in Settings before cashing out.', code: 'MERCHANT_WALLET_NOT_SET' });
+  }
+
   const url = build(provider, { address, amount, fiat });
   // Not configured (or no host for this env) → hand off to the provider's public page.
   return res.json({ url: url || HOMES[provider], configured: !!url, env: OFFRAMP_ENV });

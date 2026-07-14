@@ -295,6 +295,13 @@
   var t = A ? A.t : function (k) { return k; };
   var KEY = 'atomic_merchant_key';
   var $ = function (id) { return document.getElementById(id); };
+  // XSS: reference/description/businessName are free text. This origin also hosts the
+  // passkey wallet, so nothing user-supplied may reach innerHTML unescaped.
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
   var key = localStorage.getItem(KEY) || '';
   var currencySym = { USD:'$', EUR:'€', GBP:'£' };
 
@@ -415,9 +422,9 @@
     if (!r.d.payments.length) { tb.innerHTML = '<tr><td style="color:var(--muted)">' + t('m.noInvoices') + '</td></tr>'; return; }
     r.d.payments.forEach(function (p) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td>' + (p.reference || '—') + '</td><td>' + money(p.amount, p.currency) + '<div class="fxsub" data-fx-usd="' + p.amount + '" data-fx-from="' + (p.currency || 'USD') + '"></div></td><td><span class="pill ' + p.status + '">' + p.status + '</span></td>' +
-        '<td class="mono">' + new Date(p.createdAt).toLocaleDateString(LOC()) + '</td>' +
-        '<td style="text-align:right"><button class="btn sm" data-link="' + checkoutUrl(p.id) + '">' + t('m.copyLink') + '</button>' + (p.status === 'CONFIRMED' ? ' <button class="btn sm" data-receipt="' + p.id + '">' + t('m.receipt') + '</button>' : '') + '</td>';
+      tr.innerHTML = '<td>' + esc(p.reference || '—') + '</td><td>' + esc(money(p.amount, p.currency)) + '<div class="fxsub" data-fx-usd="' + esc(p.amount) + '" data-fx-from="' + esc(p.currency || 'USD') + '"></div></td><td><span class="pill ' + esc(p.status) + '">' + esc(p.status) + '</span></td>' +
+        '<td class="mono">' + esc(new Date(p.createdAt).toLocaleDateString(LOC())) + '</td>' +
+        '<td style="text-align:right"><button class="btn sm" data-link="' + esc(checkoutUrl(p.id)) + '">' + esc(t('m.copyLink')) + '</button>' + (p.status === 'CONFIRMED' ? ' <button class="btn sm" data-receipt="' + esc(p.id) + '">' + esc(t('m.receipt')) + '</button>' : '') + '</td>';
       tb.appendChild(tr);
     });
     wireRowButtons(tb);
@@ -439,10 +446,10 @@
     if (!r.d.payments.length) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">' + t('m.noPayments') + '</td></tr>'; if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate(); }); return; }
     r.d.payments.forEach(function (p) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td class="mono">' + new Date(p.createdAt).toLocaleString(LOC()) + '</td><td>' + money(p.amount, p.currency) + '<div class="fxsub" data-fx-usd="' + p.amount + '" data-fx-from="' + (p.currency || 'USD') + '"></div></td>' +
-        '<td><span class="pill ' + p.status + '">' + p.status + '</span></td><td>' + (p.source || 'api') + '</td><td>' + (p.reference || '—') + '</td>' +
-        '<td class="mono">' + (p.asset ? p.asset.replace(/_/g, ' ') : '—') + '</td>' +
-        '<td style="text-align:right">' + (p.status === 'CONFIRMED' ? '<button class="btn sm" data-receipt="' + p.id + '">' + t('m.receipt') + '</button>' : '') + '</td>';
+      tr.innerHTML = '<td class="mono">' + esc(new Date(p.createdAt).toLocaleString(LOC())) + '</td><td>' + esc(money(p.amount, p.currency)) + '<div class="fxsub" data-fx-usd="' + esc(p.amount) + '" data-fx-from="' + esc(p.currency || 'USD') + '"></div></td>' +
+        '<td><span class="pill ' + esc(p.status) + '">' + esc(p.status) + '</span></td><td>' + esc(p.source || 'api') + '</td><td>' + esc(p.reference || '—') + '</td>' +
+        '<td class="mono">' + esc(p.asset ? p.asset.replace(/_/g, ' ') : '—') + '</td>' +
+        '<td style="text-align:right">' + (p.status === 'CONFIRMED' ? '<button class="btn sm" data-receipt="' + esc(p.id) + '">' + esc(t('m.receipt')) + '</button>' : '') + '</td>';
       tb.appendChild(tr);
     });
     wireRowButtons(tb);
@@ -466,14 +473,14 @@
     var r = await fetch('/v1/payment_intents/' + id + '/receipt').then(function (x) { return x.json(); });
     var rc = r.receipt; if (!rc) return;
     $('receiptBody').innerHTML =
-      '<h3>' + rc.businessName + '</h3><div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">' + t('m.paymentReceipt') + '</div>' +
-      '<div class="big">' + money(rc.amount, rc.currency) + '<div class="fxsub" style="font-weight:600" data-fx-usd="' + rc.amount + '" data-fx-from="' + (rc.currency || 'USD') + '"></div></div>' +
-      (rc.description ? '<div class="r"><span class="k">' + t('m.description') + '</span><span>' + rc.description + '</span></div>' : '') +
-      (rc.reference ? '<div class="r"><span class="k">' + t('m.thRef') + '</span><span>' + rc.reference + '</span></div>' : '') +
-      '<div class="r"><span class="k">' + t('m.thStatus') + '</span><span>' + (rc.paid ? '✅ ' + t('m.paidShort') : rc.status) + '</span></div>' +
-      '<div class="r"><span class="k">' + t('m.paidIn') + '</span><span>' + (rc.asset || '—') + (rc.cryptoAmount ? ' (' + rc.cryptoAmount + ')' : '') + '</span></div>' +
-      (rc.txHash ? '<div class="r"><span class="k">' + t('m.transaction') + '</span><span class="mono" style="font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
-      '<div class="r"><span class="k">' + t('m.thDate') + '</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString(LOC()) + '</span></div>' +
+      '<h3>' + esc(rc.businessName) + '</h3><div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">' + esc(t('m.paymentReceipt')) + '</div>' +
+      '<div class="big">' + esc(money(rc.amount, rc.currency)) + '<div class="fxsub" style="font-weight:600" data-fx-usd="' + esc(rc.amount) + '" data-fx-from="' + esc(rc.currency || 'USD') + '"></div></div>' +
+      (rc.description ? '<div class="r"><span class="k">' + esc(t('m.description')) + '</span><span>' + esc(rc.description) + '</span></div>' : '') +
+      (rc.reference ? '<div class="r"><span class="k">' + esc(t('m.thRef')) + '</span><span>' + esc(rc.reference) + '</span></div>' : '') +
+      '<div class="r"><span class="k">' + esc(t('m.thStatus')) + '</span><span>' + (rc.paid ? '✅ ' + esc(t('m.paidShort')) : esc(rc.status)) + '</span></div>' +
+      '<div class="r"><span class="k">' + esc(t('m.paidIn')) + '</span><span>' + esc(rc.asset || '—') + (rc.cryptoAmount ? ' (' + esc(rc.cryptoAmount) + ')' : '') + '</span></div>' +
+      (rc.txHash ? '<div class="r"><span class="k">' + esc(t('m.transaction')) + '</span><span class="mono" style="font-size:11px">' + esc(rc.txHash.slice(0, 10)) + '…' + esc(rc.txHash.slice(-6)) + '</span></div>' : '') +
+      '<div class="r"><span class="k">' + esc(t('m.thDate')) + '</span><span>' + esc(new Date(rc.confirmedAt || rc.createdAt).toLocaleString(LOC())) + '</span></div>' +
       '<div class="noprint" style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="window.print()">' + t('m.printSave') + '</button><button class="btn pri" style="flex:1" id="rcClose">' + t('m.close') + '</button></div>';
     $('receiptModal').classList.add('show');
     if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate($('receiptBody')); });

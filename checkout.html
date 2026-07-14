@@ -101,6 +101,14 @@
   var A = window.atomicI18n; if (A) A.init();
   var t = A ? A.t : function (k) { return k; };
   var $ = function (id) { return document.getElementById(id); };
+  // XSS: description/reference/businessName are MERCHANT-supplied and rendered to the
+  // PAYING CUSTOMER on this origin — the same origin as the passkey wallet. Anything
+  // interpolated into innerHTML must go through esc(). Prefer textContent where possible.
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
   var qs = new URLSearchParams(location.search);
   var ID = qs.get('intentId') || qs.get('id') || '';
   var SYM = { USD:'$', EUR:'€', GBP:'£' };
@@ -158,7 +166,7 @@
     $('payStatus').innerHTML = '<span class="spin"></span> ' + t('checkout.settingUp'); $('qr').textContent = '…';
     var d;
     try { var r = await fetch('/v1/payment_intents/' + ID + '/select_chain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chain: rail.key }) }); d = await r.json(); if (!r.ok) throw new Error(d.error || t('checkout.setupFailed')); }
-    catch (e) { $('payStatus').innerHTML = '<span style="color:var(--err)">' + (e.message || t('checkout.setupFailed')) + '</span>'; return; }
+    catch (e) { $('payStatus').innerHTML = '<span style="color:var(--err)">' + esc(e.message || t('checkout.setupFailed')) + '</span>'; return; }
     $('pRailName').textContent = t('checkout.sendInstruction', { sym: rail.sym, net: rail.net });
     $('pCryptoAmt').textContent = d.cryptoAmountRequired + ' ' + rail.sym;
     $('pAddr').textContent = d.depositAddress;
@@ -193,12 +201,12 @@
     clearInterval(poll); clearInterval(countdown);
     $('sBiz').textContent = t('checkout.paidTo', { name: rc.businessName || t('checkout.merchant') });
     $('sReceipt').innerHTML =
-      '<div class="r"><span class="k">' + t('checkout.amount') + '</span><span><b>' + money(rc.amount, rc.currency) + '</b><div class="fxeq" style="text-align:right" data-fx-usd="' + rc.amount + '" data-fx-from="' + (rc.currency || 'USD') + '"></div></span></div>' +
-      (rc.reference ? '<div class="r"><span class="k">' + t('checkout.reference') + '</span><span>' + rc.reference + '</span></div>' : '') +
-      (rc.description ? '<div class="r"><span class="k">' + t('checkout.for') + '</span><span>' + rc.description + '</span></div>' : '') +
-      (rc.asset ? '<div class="r"><span class="k">' + t('checkout.paidIn') + '</span><span>' + String(rc.asset).replace(/_/g, ' ') + '</span></div>' : '') +
-      (rc.txHash ? '<div class="r"><span class="k">' + t('checkout.transaction') + '</span><span style="font-family:var(--mono);font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
-      '<div class="r"><span class="k">' + t('checkout.date') + '</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString(A ? A.locale : undefined) + '</span></div>';
+      '<div class="r"><span class="k">' + esc(t('checkout.amount')) + '</span><span><b>' + esc(money(rc.amount, rc.currency)) + '</b><div class="fxeq" style="text-align:right" data-fx-usd="' + esc(rc.amount) + '" data-fx-from="' + esc(rc.currency || 'USD') + '"></div></span></div>' +
+      (rc.reference ? '<div class="r"><span class="k">' + esc(t('checkout.reference')) + '</span><span>' + esc(rc.reference) + '</span></div>' : '') +
+      (rc.description ? '<div class="r"><span class="k">' + esc(t('checkout.for')) + '</span><span>' + esc(rc.description) + '</span></div>' : '') +
+      (rc.asset ? '<div class="r"><span class="k">' + esc(t('checkout.paidIn')) + '</span><span>' + esc(String(rc.asset).replace(/_/g, ' ')) + '</span></div>' : '') +
+      (rc.txHash ? '<div class="r"><span class="k">' + esc(t('checkout.transaction')) + '</span><span style="font-family:var(--mono);font-size:11px">' + esc(rc.txHash.slice(0, 10)) + '…' + esc(rc.txHash.slice(-6)) + '</span></div>' : '') +
+      '<div class="r"><span class="k">' + esc(t('checkout.date')) + '</span><span>' + esc(new Date(rc.confirmedAt || rc.createdAt).toLocaleString(A ? A.locale : undefined)) + '</span></div>';
     if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate($('sReceipt')); });
     view('successView');
   }

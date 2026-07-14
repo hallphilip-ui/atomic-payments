@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.8.2 - 2026-07-14
+
+**Security release — stored XSS on the wallet origin, and an unauthenticated off-ramp link builder.**
+
+- **🔴 Stored XSS (confirmed exploitable, now fixed).** A merchant's invoice `description`/`reference` were interpolated into `innerHTML` unescaped on the hosted **checkout receipt** and in the merchant portal. Since merchant signup is self-serve and unverified, anyone could register, put `<img onerror=…>` in an invoice, send the checkout link, and execute arbitrary JavaScript **in the paying customer's browser on `atomicpay.cloud` — the same origin as the passkey wallet**. All user-supplied values are now HTML-escaped at every `innerHTML` site in `checkout.html` and `merchant.html` (emails were already escaped).
+- **🔴 `/v1/offramp/link` was unauthenticated.** Anyone could mint off-ramp links **signed with our MoonPay/Mercuryo partner credentials** for any address. The endpoint now requires merchant authentication, refuses flagged accounts, and takes the destination from the **authenticated merchant's own receiving wallet** — a client-supplied address is ignored entirely.
+
 ## 2.8.1 - 2026-07-14
 
 - **"Install app" button in the merchant portal** (Settings) — installs Atomic POS to the phone's home screen. On Android it fires the real install dialog; on iOS (which has no install API) it shows the Share → Add to Home Screen steps. Hidden once installed. Translated into all 15 languages.
