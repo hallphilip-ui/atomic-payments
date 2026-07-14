@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.5 - 2026-07-14
+
+**Off-ramp sandbox toggle — validate cash-out with test keys before KYB.**
+
+- `ATOMIC_OFFRAMP_ENV=sandbox` points every off-ramp partner at its **staging host** (MoonPay `sell-sandbox`, Transak `global-stg`, Ramp `app.demo`, Banxa `banxa-sandbox`, Mercuryo sandbox), so the whole cash-out flow can be exercised with test keys before any partner KYB completes. URL signing (MoonPay/Mercuryo) still applies in sandbox.
+- Any base host can be pinned with `ATOMIC_OFFRAMP_<PROVIDER>_BASE` — providers move their staging domains, and this avoids a code change when they do.
+- **Fails safe:** a provider with no known sandbox host (Kado, Unlimit) drops out of "Live" in sandbox and hands off to its public page, rather than silently firing a test key at production.
+- The merchant portal shows a **"Sandbox mode — test keys, no real money moves"** banner whenever the flag is on, so a test hand-off can't be mistaken for a real payout.
+
 ## 2.5.4 - 2026-07-14
 
 - **Landing page now sells the cash-out** — the "For business" section leads with "Take crypto. Get paid in cash." and adds a **Cash out to your bank** card: withdraw to a bank account or card in your local currency via licensed partners across 160+ countries, selling from your own wallet (we never hold the money).
