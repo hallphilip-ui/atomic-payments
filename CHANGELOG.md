@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.1 - 2026-07-14
+
+- **"Install app" button in the merchant portal** (Settings) — installs Atomic POS to the phone's home screen. On Android it fires the real install dialog; on iOS (which has no install API) it shows the Share → Add to Home Screen steps. Hidden once installed. Translated into all 15 languages.
+- **Fix: the merchant portal was broken at phone width** — with a single column the sidebar and main became grid *rows*, and the nav stretched to fill half the screen; "Sign out" was also clipped off the right edge. Nav is now a compact scrollable tab strip, the topbar fits at 375px, and form rows stack instead of cramming into two columns. (Found by testing the PWA at phone size — the app merchants were meant to install.)
+
 ## 2.8.0 - 2026-07-14
 
 **Installable iOS + Android apps (PWA) — Atomic Pay, Atomic POS, and Atomic Exchange.**

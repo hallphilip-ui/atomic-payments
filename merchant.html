@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Atomic POS">
-<script src="/assets/pwa.js" defer></script>
+<script src="/assets/pwa.js?v=2" defer></script>
 <style>
   :root { --ink:#14161c; --muted:#667085; --faint:#98a2b3; --line:#e8e9f0; --accent:#6d5cf5; --accent-soft:#efedff; --bg:#f7f8fc; --surface:#fff; --live:#0a7d33; --live-soft:#e7f5ec; --pend:#8a5a00; --pend-soft:#fbf1df; --mono:ui-monospace,Menlo,Consolas,monospace; }
   * { box-sizing:border-box; }
@@ -46,7 +46,29 @@
   nav.side a.on { background:var(--accent-soft); color:var(--accent); }
   main.content { padding:clamp(16px,3vw,30px); max-width:1000px; }
   h1 { font-size:22px; letter-spacing:-.01em; margin:0 0 4px; } .lede { color:var(--muted); font-size:14px; margin:0 0 20px; }
-  @media (max-width:720px){ .shell{ grid-template-columns:1fr; } nav.side{ flex-direction:row; overflow-x:auto; border-right:0; border-bottom:1px solid var(--line); } }
+  /* Phone / installed-PWA layout. `grid-template-rows:auto 1fr` is load-bearing: with a
+     single column the nav + main become ROWS, and without it the nav row stretches to
+     fill half the screen (min-height:100vh). Items must not wrap or the tab strip grows. */
+  @media (max-width:720px){
+    .shell{ grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+    nav.side{ flex-direction:row; align-items:center; overflow-x:auto; -webkit-overflow-scrolling:touch;
+              border-right:0; border-bottom:1px solid var(--line); padding:8px 10px; gap:6px; }
+    nav.side a{ flex:0 0 auto; white-space:nowrap; padding:8px 12px; }
+    .brand .sub{ display:none; }                 /* "· Merchant" — reclaim width for the pickers */
+    .topbar{ gap:8px; }
+    .topbar select{ font-size:12px; padding:5px 6px; max-width:104px; }
+    #whoName{ display:none; }                    /* business name — the pickers matter more here */
+    .row2{ grid-template-columns:1fr; }          /* stacked form fields instead of two cramped columns */
+  }
+  /* Narrow phones (375px): brand + 2 pickers + sign-out must all fit or the sign-out
+     button gets clipped off the right edge. Shrink everything rather than drop a control. */
+  @media (max-width:480px){
+    .topbar{ gap:6px; padding:0 10px; }
+    .brand{ font-size:14px; gap:6px; }
+    .brand img{ width:22px; height:18px; }
+    .topbar select{ max-width:82px; font-size:11.5px; padding:5px 4px; }
+    .topbar .btn.sm{ padding:6px 9px; font-size:12px; }
+  }
 
   .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px; }
   @media (max-width:640px){ .grid{ grid-template-columns:1fr 1fr; } }
@@ -229,6 +251,11 @@
     <!-- SETTINGS -->
     <section data-pane="settings" class="hidden">
       <h1 data-i18n="m.nav.settings">Settings</h1><p class="lede" data-i18n="m.setLede">Where your money goes, and how you're notified.</p>
+      <div class="panel hidden" id="installPanel">
+        <h2 data-i18n="m.installTitle">Install the POS app</h2>
+        <p style="font-size:13px;color:var(--muted);margin-top:0" data-i18n="m.installBody">Put Atomic POS on your phone's home screen — take payments anywhere, full-screen, no browser bar.</p>
+        <button class="btn pri sm" id="installBtn" data-i18n="m.installBtn">Install app</button>
+      </div>
       <div class="panel">
         <h2 data-i18n="m.receivingWallet">Receiving wallet</h2>
         <p style="font-size:13px;color:var(--muted);margin-top:0" data-i18n="m.receivingWalletNote">Payments settle here directly — Atomic never holds your funds. EVM address (USDC on Base recommended).</p>
@@ -260,7 +287,7 @@
 <!-- RECEIPT -->
 <div id="receiptModal"><div class="receipt" id="receiptBody"></div></div>
 
-<script src="/assets/i18n.js?v=227"></script>
+<script src="/assets/i18n.js?v=228"></script>
 <script src="/assets/fx.js?v=4"></script>
 <script>
 (function () {
@@ -577,6 +604,23 @@
       }
     }).catch(function(){});
   }
+
+  // ---------- Install (PWA) ----------
+  // Shown only when the app isn't already installed. On Android this fires the real
+  // install dialog; on iOS (no install API) pwa.js shows Add-to-Home-Screen steps.
+  (function () {
+    var panel = $('installPanel'), btn = $('installBtn');
+    if (!panel || !btn) return;
+    function sync() {
+      var p = window.atomicPWA;
+      show(panel, !!p && !p.isStandalone);
+    }
+    btn.addEventListener('click', function () { if (window.atomicPWA) window.atomicPWA.install(); });
+    window.addEventListener('atomic-pwa-available', sync);
+    window.addEventListener('atomic-pwa-installed', sync);
+    sync();
+    setTimeout(sync, 800);   // pwa.js is deferred — re-check once it has defined the API
+  })();
 
   // ---------- boot ----------
   if (key) { api('/v1/merchant/me').then(function (r) { if (r.ok) enter(r.d); else { key = ''; localStorage.removeItem(KEY); } }); }
