@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0 - 2026-07-13
+
+**Fiat off-ramp partner integration — cash out to a bank, wired end-to-end.**
+
+- **Server-side off-ramp backend** (`/v1/offramp/providers`, `/v1/offramp/link`) — the merchant portal's "Cash out" now builds prefilled sell links (USDC-on-Base → the merchant's fiat, with amount, wallet and currency filled in) for MoonPay, Transak, Ramp, Banxa, Mercuryo, Kado and Unlimit. Partner keys live only in server env; the links are **signed server-side** where the partner requires it (MoonPay, Mercuryo), so secrets never reach the browser. A provider shows a **"Live"** badge once its key is set; until then its button hands off to the provider's public page. Non-custodial throughout — the partner runs KYC and pays the merchant's own wallet.
+- **Site-wide "← Home" button** injected on every page (skips embedded iframes and the home page itself).
+
 ## 2.4.1 - 2026-07-13
 
 **Currency picker.**

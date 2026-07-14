@@ -247,7 +247,7 @@
 <!-- RECEIPT -->
 <div id="receiptModal"><div class="receipt" id="receiptBody"></div></div>
 
-<script src="/assets/i18n.js?v=224"></script>
+<script src="/assets/i18n.js?v=225"></script>
 <script src="/assets/fx.js?v=3"></script>
 <script>
 (function () {
@@ -460,25 +460,20 @@
   // bank/card. Fill these with your partner keys/subdomains to enable prefilled
   // deep-links + referral-fee attribution; until then buttons open each provider's
   // public off-ramp so the flow is previewable.
-  var OFFRAMP_KEYS = { moonpay: '', transak: '', ramp: '', banxa: '', mercuryo: '', kado: '', unlimit: '' };
+  // Partner keys live SERVER-SIDE (env). The backend returns which providers are live
+  // (/v1/offramp/providers) and builds/signs the prefilled link on click (/v1/offramp/link).
+  var CONFIGURED = {};
   var EU = ['AT','BE','HR','CY','EE','FI','FR','DE','GR','IE','IT','LV','LT','LU','MT','NL','PT','SK','SI','ES'];
   var G = 'global';
   var OFFRAMP = [
-    { id:'moonpay', name:'MoonPay', emoji:'🌙', cover:G, note:'160+ countries · card & bank', home:'https://www.moonpay.com/sell',
-      build:function(c){ return 'https://sell.moonpay.com?apiKey='+OFFRAMP_KEYS.moonpay+'&baseCurrencyCode=usdc&quoteCurrencyCode='+c.fiat.toLowerCase()+(c.amount?'&baseCurrencyAmount='+c.amount:'')+'&refundWalletAddress='+c.address; } },
-    { id:'transak', name:'Transak', emoji:'🟣', cover:G, note:'160+ countries · local rails', home:'https://transak.com/',
-      build:function(c){ return 'https://global.transak.com?apiKey='+OFFRAMP_KEYS.transak+'&productsAvailed=SELL&cryptoCurrencyCode=USDC&network=base&walletAddress='+c.address+'&fiatCurrency='+c.fiat+(c.amount?'&cryptoAmount='+c.amount:''); } },
-    { id:'ramp', name:'Ramp Network', emoji:'⚡', cover:G, note:'150+ countries · EU/UK strong', home:'https://ramp.network/',
-      build:function(c){ return 'https://app.ramp.network/?enabledFlows=OFFRAMP&defaultFlow=OFFRAMP&hostApiKey='+OFFRAMP_KEYS.ramp+'&offrampAsset=BASE_USDC&userAddress='+c.address+'&fiatCurrency='+c.fiat; } },
-    { id:'banxa', name:'Banxa', emoji:'🏦', cover:G, note:'Global · bank transfer & PayID', home:'https://banxa.com/',
-      build:function(c){ return 'https://'+(OFFRAMP_KEYS.banxa||'checkout')+'.banxa.com/?sellMode=true&coinType=USDC&blockchain=BASE&fiatType='+c.fiat+'&walletAddress='+c.address+(c.amount?'&coinAmount='+c.amount:''); } },
-    { id:'mercuryo', name:'Mercuryo', emoji:'💶', cover:G, note:'Europe, UK & more', home:'https://mercuryo.io/',
-      build:function(c){ return 'https://exchange.mercuryo.io/?type=sell&currency=USDC&network=BASE&fiat_currency='+c.fiat+'&address='+c.address+(OFFRAMP_KEYS.mercuryo?'&widget_id='+OFFRAMP_KEYS.mercuryo:''); } },
-    { id:'kado', name:'Kado', emoji:'🟢', cover:['US','MX','CO','AR','BR','NG','KE','ZA','PH','ID','TR','TH'], note:'Americas, Africa, SE Asia', home:'https://www.kado.money/',
-      build:function(c){ return 'https://app.kado.money/?mode=sell&onPayCurrency='+c.fiat+'&onRevCurrency=USDC&network=BASE&onToAddress='+c.address+(OFFRAMP_KEYS.kado?'&apiKey='+OFFRAMP_KEYS.kado:''); } },
-    { id:'coinbase', name:'Coinbase', emoji:'🔵', cover:['US','GB','CA','AU'].concat(EU), note:'US/EU · one-time account setup', home:'https://www.coinbase.com/', setup:true },
-    { id:'unlimit', name:'Unlimit', emoji:'🌐', cover:G, note:'Global card & bank payouts', home:'https://www.unlimit.com/crypto/',
-      build:function(c){ return 'https://crypto.unlimit.com/?type=sell&crypto=USDC&fiat='+c.fiat+'&address='+c.address; } }
+    { id:'moonpay', name:'MoonPay', emoji:'🌙', cover:G, note:'160+ countries · card & bank' },
+    { id:'transak', name:'Transak', emoji:'🟣', cover:G, note:'160+ countries · local rails' },
+    { id:'ramp', name:'Ramp Network', emoji:'⚡', cover:G, note:'150+ countries · EU/UK strong' },
+    { id:'banxa', name:'Banxa', emoji:'🏦', cover:G, note:'Global · bank transfer & PayID' },
+    { id:'mercuryo', name:'Mercuryo', emoji:'💶', cover:G, note:'Europe, UK & more' },
+    { id:'kado', name:'Kado', emoji:'🟢', cover:['US','MX','CO','AR','BR','NG','KE','ZA','PH','ID','TR','TH'], note:'Americas, Africa, SE Asia' },
+    { id:'coinbase', name:'Coinbase', emoji:'🔵', cover:['US','GB','CA','AU'].concat(EU), note:'US/EU · one-time account setup', setup:true },
+    { id:'unlimit', name:'Unlimit', emoji:'🌐', cover:G, note:'Global card & bank payouts' }
   ];
   var FIAT_BY_CC = { US:'USD', GB:'GBP', CA:'CAD', AU:'AUD', JP:'JPY', KR:'KRW', SG:'SGD', HK:'HKD', IN:'INR', AE:'AED', NG:'NGN', ZA:'ZAR', KE:'KES', BR:'BRL', MX:'MXN', AR:'ARS', CO:'COP', CH:'CHF', TR:'TRY', ID:'IDR', PH:'PHP', TH:'THB', VN:'VND', MY:'MYR' };
   EU.forEach(function(c){ FIAT_BY_CC[c] = 'EUR'; });
@@ -490,30 +485,42 @@
     var list = OFFRAMP.filter(function(p){ return p.cover === G || !cc || p.cover.indexOf(cc) >= 0; });
     var host = $('coProviders');
     host.innerHTML = list.map(function(p){
+      var live = !!CONFIGURED[p.id];
       var label = p.setup ? t('m.setupArrow') : t('m.continueArrow');
+      var badge = live ? '<span style="font-size:10px;font-weight:700;color:var(--live);background:var(--live-soft);padding:2px 7px;border-radius:6px">' + t('m.offLive') + '</span>' : '';
       return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)">' +
         '<div style="font-size:22px;width:26px;text-align:center">' + p.emoji + '</div>' +
-        '<div style="flex:1"><div style="font-weight:700">' + p.name + '</div><div style="font-size:12px;color:var(--muted)">' + p.note + '</div></div>' +
+        '<div style="flex:1"><div style="font-weight:700;display:flex;align-items:center;gap:7px">' + p.name + badge + '</div><div style="font-size:12px;color:var(--muted)">' + p.note + '</div></div>' +
         '<button class="btn sm pri" data-off="' + p.id + '">' + label + '</button></div>';
     }).join('');
     host.querySelectorAll('[data-off]').forEach(function(b){ b.addEventListener('click', function(){ openProvider(b.dataset.off); }); });
   }
 
   function openProvider(id) {
-    var p = null; OFFRAMP.forEach(function(x){ if (x.id === id) p = x; });
-    if (!p) return;
     var addr = currentMe && currentMe.receiveAddress;
     if (!addr) { show($('coAddrWarn'), true); go('settings'); return; }
-    var ctx = { address: addr, amount: ($('coAmt').value || '').trim(), fiat: $('coFiat').value || 'USD' };
-    var configured = !p.setup && typeof p.build === 'function' && OFFRAMP_KEYS[id];
-    var url = configured ? p.build(ctx) : p.home;
-    window.open(url, '_blank', 'noopener');
+    // Open the tab synchronously (so it isn't popup-blocked), then point it at the
+    // server-built link. The backend signs the URL where the partner requires it.
+    var w = window.open('about:blank', '_blank'); if (w) { try { w.opener = null; } catch (e) {} }
+    var body = { provider: id, address: addr, amount: ($('coAmt').value || '').trim(), fiat: $('coFiat').value || 'USD' };
+    api('/v1/offramp/link', { method: 'POST', body: JSON.stringify(body) }).then(function(r){
+      var url = r.ok && r.d && r.d.url;
+      if (url) { if (w) w.location.href = url; else window.open(url, '_blank', 'noopener'); }
+      else if (w) w.close();
+    }).catch(function(){ if (w) w.close(); });
   }
 
   var cashoutInit = false;
   function initCashout() {
     // Always refresh the receiving-wallet state (it may have just been set in Settings).
     api('/v1/merchant/me').then(function(r){ if (r.ok) { currentMe = r.d; show($('coAddrWarn'), !r.d.receiveAddress); } });
+    // Which off-ramps are live (keys configured server-side).
+    fetch('/v1/offramp/providers').then(function(r){ return r.json(); }).then(function(d){
+      CONFIGURED = (d && d.configured) || {};
+      var anyLive = Object.keys(CONFIGURED).some(function(k){ return CONFIGURED[k]; });
+      $('coDemoNote').textContent = anyLive ? '' : t('m.coDemoNote');
+      renderProviders();
+    }).catch(function(){});
     if (cashoutInit) return;
     cashoutInit = true;
     $('coFiat').innerHTML = FIATS.map(function(f){ return '<option>' + f + '</option>'; }).join('');

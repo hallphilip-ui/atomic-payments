@@ -25,6 +25,7 @@ import observabilityRoutes from './routes/observability';
 import arbRoutes from './routes/arb';
 import marketRoutes from './routes/markets';
 import fxRoutes from './routes/fx';
+import offrampRoutes from './routes/offramp';
 import { startPaymentWatcher } from './payments/paymentWatcher';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
@@ -56,7 +57,7 @@ app.use((_req: Request, res: Response, next: () => void) => {
       // This excludes sitemap XML (<?xml), JSON ({/[), and /assets/*.js (//…), so we
       // never corrupt a non-HTML body. Inject before </body>, else </html>, else append.
       if (typeof body === 'string' && /^\s*<(!doctype|html|head|meta)/i.test(body)) {
-        const tag = '  <script src="/assets/consent.js" defer></script>\n';
+        const tag = '  <script src="/assets/consent.js" defer></script>\n  <script src="/assets/homenav.js" defer></script>\n';
         if (body.includes('</body>')) body = body.replace('</body>', tag + '</body>');
         else if (/<\/html>/i.test(body)) body = body.replace(/<\/html>/i, tag + '</html>');
         else body = body + '\n' + tag;
@@ -117,6 +118,7 @@ app.use(adminRoutes);
 app.use(arbRoutes);
 app.use(marketRoutes);
 app.use(fxRoutes);
+app.use(offrampRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
 app.use(transferRoutes);
@@ -476,6 +478,12 @@ app.use('/assets/extension-cta.js', (_req: Request, res: Response) => {
 
 app.use('/assets/consent.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'consent.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  return res.send(script);
+});
+
+app.use('/assets/homenav.js', (_req: Request, res: Response) => {
+  const script = readFileSync(join(process.cwd(), 'public', 'homenav.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');
   return res.send(script);
 });
