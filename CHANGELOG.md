@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.4 - 2026-07-14
+
+- **Landing page now sells the cash-out** — the "For business" section leads with "Take crypto. Get paid in cash." and adds a **Cash out to your bank** card: withdraw to a bank account or card in your local currency via licensed partners across 160+ countries, selling from your own wallet (we never hold the money).
+
 ## 2.5.3 - 2026-07-14
 
 - Local-currency equivalent now also shows on **receipts** — both the merchant portal's printable receipt and the customer's checkout receipt.
