@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.1 - 2026-07-14
+
+**Local-currency equivalents everywhere + region autodetect.**
+
+- The "≈ local currency" equivalent now shows on the merchant **Overview** (paid volume) and **Payments** (confirmed volume + every row), not just the POS charge — driven by the currency picker.
+- **Region autodetect** — when a visitor hasn't picked a currency, the default now follows their actual country (Cloudflare edge `/v1/geo`), which is more accurate than the browser locale (e.g. an en-US browser physically in the EU → EUR). Soft default: it keeps following region/language until the user explicitly chooses.
+
 ## 2.5.0 - 2026-07-13
 
 **Fiat off-ramp partner integration — cash out to a bank, wired end-to-end.**

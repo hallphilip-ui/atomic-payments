@@ -44,6 +44,8 @@
   .stat { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
   .stat .n { font-size:26px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
   .stat .l { font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .fxsub { font-size:11.5px; color:var(--faint); margin-top:2px; }
+  td .fxsub { margin-top:1px; }
   .panel { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:18px; }
   .panel h2 { font-size:15px; margin:0 0 12px; }
   .pill { font-family:var(--mono); font-size:10.5px; font-weight:700; letter-spacing:.04em; padding:3px 8px; border-radius:6px; text-transform:uppercase; }
@@ -122,7 +124,7 @@
       <h1 data-i18n="m.nav.overview">Overview</h1><p class="lede" data-i18n="m.overviewLede">Your payments at a glance.</p>
       <div class="warn hidden" id="addrWarn" data-i18n-html="m.addrWarn">⚠️ Set a <b>receiving wallet</b> in Settings so payments can settle to you.</div>
       <div class="grid">
-        <div class="stat"><div class="n" id="stVol">—</div><div class="l" data-i18n="m.paidVolume">Paid volume</div></div>
+        <div class="stat"><div class="n" id="stVol">—</div><div class="l" data-i18n="m.paidVolume">Paid volume</div><div class="fxsub" id="stVolFx"></div></div>
         <div class="stat"><div class="n" id="stCount">—</div><div class="l" data-i18n="m.paymentsReceived">Payments received</div></div>
         <div class="stat"><div class="n" id="stPending">—</div><div class="l" data-i18n="m.awaitingPayment">Awaiting payment</div></div>
       </div>
@@ -177,7 +179,7 @@
     <section data-pane="payments" class="hidden">
       <h1 data-i18n="m.nav.payments">Payments</h1><p class="lede" data-i18n="m.payLede">Every charge and invoice, with totals.</p>
       <div class="grid" style="grid-template-columns:repeat(2,1fr)">
-        <div class="stat"><div class="n" id="rpVol">—</div><div class="l" data-i18n="m.confirmedVolume">Confirmed volume</div></div>
+        <div class="stat"><div class="n" id="rpVol">—</div><div class="l" data-i18n="m.confirmedVolume">Confirmed volume</div><div class="fxsub" id="rpVolFx"></div></div>
         <div class="stat"><div class="n" id="rpCount">—</div><div class="l" data-i18n="m.confirmedCount">Confirmed count</div></div>
       </div>
       <div class="panel">
@@ -248,7 +250,7 @@
 <div id="receiptModal"><div class="receipt" id="receiptBody"></div></div>
 
 <script src="/assets/i18n.js?v=225"></script>
-<script src="/assets/fx.js?v=3"></script>
+<script src="/assets/fx.js?v=4"></script>
 <script>
 (function () {
   var A = window.atomicI18n; if (A) A.init();
@@ -324,9 +326,11 @@
 
   function renderOverview(me) {
     $('stVol').textContent = money(me.stats.paidVolume, me.stats.currency);
+    $('stVolFx').setAttribute('data-fx-usd', me.stats.paidVolume); $('stVolFx').setAttribute('data-fx-from', me.stats.currency || 'USD');
     $('stCount').textContent = me.stats.paidCount;
     $('stPending').textContent = me.stats.pendingCount;
     show($('addrWarn'), !me.receiveConfigured);
+    if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate(); });
   }
 
   // ---------- POS ----------
@@ -388,19 +392,22 @@
     var r = await api('/v1/merchant/payments' + q);
     if (!r.ok) return;
     lastReport = r.d.payments;
-    $('rpVol').textContent = money(r.d.totals.confirmedVolume, (r.d.payments[0] && r.d.payments[0].currency) || 'USD');
+    var rpCcy = (r.d.payments[0] && r.d.payments[0].currency) || 'USD';
+    $('rpVol').textContent = money(r.d.totals.confirmedVolume, rpCcy);
+    $('rpVolFx').setAttribute('data-fx-usd', r.d.totals.confirmedVolume); $('rpVolFx').setAttribute('data-fx-from', rpCcy);
     $('rpCount').textContent = r.d.totals.confirmedCount;
     var tb = $('rpTable').querySelector('tbody'); tb.innerHTML = '';
-    if (!r.d.payments.length) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">' + t('m.noPayments') + '</td></tr>'; return; }
+    if (!r.d.payments.length) { tb.innerHTML = '<tr><td colspan="7" style="color:var(--muted)">' + t('m.noPayments') + '</td></tr>'; if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate(); }); return; }
     r.d.payments.forEach(function (p) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td class="mono">' + new Date(p.createdAt).toLocaleString(LOC()) + '</td><td>' + money(p.amount, p.currency) + '</td>' +
+      tr.innerHTML = '<td class="mono">' + new Date(p.createdAt).toLocaleString(LOC()) + '</td><td>' + money(p.amount, p.currency) + '<div class="fxsub" data-fx-usd="' + p.amount + '" data-fx-from="' + (p.currency || 'USD') + '"></div></td>' +
         '<td><span class="pill ' + p.status + '">' + p.status + '</span></td><td>' + (p.source || 'api') + '</td><td>' + (p.reference || '—') + '</td>' +
         '<td class="mono">' + (p.asset ? p.asset.replace(/_/g, ' ') : '—') + '</td>' +
         '<td style="text-align:right">' + (p.status === 'CONFIRMED' ? '<button class="btn sm" data-receipt="' + p.id + '">' + t('m.receipt') + '</button>' : '') + '</td>';
       tb.appendChild(tr);
     });
     wireRowButtons(tb);
+    if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate(); });
   }
   $('rpStatus').addEventListener('change', loadReports); $('rpSource').addEventListener('change', loadReports);
   $('rpExport').addEventListener('click', function () {

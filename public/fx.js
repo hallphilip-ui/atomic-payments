@@ -55,6 +55,24 @@
   function init() {
     document.querySelectorAll('[data-atomic-currency-select]').forEach(mountCurrencySelect);
     load().then(function () { annotate(); });
+    geoDefault();
+  }
+
+  // Region autodetect: when the visitor hasn't explicitly picked a currency, use the
+  // edge's country (Cloudflare CF-IPCountry via /v1/geo) as the default — more accurate
+  // than the browser locale (e.g. an en-US browser physically in France → EUR). Soft:
+  // it doesn't persist, so it keeps following the real region until the user chooses.
+  function geoDefault() {
+    var explicit; try { explicit = localStorage.getItem('atomic.currency'); } catch (e) {}
+    if (explicit) return;
+    fetch('/v1/geo').then(function (r) { return r.json(); }).then(function (d) {
+      var cc = d && d.country, ccy = cc && REGION_CCY[cc];
+      if (ccy && ccy !== userCurrency()) {
+        CURRENCY = ccy;
+        document.querySelectorAll('[data-atomic-currency-select]').forEach(function (s) { s.value = ccy; });
+        load().then(function () { annotate(); });
+      }
+    }).catch(function () {});
   }
 
   function load() {
