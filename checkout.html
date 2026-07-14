@@ -193,12 +193,13 @@
     clearInterval(poll); clearInterval(countdown);
     $('sBiz').textContent = t('checkout.paidTo', { name: rc.businessName || t('checkout.merchant') });
     $('sReceipt').innerHTML =
-      '<div class="r"><span class="k">' + t('checkout.amount') + '</span><span><b>' + money(rc.amount, rc.currency) + '</b></span></div>' +
+      '<div class="r"><span class="k">' + t('checkout.amount') + '</span><span><b>' + money(rc.amount, rc.currency) + '</b><div class="fxeq" style="text-align:right" data-fx-usd="' + rc.amount + '" data-fx-from="' + (rc.currency || 'USD') + '"></div></span></div>' +
       (rc.reference ? '<div class="r"><span class="k">' + t('checkout.reference') + '</span><span>' + rc.reference + '</span></div>' : '') +
       (rc.description ? '<div class="r"><span class="k">' + t('checkout.for') + '</span><span>' + rc.description + '</span></div>' : '') +
       (rc.asset ? '<div class="r"><span class="k">' + t('checkout.paidIn') + '</span><span>' + String(rc.asset).replace(/_/g, ' ') + '</span></div>' : '') +
       (rc.txHash ? '<div class="r"><span class="k">' + t('checkout.transaction') + '</span><span style="font-family:var(--mono);font-size:11px">' + rc.txHash.slice(0, 10) + '…' + rc.txHash.slice(-6) + '</span></div>' : '') +
       '<div class="r"><span class="k">' + t('checkout.date') + '</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString(A ? A.locale : undefined) + '</span></div>';
+    if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate($('sReceipt')); });
     view('successView');
   }
 

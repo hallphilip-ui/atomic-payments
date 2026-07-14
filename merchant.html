@@ -429,7 +429,7 @@
     var rc = r.receipt; if (!rc) return;
     $('receiptBody').innerHTML =
       '<h3>' + rc.businessName + '</h3><div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">' + t('m.paymentReceipt') + '</div>' +
-      '<div class="big">' + money(rc.amount, rc.currency) + '</div>' +
+      '<div class="big">' + money(rc.amount, rc.currency) + '<div class="fxsub" style="font-weight:600" data-fx-usd="' + rc.amount + '" data-fx-from="' + (rc.currency || 'USD') + '"></div></div>' +
       (rc.description ? '<div class="r"><span class="k">' + t('m.description') + '</span><span>' + rc.description + '</span></div>' : '') +
       (rc.reference ? '<div class="r"><span class="k">' + t('m.thRef') + '</span><span>' + rc.reference + '</span></div>' : '') +
       '<div class="r"><span class="k">' + t('m.thStatus') + '</span><span>' + (rc.paid ? '✅ ' + t('m.paidShort') : rc.status) + '</span></div>' +
@@ -438,6 +438,7 @@
       '<div class="r"><span class="k">' + t('m.thDate') + '</span><span>' + new Date(rc.confirmedAt || rc.createdAt).toLocaleString(LOC()) + '</span></div>' +
       '<div class="noprint" style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="window.print()">' + t('m.printSave') + '</button><button class="btn pri" style="flex:1" id="rcClose">' + t('m.close') + '</button></div>';
     $('receiptModal').classList.add('show');
+    if (window.atomicFx) window.atomicFx.ready.then(function () { window.atomicFx.annotate($('receiptBody')); });
     $('rcClose').addEventListener('click', function () { $('receiptModal').classList.remove('show'); });
   }
   $('receiptModal').addEventListener('click', function (e) { if (e.target === $('receiptModal')) $('receiptModal').classList.remove('show'); });

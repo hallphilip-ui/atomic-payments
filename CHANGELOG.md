@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.3 - 2026-07-14
+
+- Local-currency equivalent now also shows on **receipts** — both the merchant portal's printable receipt and the customer's checkout receipt.
+
 ## 2.5.2 - 2026-07-14
 
 - Local-currency equivalent now also shows under each amount in the merchant **Invoices** table (matching Payments and Overview).
