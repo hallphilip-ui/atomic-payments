@@ -279,10 +279,30 @@ async function main() {
   ]);
   console.log('OK consoles/i18n assets are served');
 
+  // FUND SAFETY: a merchant with no receiving wallet must not be able to mint a
+  // payable charge (a deposit address could otherwise only be a placeholder that
+  // nobody controls). Assert the guard, then give the smoke merchant a real wallet.
+  const walletlessMerchant = await prisma.merchant.create({
+    data: {
+      businessName: `Smoke Walletless ${Date.now()}`,
+      apiKey: `smoke_key_nw_${Date.now()}_${Math.random().toString(16).slice(2)}`
+    }
+  });
+  createdMerchantIds.add(walletlessMerchant.id);
+  const noWallet = await assertJsonStatus('/v1/payment_intents', 409, {
+    method: 'POST',
+    headers: { 'x-atomic-key': walletlessMerchant.apiKey },
+    body: JSON.stringify({ amount: 10, currency: 'USD' })
+  });
+  assert.equal(noWallet.code, 'MERCHANT_WALLET_NOT_SET', 'charge is refused when the merchant has no receiving wallet');
+  console.log('OK charge refused without a receiving wallet (no placeholder deposit address)');
+
+  const MERCHANT_WALLET = '0x1111111111111111111111111111111111111111';
   const merchant = await prisma.merchant.create({
     data: {
       businessName: `Smoke Merchant ${Date.now()}`,
-      apiKey: `smoke_key_${Date.now()}_${Math.random().toString(16).slice(2)}`
+      apiKey: `smoke_key_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      receiveAddress: MERCHANT_WALLET
     }
   });
   createdMerchantIds.add(merchant.id);
@@ -320,11 +340,12 @@ async function main() {
   assert.equal(unsupportedRail.error, 'Unsupported payment rail', 'unknown payment rail is rejected');
   assert.ok(unsupportedRail.supportedRails.includes('TETHER_TRON'), 'unsupported rail response includes supported rails');
 
+  // Only the watcher-confirmable EVM stablecoin rails are settleable: they are the
+  // ones we can both pay to the merchant's own wallet AND confirm on-chain.
   const tetheredRails = [
-    { chain: 'USD_COIN_SOLANA', symbol: 'USDC', uriPrefix: 'solana:' },
+    { chain: 'USD_COIN_BASE', symbol: 'USDC', uriPrefix: 'ethereum:' },
     { chain: 'USD_COIN_ETHEREUM', symbol: 'USDC', uriPrefix: 'ethereum:' },
     { chain: 'TETHER_ETHEREUM', symbol: 'USDT', uriPrefix: 'ethereum:' },
-    { chain: 'TETHER_TRON', symbol: 'USDT', uriPrefix: 'tron:' },
     { chain: 'PYUSD_ETHEREUM', symbol: 'PYUSD', uriPrefix: 'ethereum:' }
   ];
 
@@ -341,7 +362,24 @@ async function main() {
     assert.ok(railSelected.cryptoAmountRequired >= 120.5 && railSelected.cryptoAmountRequired < 120.51,
       `${rail.symbol} tethered rail preserves USD parity (± per-invoice matching entropy)`);
     assert.ok(railSelected.web3PaymentUri.includes(rail.uriPrefix), `${rail.symbol} tethered rail returns wallet payment URI`);
+    // FUND SAFETY: the deposit address must be the MERCHANT'S OWN wallet — never a
+    // placeholder. A regression here sends real customer funds into the void.
+    assert.equal(railSelected.depositAddress, MERCHANT_WALLET,
+      `${rail.symbol} deposit address is the merchant's own wallet`);
+    assert.ok(railSelected.web3PaymentUri.includes(MERCHANT_WALLET),
+      `${rail.symbol} payment URI pays the merchant's own wallet`);
   }
+
+  // Rails we can neither pay to the merchant's wallet nor confirm on-chain must be
+  // refused outright (they previously handed out placeholder addresses).
+  for (const chain of ['USD_COIN_SOLANA', 'TETHER_TRON', 'BITCOIN_ONCHAIN', 'SOLANA']) {
+    const refused = await assertJsonStatus(`/v1/payment_intents/${intentCreated.intent.id}/select_chain`, 400, {
+      method: 'POST',
+      body: JSON.stringify({ chain })
+    });
+    assert.ok(/not supported/i.test(refused.error), `${chain} (unsettleable rail) is refused`);
+  }
+  console.log('OK unsettleable rails refused; deposit address is always the merchant wallet');
 
   const intentAfterRail = await request(`/v1/payment_intents/${intentCreated.intent.id}`);
   assert.equal(intentAfterRail.intent.selectedChain, 'PYUSD_ETHEREUM', 'selected tethered rail is persisted for checkout refresh');
