@@ -53,6 +53,9 @@ jobs:
       - name: Run transfer compliance contract tests
         run: npm run test:transfer-compliance
 
+      - name: Run security regression tests (XSS + off-ramp auth)
+        run: npm run test:security
+
       - name: Run isolated core smoke test
         run: npm run smoke:core:isolated
 

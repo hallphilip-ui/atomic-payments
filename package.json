@@ -18,7 +18,8 @@
     "test:platform-connectors": "node scripts/platform-transfer-connector-contract.js",
     "smoke:core": "node scripts/smoke-core.js",
     "smoke:core:isolated": "node scripts/smoke-core-isolated.js",
-    "smoke:docker": "sh scripts/smoke-docker.sh"
+    "smoke:docker": "sh scripts/smoke-docker.sh",
+    "test:security": "node scripts/security-regression-contract.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
