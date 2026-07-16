@@ -28,6 +28,7 @@ import fxRoutes from './routes/fx';
 import offrampRoutes from './routes/offramp';
 import { startPaymentWatcher } from './payments/paymentWatcher';
 import { startSanctionsRescreen } from './compliance/rescreen';
+import { startOfacRefresh } from './compliance/ofacRefresh';
 import { requestLogger } from './observability/requestLogger';
 import { operatorAuth } from './security/operatorAuth';
 import { renderSwapHub, renderSwapLandingPage, resolvePairSlug, swapPairSlugs } from './seo/swapLandingPages';
@@ -601,4 +602,5 @@ app.listen(port, bindHost, () => {
   console.log(`🚀 Atomic Admin Engine Live on ${bindHost}:${port}`);
   startPaymentWatcher();
   startSanctionsRescreen();
+  startOfacRefresh();
 });

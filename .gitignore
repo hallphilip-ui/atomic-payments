@@ -4,3 +4,4 @@ dist/
 .DS_Store
 *.db
 *.db-journal
+prisma/ofac_sdn_cache.json
