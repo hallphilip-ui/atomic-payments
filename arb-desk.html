@@ -126,6 +126,19 @@
       </div>
 
       <div class="card">
+        <h2>Grid Lab · paper <span style="font-weight:400;color:var(--muted);font-size:12px">· spot grids + micro-scalp capturing local volatility, replayed against real Kraken 1-min candles — maker fees charged, a rung fills only when price trades through it, benchmarked vs buy-and-hold; LOG-ONLY, nothing executes</span></h2>
+        <div class="scroll"><table id="gridtbl"><thead><tr>
+          <th>Grid</th><th>Range</th><th>Last</th><th>Fills</th><th>Round trips</th><th>Realized $</th><th>Fees $</th><th>Equity $</th><th>Return</th><th>vs Buy&amp;Hold</th><th>Max DD</th><th>Out of range</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="empty" id="gridEmpty" style="display:none">Grid Lab isn't running — start the atomic-grid-bot service on the box.</div>
+      </div>
+
+      <div class="card">
+        <h2>Strategy performance report <span style="font-weight:400;color:var(--muted);font-size:12px">· per-strategy scorecard — the pass/fail is vs buy-and-hold, not raw return; verdicts computed server-side from the daily series</span></h2>
+        <div id="stratreport"><div class="empty">Loading…</div></div>
+      </div>
+
+      <div class="card">
         <h2>Opportunities · <span id="oppsWindow">last 12h</span> <span style="font-weight:400;color:var(--muted);font-size:12px">(flagged before latency re-check)</span></h2>
         <div class="scroll"><table id="opps"><thead><tr>
           <th>Time (UTC)</th><th>Asset</th><th>Buy</th><th>Sell</th><th>Net %</th><th>Buy px</th><th>Sell px</th>
@@ -278,6 +291,58 @@
           '<td class="'+(parseFloat(t.pnl_usd)>=0?'up':'down')+'">'+esc(t.pnl_usd)+'</td>'+
           '<td>'+esc(t.balance_after)+'</td></tr>';
       }).join('');
+
+      var gl=d.grid, gtb=document.querySelector('#gridtbl tbody');
+      var glOk=gl&&gl.grids&&gl.grids.length;
+      document.getElementById('gridEmpty').style.display=glOk?'none':'block';
+      gtb.innerHTML=glOk?gl.grids.map(function(g){
+        var r=g.return_pct, vs=g.vs_buy_hold_pct;
+        return '<tr><td><b>'+esc(g.name)+'</b>'+(g.in_range?'':' <span class="pill evaporated">out of range</span>')+'</td>'+
+          '<td>'+esc(g.range[0])+' – '+esc(g.range[1])+'</td><td>'+esc(g.last_price)+'</td>'+
+          '<td>'+esc(g.fills)+'</td><td>'+esc(g.round_trips)+'</td>'+
+          '<td class="'+(g.realized>=0?'up':'down')+'">'+g.realized.toFixed(2)+'</td>'+
+          '<td>'+g.fees.toFixed(2)+'</td><td>'+g.equity.toFixed(2)+'</td>'+
+          '<td class="'+(r>=0?'up':'down')+'">'+(r>=0?'+':'')+r.toFixed(2)+'%</td>'+
+          '<td class="'+(vs>=0?'up':'down')+'">'+(vs>=0?'+':'')+vs.toFixed(2)+'%</td>'+
+          '<td>'+g.max_dd_pct.toFixed(2)+'%</td><td>'+esc(g.out_of_range_min)+'m</td></tr>';
+      }).join(''):'';
+
+      var sr=document.getElementById('stratreport'), blocks=[];
+      function chip(l,v,cls){return '<span style="display:inline-block;margin:2px 10px 2px 0;font-size:12px"><span style="color:var(--muted)">'+l+'</span> <b class="'+(cls||'')+'">'+v+'</b></span>'}
+      if(glOk){
+        gl.grids.forEach(function(g){
+          var rp=g.report||{}; var vs=rp.vs_buy_hold_pct||0, r=rp.return_pct||0;
+          var hist=(g.history||[]).slice(-7).map(function(h){
+            var dv=h.eq-h.bh;
+            return '<tr><td>'+esc(h.d)+'</td><td>$'+h.eq.toFixed(2)+'</td><td>$'+h.bh.toFixed(2)+'</td>'+
+              '<td class="'+(dv>=0?'up':'down')+'">'+(dv>=0?'+':'')+dv.toFixed(2)+'</td><td>'+esc(h.fills)+'</td></tr>';
+          }).join('');
+          blocks.push('<div style="padding:10px 0;border-bottom:1px solid #f1f1f6">'+
+            '<div style="font-size:13px"><b>'+esc(g.name)+'</b> · <span class="'+(r>0&&vs>=0?'up':(r<=0?'down':''))+'" style="font-size:12px">'+esc(rp.verdict||'')+'</span></div>'+
+            '<div style="margin:6px 0 4px">'+
+              chip('days',rp.days_running)+
+              chip('return',(r>=0?'+':'')+r.toFixed(2)+'%',r>=0?'up':'down')+
+              chip('buy&hold',(rp.bh_return_pct>=0?'+':'')+(rp.bh_return_pct||0).toFixed(2)+'%')+
+              chip('vs B&H',(vs>=0?'+':'')+vs.toFixed(2)+'%',vs>=0?'up':'down')+
+              chip('fees',(rp.fees_pct_of_capital||0).toFixed(2)+'% of cap')+
+              chip('RT/day',rp.round_trips_per_day)+
+              chip('out of range',(rp.out_of_range_pct||0)+'%')+
+              chip('max DD',(rp.max_dd_pct||0)+'%')+
+            '</div>'+
+            (hist?'<div class="scroll"><table style="font-size:11.5px"><thead><tr><th>Day (UTC)</th><th>Equity</th><th>Buy&amp;Hold</th><th>Δ vs B&amp;H $</th><th>Fills</th></tr></thead><tbody>'+hist+'</tbody></table></div>':'')+
+          '</div>');
+        });
+      }
+      if(p&&p.start){
+        var aret=(p.balance/p.start-1)*100, awr=p.fills?(p.wins/p.fills*100):0;
+        blocks.push('<div style="padding:10px 0">'+
+          '<div style="font-size:13px"><b>Cross-venue arb (paper)</b> · <span style="font-size:12px;color:var(--muted)">scored separately in the weekly edge report — persistence-guarded, every fill needs a live human re-check before it means anything</span></div>'+
+          '<div style="margin:6px 0 0">'+
+            chip('return',(aret>=0?'+':'')+aret.toFixed(2)+'%',aret>=0?'up':'down')+
+            chip('fills',p.fills||0)+chip('evaporated',p.evaporated||0)+chip('win rate',awr.toFixed(0)+'%')+
+          '</div></div>');
+      }
+      sr.innerHTML=blocks.length?blocks.join(''):'<div class="empty">No strategy data yet.</div>';
 
       var ob=document.querySelector('#opps tbody'), op=d.recent_opportunities||[];
       document.getElementById('oppsEmpty').style.display=op.length?'none':'block';

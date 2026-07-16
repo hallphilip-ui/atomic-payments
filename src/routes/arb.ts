@@ -24,6 +24,8 @@ const SNAPSHOT_PATH =
   process.env.ARB_SNAPSHOT_PATH || '/opt/atomic-arb-scanner/arb_snapshot.json';
 const CONFIG_PATH =
   process.env.ARB_CONFIG_PATH || '/opt/atomic-arb-scanner/config.json';
+const GRID_SNAPSHOT_PATH =
+  process.env.GRID_SNAPSHOT_PATH || '/opt/atomic-arb-scanner/grid_snapshot.json';
 
 // Admin-tunable scanner settings, with the SAME bounds the scanner clamps to.
 const CONFIG_BOUNDS: Record<string, [number, number]> = {
@@ -53,6 +55,14 @@ function readSnapshot(): any {
   const ageSec = Math.round((Date.now() - statSync(SNAPSHOT_PATH).mtimeMs) / 1000);
   const parsed = JSON.parse(raw);
   parsed.snapshot_age_sec = ageSec;
+  // Grid Lab (paper spot grids) — optional sibling snapshot written by gridbot.py.
+  // Absent file just means the service isn't running; the desk hides the card.
+  try {
+    parsed.grid = JSON.parse(readFileSync(GRID_SNAPSHOT_PATH, 'utf8'));
+    parsed.grid.snapshot_age_sec = Math.round((Date.now() - statSync(GRID_SNAPSHOT_PATH).mtimeMs) / 1000);
+  } catch {
+    parsed.grid = null;
+  }
   return parsed;
 }
 
