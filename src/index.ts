@@ -335,6 +335,16 @@ app.use('/admin-review', (_req: Request, res: Response) => {
   return res.send(html);
 });
 
+// Flash-Loan Lab — a private page UNDER the /arb-desk prefix so it inherits the
+// same Cloudflare Access gate. MUST be registered before the '/arb-desk' catch-all
+// below, which is a prefix match that would otherwise serve arb-desk.html here.
+app.use('/arb-desk/flash', (_req: Request, res: Response) => {
+  const html = readFileSync(join(process.cwd(), 'flash-lab.html'), 'utf8');
+  res.header('Content-Type', 'text/html; charset=utf-8');
+  res.header('Cache-Control', 'no-cache, must-revalidate');
+  return res.send(html);
+});
+
 app.use('/arb-desk', (_req: Request, res: Response) => {
   const html = readFileSync(join(process.cwd(), 'arb-desk.html'), 'utf8');
   res.header('Content-Type', 'text/html; charset=utf-8');

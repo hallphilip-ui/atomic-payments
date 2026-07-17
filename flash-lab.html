@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flash-Loan Lab — Atomic (operator)</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    :root{--ink:#14161c;--muted:#667085;--line:#e8e9f0;--panel:#fff;--soft:#f7f7fb;
+      --accent:#6d5cf5;--green:#16b364;--red:#e5484d;--amber:#e08a00;
+      --shadow:0 1px 2px rgba(16,18,30,.04),0 8px 24px rgba(16,18,30,.06);}
+    *{box-sizing:border-box}
+    body{margin:0;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+      background:radial-gradient(900px 480px at 82% -12%,rgba(109,92,245,.10),transparent 60%),#fbfbfd;min-height:100vh}
+    .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,3vw,28px)}
+    .top{display:flex;align-items:center;justify-content:space-between;height:64px;border-bottom:1px solid var(--line);
+      position:sticky;top:0;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);padding:0 clamp(16px,3vw,28px);z-index:10}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:600}
+    .brand .dot{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#8b5cf6)}
+    .badge{font-size:11px;font-weight:700;letter-spacing:.03em;padding:4px 9px;border-radius:999px;background:#fff4e6;color:var(--amber);border:1px solid #ffe2b8}
+    main{padding:22px 0 60px}
+    .banner{background:#f3f1fe;border:1px solid #e4e0fb;color:#4a3fb8;font-size:13px;padding:11px 14px;border-radius:12px;margin-bottom:18px}
+    .banner.warn{background:#fff7ed;border-color:#ffe2b8;color:#9a5b00}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px;margin-bottom:16px}
+    h2{font-size:15px;margin:0 0 12px}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+    .kpi{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .kpi .l{font-size:11.5px;color:var(--muted);margin-bottom:4px}
+    .kpi .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+    .up{color:var(--green)}.down{color:var(--red)}
+    .meta{font-size:12px;color:var(--muted);margin-top:10px}
+    table{width:100%;border-collapse:collapse;font-size:12.5px}
+    th{text-align:right;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+    th:first-child,td:first-child{text-align:left}
+    td{padding:8px 10px;border-bottom:1px solid #f1f1f6;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    tbody tr:hover{background:#fafafc}
+    .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+    .pill.taken{background:#f2f2f7;color:var(--muted)}
+    .pill.yes{background:#eafaf1;color:var(--green)}
+    .pill.no{background:#fdecec;color:var(--red)}
+    .scroll{overflow-x:auto}
+    .gate{max-width:420px;margin:60px auto;text-align:center}
+    .gate input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:14px;margin:12px 0;font-family:inherit}
+    .btn{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+    .err{color:var(--red);font-size:13px;margin-top:8px}
+    .empty{color:var(--muted);font-size:13px;padding:14px 0}
+    @media(max-width:820px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">
+      <a href="/arb-desk" style="text-decoration:none;color:var(--accent);font-weight:600;font-size:13px;margin-right:6px" title="Back to the Arb Desk">← Arb Desk</a>
+      <span class="dot"></span> Atomic · Flash-Loan Lab
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="https://atomicpay.cloud/" style="font-size:13px;color:var(--muted);text-decoration:none" title="Atomic Pay home">🏠 Home</a>
+      <span id="viewer" style="font-size:12.5px;color:var(--muted)"></span>
+      <span class="badge">LOG-ONLY · SIM</span>
+      <button class="btn ghost" id="logoutBtn" style="display:none;padding:7px 12px;font-size:13px">Lock</button>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <div class="gate card" id="gate">
+      <h2>Operator sign-in</h2>
+      <p style="color:var(--muted);font-size:13px;margin:0">Enter your operator key to view the flash-loan simulator. This is read-only research — no contracts, no funds, nothing executes.</p>
+      <input id="keyInput" type="password" placeholder="x-atomic-operator-key" autocomplete="off">
+      <button class="btn" id="loginBtn">Unlock</button>
+      <div class="err" id="gateErr"></div>
+    </div>
+
+    <div id="lab" style="display:none">
+      <div class="banner">
+        <b>What this is.</b> A flash loan borrows and repays inside <b>one atomic transaction</b> — it supplies capital, it does <b>not</b> create an edge. This lab asks, for each on-chain opportunity the scanner already sees: <b>would a flash-loan tx have netted positive after the flash fee, gas, DEX swap, slippage, and the MEV bid war?</b> No keys, no contracts, no funds — it never executes.
+      </div>
+      <div class="banner warn" id="verdict"></div>
+
+      <div class="card">
+        <h2>Cost model <span style="font-weight:400;color:var(--muted);font-size:12px">· live inputs · all assumptions on the table</span></h2>
+        <div class="kpis" id="assumptions"></div>
+        <div class="meta" id="meta"></div>
+      </div>
+
+      <div class="card">
+        <h2>Aave liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· the classic flash-loan use — flash-borrow the debt, seize the discounted collateral, swap, repay. <b>Every row below was ALREADY executed by an MEV bot</b>; "net" is what the winner made, not what's on the table.</span></h2>
+        <div class="scroll"><table id="liqtbl"><thead><tr>
+          <th>When (UTC)</th><th>Collateral → Debt</th><th>Seized $</th><th>Bonus %</th><th>Gross $</th>
+          <th>Flash fee</th><th>Swap</th><th>Gas</th><th>Net (unopposed)</th><th>Net (competitive)</th><th>Clears?</th><th>Status</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="empty" id="liqEmpty" style="display:none">No liquidations in the scanner feed yet.</div>
+      </div>
+
+      <div class="card">
+        <h2>Cross-chain spreads <span style="font-weight:400;color:var(--muted);font-size:12px">· looks like arb, is <b>NOT</b> flash-loanable — a bridge hop can't sit inside one atomic tx</span></h2>
+        <div id="xchain"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+  (function(){
+    var KEY='atomic_op_key';
+    var gate=document.getElementById('gate'),lab=document.getElementById('lab');
+    var logoutBtn=document.getElementById('logoutBtn');
+    var timer=null;
+
+    function key(){ try{return sessionStorage.getItem(KEY)||''}catch(e){return ''} }
+    function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML}
+    function money(v){var n=parseFloat(v);return isNaN(n)?esc(v):(n<0?'-$':'$')+Math.abs(n).toLocaleString(undefined,{maximumFractionDigits:2})}
+    function signed(v){var n=parseFloat(v);if(isNaN(n))return esc(v);return '<span class="'+(n>=0?'up':'down')+'">'+money(n)+'</span>'}
+
+    function show(ok){ gate.style.display=ok?'none':'block'; lab.style.display=ok?'block':'none'; logoutBtn.style.display=ok?'inline-block':'none'; }
+
+    function render(d){
+      document.getElementById('viewer').textContent = d.viewer ? ('Signed in: '+d.viewer) : '';
+      document.getElementById('verdict').innerHTML = '<b>Verdict.</b> '+esc(d.verdict||'');
+
+      var a=d.assumptions||{};
+      var kp=[
+        ['Gas', (a.gas_gwei==null?'—':a.gas_gwei+' gwei')],
+        ['ETH', a.eth_price_usd==null?'—':'$'+a.eth_price_usd],
+        ['Flash fee', (a.flash_fee_bps||0)+' bps'],
+        ['DEX + slip', ((a.dex_fee_bps||0)+(a.slippage_bps||0))+' bps'],
+        ['Liq gas units', (a.liq_gas_units||0).toLocaleString()],
+        ['MEV keep', (a.mev_bonus_capture_pct==null?'—':a.mev_bonus_capture_pct+'%')]
+      ];
+      document.getElementById('assumptions').innerHTML=kp.map(function(k){
+        return '<div class="kpi"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>';
+      }).join('');
+      var age=d.snapshot_age_sec==null?'':(' · updated '+d.snapshot_age_sec+'s ago');
+      document.getElementById('meta').textContent=(d.mode||'')+' · ETH price from '+(a.eth_price_source||'?')+age;
+
+      var L=d.liquidations||{}, rows=L.rows||[];
+      var tb=document.querySelector('#liqtbl tbody');
+      document.getElementById('liqEmpty').style.display=rows.length?'none':'block';
+      tb.innerHTML=rows.map(function(r){
+        return '<tr><td>'+esc(r.ts)+'</td>'+
+          '<td><b>'+esc(r.collateral)+'</b> → '+esc(r.repaid)+'</td>'+
+          '<td>'+money(r.seized_usd)+'</td><td>'+esc(r.bonus_pct)+'%</td>'+
+          '<td>'+money(r.gross_bonus_usd)+'</td><td>'+money(r.flash_fee_usd)+'</td>'+
+          '<td>'+money(r.swap_cost_usd)+'</td><td>'+(r.gas_usd==null?'—':money(r.gas_usd))+'</td>'+
+          '<td>'+signed(r.net_usd)+'</td><td>'+signed(r.net_usd_competitive)+'</td>'+
+          '<td><span class="pill '+(r.would_clear?'yes':'no')+'">'+(r.would_clear?'yes':'no')+'</span></td>'+
+          '<td><span class="pill taken">already taken</span></td></tr>';
+      }).join('');
+
+      var xc=d.crosschain_informational||[];
+      document.getElementById('xchain').innerHTML = xc.length ? xc.map(function(x){
+        return '<div style="font-size:12.5px;padding:8px 0;border-bottom:1px solid #f1f1f6">'+
+          '<b>'+esc(x.asset)+'</b> spread '+esc(x.spread_pct)+'% ('+esc(x.cheap)+'→'+esc(x.dear)+') '+
+          '<span class="pill no">not flash-loanable</span><div style="color:var(--muted);margin-top:3px">'+esc(x.reason)+'</div></div>';
+      }).join('') : '<div class="empty">No cross-chain rows.</div>';
+    }
+
+    async function load(){
+      var k=key();
+      try{
+        var r=await fetch('/arb-desk/flash-data', k?{headers:{'x-atomic-operator-key':k}}:{});
+        if(r.status===401||r.status===403){
+          if(k){ document.getElementById('gateErr').textContent='Key rejected. Check your operator key.'; try{sessionStorage.removeItem(KEY)}catch(e){} }
+          show(false); return;
+        }
+        if(!r.ok){ throw new Error('HTTP '+r.status); }
+        render(await r.json()); show(true);
+      }catch(e){
+        document.getElementById('meta') && (document.getElementById('meta').textContent='Load error: '+e.message);
+      }
+    }
+
+    document.getElementById('loginBtn').addEventListener('click',function(){
+      var v=document.getElementById('keyInput').value.trim();
+      if(!v)return;
+      try{sessionStorage.setItem(KEY,v)}catch(e){}
+      load();
+    });
+    document.getElementById('keyInput').addEventListener('keydown',function(e){ if(e.key==='Enter')document.getElementById('loginBtn').click(); });
+    logoutBtn.addEventListener('click',function(){try{sessionStorage.removeItem(KEY)}catch(e){}; if(timer)clearInterval(timer); show(false);});
+
+    load();
+    timer=setInterval(load, 60000);
+  })();
+  </script>
+</body>
+</html>

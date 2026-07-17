@@ -26,6 +26,8 @@ const CONFIG_PATH =
   process.env.ARB_CONFIG_PATH || '/opt/atomic-arb-scanner/config.json';
 const GRID_SNAPSHOT_PATH =
   process.env.GRID_SNAPSHOT_PATH || '/opt/atomic-arb-scanner/grid_snapshot.json';
+const FLASH_SNAPSHOT_PATH =
+  process.env.FLASH_SNAPSHOT_PATH || '/opt/atomic-arb-scanner/flashloan_snapshot.json';
 
 // Admin-tunable scanner settings, with the SAME bounds the scanner clamps to.
 const CONFIG_BOUNDS: Record<string, [number, number]> = {
@@ -96,6 +98,32 @@ router.get('/arb-desk/data', async (req: Request, res: Response) => {
     });
   }
   return sendSnapshot(res, who);
+});
+
+// Flash-Loan Lab feed — LOG-ONLY simulator (flashloan_snapshot.json, written by
+// the atomic-flash-sim service). Same self-gate as the desk: operator key OR a
+// per-person Cloudflare Access login (the /arb-desk/* prefix is Access-protected).
+router.get('/arb-desk/flash-data', async (req: Request, res: Response) => {
+  const who = await deskAdmin(req, false);
+  if (!who) {
+    return res.status(401).json({
+      error: 'Sign in required.',
+      accepts: ['x-atomic-operator-key: <key>', 'Cloudflare Access session (per-person)']
+    });
+  }
+  try {
+    const snap = JSON.parse(readFileSync(FLASH_SNAPSHOT_PATH, 'utf8'));
+    snap.snapshot_age_sec = Math.round((Date.now() - statSync(FLASH_SNAPSHOT_PATH).mtimeMs) / 1000);
+    snap.viewer = who;
+    res.header('Cache-Control', 'no-store');
+    return res.json(snap);
+  } catch (err) {
+    return res.status(503).json({
+      error: 'Flash-loan snapshot unavailable',
+      detail: err instanceof Error ? err.message : String(err),
+      hint: `Expected ${FLASH_SNAPSHOT_PATH} written by the atomic-flash-sim service.`
+    });
+  }
 });
 
 // Admin-tunable scanner controls: writes config.json that the scanner reads each cycle.
