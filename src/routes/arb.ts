@@ -28,6 +28,8 @@ const GRID_SNAPSHOT_PATH =
   process.env.GRID_SNAPSHOT_PATH || '/opt/atomic-arb-scanner/grid_snapshot.json';
 const FLASH_SNAPSHOT_PATH =
   process.env.FLASH_SNAPSHOT_PATH || '/opt/atomic-arb-scanner/flashloan_snapshot.json';
+const BSC_SNAPSHOT_PATH =
+  process.env.BSC_SNAPSHOT_PATH || '/opt/atomic-arb-scanner/bsc_snapshot.json';
 
 // Admin-tunable scanner settings, with the SAME bounds the scanner clamps to.
 const CONFIG_BOUNDS: Record<string, [number, number]> = {
@@ -115,6 +117,14 @@ router.get('/arb-desk/flash-data', async (req: Request, res: Response) => {
     const snap = JSON.parse(readFileSync(FLASH_SNAPSHOT_PATH, 'utf8'));
     snap.snapshot_age_sec = Math.round((Date.now() - statSync(FLASH_SNAPSHOT_PATH).mtimeMs) / 1000);
     snap.viewer = who;
+    // BSC scanner (PancakeSwap arb + Venus liquidations) — optional sibling snapshot
+    // written by the atomic-bsc-opps service. Absent file just hides the BSC cards.
+    try {
+      snap.bsc = JSON.parse(readFileSync(BSC_SNAPSHOT_PATH, 'utf8'));
+      snap.bsc.snapshot_age_sec = Math.round((Date.now() - statSync(BSC_SNAPSHOT_PATH).mtimeMs) / 1000);
+    } catch {
+      snap.bsc = null;
+    }
     res.header('Cache-Control', 'no-store');
     return res.json(snap);
   } catch (err) {

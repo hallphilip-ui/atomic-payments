@@ -96,6 +96,23 @@
         <h2>Cross-chain spreads <span style="font-weight:400;color:var(--muted);font-size:12px">· looks like arb, is <b>NOT</b> flash-loanable — a bridge hop can't sit inside one atomic tx</span></h2>
         <div id="xchain"></div>
       </div>
+
+      <div class="card" id="bscCard" style="display:none">
+        <h2>BNB Chain <span id="bscMeta" style="font-weight:400;color:var(--muted);font-size:12px"></span></h2>
+
+        <h2 style="font-size:13px;margin:14px 0 8px">PancakeSwap cross-DEX arb <span style="font-weight:400;color:var(--muted);font-size:12px">· same pair, PancakeSwap V2 vs Biswap vs ApeSwap, on-chain reserves. Depth-aware: a spread on a shallow pool is a mirage, not an edge. Flash-loanable (same-chain, atomic).</span></h2>
+        <div class="scroll"><table id="bscArbTbl"><thead><tr>
+          <th>Pair</th><th>Buy → Sell</th><th>Spread %</th><th>Fees %</th><th>Slippage %</th><th>Net %</th><th>Min pool $</th><th>Clears?</th>
+        </tr></thead><tbody></tbody></table></div>
+
+        <h2 style="font-size:13px;margin:18px 0 8px">Venus liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· borrowers health-scanned from the Venus subgraph; currently-liquidatable positions modeled through the flash-loan lens</span></h2>
+        <div class="kpis" id="venusKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+        <div class="scroll" style="margin-top:12px"><table id="venusTbl"><thead><tr>
+          <th>Account</th><th>Collateral $</th><th>Borrow $</th><th>Shortfall $</th><th>Seizable $</th><th>Gross bonus $</th><th>Net (competitive) $</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="empty" id="venusEmpty" style="display:none">No currently-liquidatable positions — MEV bots keep them cleared within blocks (the expected outcome).</div>
+        <div class="meta" id="venusNote"></div>
+      </div>
     </div>
   </main>
 
@@ -152,6 +169,47 @@
           '<b>'+esc(x.asset)+'</b> spread '+esc(x.spread_pct)+'% ('+esc(x.cheap)+'→'+esc(x.dear)+') '+
           '<span class="pill no">not flash-loanable</span><div style="color:var(--muted);margin-top:3px">'+esc(x.reason)+'</div></div>';
       }).join('') : '<div class="empty">No cross-chain rows.</div>';
+
+      renderBsc(d.bsc);
+    }
+
+    function renderBsc(b){
+      var card=document.getElementById('bscCard');
+      if(!b){ card.style.display='none'; return; }
+      card.style.display='block';
+      var a=b.assumptions||{};
+      document.getElementById('bscMeta').textContent='· gas '+(a.gas_gwei==null?'—':a.gas_gwei+' gwei')+' · BNB $'+(a.bnb_price_usd||'—')+' · clip $'+(a.arb_clip_usd||'—')+(b.snapshot_age_sec==null?'':' · '+b.snapshot_age_sec+'s ago');
+
+      var arb=b.pancake_arb||[];
+      document.querySelector('#bscArbTbl tbody').innerHTML=arb.map(function(r){
+        var shallow=r.shallow_pool?' <span class="pill taken">shallow</span>':'';
+        return '<tr><td><b>'+esc(r.pair)+'</b>'+shallow+'</td>'+
+          '<td>'+esc(r.buy_on)+' → '+esc(r.sell_on)+'</td>'+
+          '<td>'+esc(r.spread_pct)+'%</td><td>'+esc(r.fees_pct)+'%</td>'+
+          '<td>'+esc(r.slippage_pct)+'%</td><td>'+signed(r.net_usd_on_clip)+'</td>'+
+          '<td>'+(r.min_pool_liq_usd==null?'—':money(r.min_pool_liq_usd))+'</td>'+
+          '<td><span class="pill '+(r.would_clear?'yes':'no')+'">'+(r.would_clear?'yes':'no')+'</span></td></tr>';
+      }).join('');
+
+      var v=b.venus||{};
+      var vk=[
+        ['Liq. incentive', (v.liquidation_incentive_pct==null?'—':v.liquidation_incentive_pct+'%')],
+        ['Close factor', (v.close_factor_pct==null?'—':v.close_factor_pct+'%')],
+        ['Borrowers scanned', (v.borrowers_scanned==null?'—':v.borrowers_scanned)],
+        ['Liquidatable now', (v.liquidatable_count==null?'—':v.liquidatable_count)]
+      ];
+      document.getElementById('venusKpis').innerHTML=vk.map(function(k){
+        return '<div class="kpi"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>';
+      }).join('');
+      var rows=v.currently_liquidatable||[];
+      document.getElementById('venusEmpty').style.display=rows.length?'none':'block';
+      document.querySelector('#venusTbl tbody').innerHTML=rows.map(function(r){
+        return '<tr><td>'+esc((r.account||'').slice(0,10))+'…</td>'+
+          '<td>'+money(r.collateral_usd)+'</td><td>'+money(r.borrow_usd)+'</td>'+
+          '<td class="down">'+money(r.shortfall_usd)+'</td><td>'+money(r.seizable_usd)+'</td>'+
+          '<td class="up">'+money(r.gross_bonus_usd)+'</td><td>'+signed(r.net_competitive_usd)+'</td></tr>';
+      }).join('');
+      document.getElementById('venusNote').textContent=v.note||v.error||'';
     }
 
     async function load(){
