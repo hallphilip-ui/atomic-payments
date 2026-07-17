@@ -22,7 +22,7 @@
     "test:security": "node scripts/security-regression-contract.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.19.3",
     "express": "^4.22.2",
     "express-rate-limit": "^7.5.1",
     "nodemailer": "^9.0.3",
@@ -34,7 +34,7 @@
     "@types/node": "^26.0.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "prisma": "^5.22.0",
+    "prisma": "^6.19.3",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
   }
