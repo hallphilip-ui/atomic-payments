@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.9.0 - 2026-07-17
+
+**Operator research surfaces — Grid Lab and the Flash-Loan Lab (with a BSC surface) — plus keyless OFAC screening and Prisma 6. Everything here is LOG-ONLY: no trade keys live server-side, nothing auto-executes.**
+
+- **Grid Lab** (on the operator-gated `/arb-desk`) — a LOG-ONLY paper spot-grid + micro-scalp forward test. Four strategies (BTC/ETH/SOL 1% grids + a BTC 0.4% micro-scalp) run $1,000 paper each against real Kraken 1-minute candles, with honest fills (a rung fills only when price trades *through* it), real maker fees, and per-cycle benchmarking **against buy-and-hold and hold-USD** — a grid that trails the trend shows it. Reads a `grid_snapshot.json` written by the scanner box; the desk hides the card when the service is off.
+- **Flash-Loan Lab** — a **private** page at `/arb-desk/flash`, under the same Cloudflare Access gate as the desk. A LOG-ONLY simulator that asks, for each on-chain opportunity the scanner already sees, whether a flash-loan tx would clear its costs (flash fee + live gas + DEX swap + slippage + the MEV bid war). Aave liquidations are modeled honestly and flagged **already-executed** (the net is what the winner made, not what's capturable); cross-chain spreads are flagged **not flash-loanable** (a bridge hop can't sit in one atomic tx). New gated `/arb-desk/flash-data` feed; page routed under the `/arb-desk` prefix so it inherits the Access login.
+- **BSC surface on the Flash Lab** — PancakeSwap cross-DEX arb from on-chain reserves (V2 vs Biswap vs ApeSwap, depth-aware) plus Venus liquidations health-scanned from the Venus subgraph, both modeled through the flash-loan lens.
+- **Keyless daily OFAC sanctions auto-refresh** — the sanctions screen now re-pulls the official U.S. Treasury SDN every 24h and replaces the in-memory list in place (905 addresses across BTC/TRON/EVM/LTC), with a min-size guard and a restart-surviving cache. No vendor, no signup, no API key — Chainalysis remains optional, not required.
+- **Prisma 5.22 → 6.19.3** (drop-in; no schema/preview-feature changes).
+- **Atomic Exchange cross-links** from the landing nav/footer and the swap console; the swap console's top bar links back to the Exchange.
+- Operator alert delivery (scanner side) gained **Telegram** and **one-tap venue deep-links** — navigation only; alerts never place an order.
+
 ## 2.8.2 - 2026-07-14
 
 **Security release — stored XSS on the wallet origin, and an unauthenticated off-ramp link builder.**
