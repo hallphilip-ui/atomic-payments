@@ -32,6 +32,28 @@ export async function screenAddressOracle(address: string): Promise<SanctionsHit
   }
 }
 
+// Like screenAddressOracle, but reports whether the live check ACTUALLY RAN. A
+// caller rendering a verdict must not claim "clean" when the oracle was merely
+// unreachable (it fails open to null either way). `ran:false` => oracle errored.
+export async function screenAddressOracleChecked(
+  address: string,
+): Promise<{ hit: SanctionsHit | null; ran: boolean }> {
+  const a = (address || '').trim();
+  if (!EVM_ADDRESS.test(a)) return { hit: null, ran: false };
+  try {
+    const data = IS_SANCTIONED_SELECTOR + a.toLowerCase().slice(2).padStart(64, '0');
+    const res: string = await rpcCall(1, 'eth_call', [{ to: SANCTIONS_ORACLE, data }, 'latest']);
+    const hit: SanctionsHit | null =
+      res && res !== '0x' && BigInt(res) === 1n
+        ? { listed: true, source: 'chainalysis_oracle_onchain', category: 'sanctions', matchedAddress: address }
+        : null;
+    return { hit, ran: true };
+  } catch (error) {
+    console.warn('[sanctions] on-chain oracle unreachable:', (error as Error).message);
+    return { hit: null, ran: false };
+  }
+}
+
 // The on-chain oracle is always available (keyless) for EVM addresses — so live
 // sanctions coverage no longer depends on the (optional) Chainalysis HTTP key.
 export function isLiveSanctionsAvailable(): boolean {

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.9.1 - 2026-07-18
+
+**Wallet Intelligence — paste an Ethereum address, get read-only diligence (sanctions, type, holdings, activity). Independently code-reviewed and hardened before ship.**
+
+- New public `GET /v1/wallet-intel/:address` (Ethereum mainnet): screens the address **and its recent counterparties** against the OFAC snapshot + the live on-chain sanctions oracle; classifies EOA / contract / **EIP-7702 delegated EOA**; reports native + token holdings, an activity window (first/last seen, age, dormant), heuristic labels, and a **clean / caution / high / critical** risk verdict. Reuses the Alchemy-backed RPC and the OFAC screen from 2.9.0 — a route plus a card, not a new service. Surfaced on Atomic Exchange as a "Wallet Intel" panel (edge-proxied via a Pages Function, per-client rate-limited). Read-only: no copy-trading, no execution.
+- **Review fixes** (from an independent correctness + security review; zero XSS/SSRF/injection found):
+  - **Rate limit is now per-client, not one global bucket.** The exchange's edge proxy hid the real client behind Cloudflare's egress IP, collapsing every visitor into a single 20/min bucket — a trivial self-DoS. The proxy now forwards the real client IP (`X-Client-IP`, set from `cf-connecting-ip`, never client input) and the origin keys the limiter per user (30/min).
+  - **The verdict no longer over-claims "clean" when the live oracle is unreachable.** A new `screenAddressOracleChecked` reports whether the live layer actually ran; the response carries a `screen` status (`ofac_snapshot` / `live_oracle`: clear | hit | unavailable) and marks a snapshot-only result provisional.
+  - **`last_seen` now reflects inbound *and* outbound** — a receive-only wallet was wrongly reported as never-active.
+  - Counterparty screen bounded to 15 addresses (caps RPC fan-out); internal error strings no longer leak to clients.
+
 ## 2.9.0 - 2026-07-17
 
 **Operator research surfaces — Grid Lab and the Flash-Loan Lab (with a BSC surface) — plus keyless OFAC screening and Prisma 6. Everything here is LOG-ONLY: no trade keys live server-side, nothing auto-executes.**
