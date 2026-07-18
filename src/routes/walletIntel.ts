@@ -11,6 +11,10 @@ const router = Router();
 
 const EVM = /^0x[a-fA-F0-9]{40}$/;
 const TRON = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
+const BTC = /^(bc1[a-z0-9]{25,71}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/;
+// Solana is the fallback base58 shape — checked only AFTER EVM/Tron/BTC, since a
+// Tron 'T…' and a legacy BTC '1…'/'3…' also fit the base58 alphabet.
+const SOL = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const CHAIN_ID = 1;
 
 // Curated top TRC-20 tokens (Tron): contract → symbol, decimals, CoinGecko id for
@@ -211,20 +215,121 @@ async function tronReport(raw: string): Promise<any> {
   };
 }
 
+// Bitcoin diligence — OFAC snapshot (526 BTC addresses) + balance/tx from the
+// keyless mempool.space API. No native tokens on Bitcoin.
+async function btcReport(raw: string): Promise<any> {
+  const reasons: string[] = [];
+  const labels: string[] = ['Bitcoin address'];
+  const localHit = screenAddressLocal(raw);
+
+  let balBtc = 0, txCount = 0;
+  let lastSeen: string | null = null;
+  try {
+    const r = await fetch(`https://mempool.space/api/address/${raw}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(9000) });
+    const j = (await r.json()) as any;
+    const cs = j?.chain_stats || {};
+    balBtc = ((cs.funded_txo_sum || 0) - (cs.spent_txo_sum || 0)) / 1e8;
+    txCount = cs.tx_count || 0;
+  } catch { /* best-effort */ }
+  try {
+    const r = await fetch(`https://mempool.space/api/address/${raw}/txs`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(9000) });
+    const txs = (await r.json()) as any[];
+    const bt = Array.isArray(txs) && txs[0]?.status?.block_time;
+    if (bt) lastSeen = new Date(bt * 1000).toISOString();
+  } catch { /* best-effort */ }
+
+  const btcUsd = (await cgPricesByIds(['bitcoin']))['bitcoin'] ?? null;
+  const dormant = !!lastSeen && (Date.now() - Date.parse(lastSeen)) > 180 * 86_400_000;
+  if (balBtc >= 50) labels.push('whale (native BTC)');
+  if (dormant) labels.push('dormant (no activity in 180+ days)');
+
+  let level: 'clean' | 'caution' | 'high' | 'critical' = 'clean';
+  if (localHit) { level = 'critical'; reasons.push('This address is on the OFAC SDN sanctions list. Do not transact.'); labels.push('SANCTIONED'); }
+  else reasons.push('No match on the OFAC SDN list (daily snapshot, includes Bitcoin). No live oracle exists for Bitcoin.');
+  const sanctionsScreen = { ofac_snapshot: localHit ? 'hit' : 'clear', live_oracle: 'n/a (Bitcoin)' };
+
+  return {
+    address: raw, chain: 'bitcoin', valid: true, type: 'account', known_label: null,
+    risk: { level, sanctioned: !!localHit, screen: sanctionsScreen, tainted_counterparty: null, reasons },
+    native: { symbol: 'BTC', balance: balBtc, usd: btcUsd ? balBtc * btcUsd : null },
+    activity: { outbound_tx: txCount, first_seen: null, last_seen: lastSeen, days_active: null, dormant },
+    tokens: [], tokens_hidden: 0, labels,
+    summary: `Bitcoin address holding ${balBtc.toLocaleString(undefined, { maximumFractionDigits: 8 })} BTC${btcUsd ? ` (~$${Math.round(balBtc * btcUsd).toLocaleString()})` : ''} across ${txCount.toLocaleString()} transaction(s). Risk: ${level}.`,
+    disclaimer: 'Heuristic diligence on public on-chain data (Bitcoin). Not investment or legal advice.',
+    data_sources: ['mempool.space (balance + tx)', 'OFAC SDN list (Bitcoin addresses)', 'CoinGecko (price)'],
+    generated_at: new Date().toISOString(),
+  };
+}
+
+async function solRpc(method: string, params: any[]): Promise<any> {
+  const r = await fetch('https://api.mainnet-beta.solana.com', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(9000),
+  });
+  return ((await r.json()) as any)?.result;
+}
+
+// Solana diligence — OFAC snapshot + SOL balance, SPL-token-account count, and last
+// activity from the public Solana RPC.
+async function solReport(raw: string): Promise<any> {
+  const reasons: string[] = [];
+  const labels: string[] = ['Solana account'];
+  const localHit = screenAddressLocal(raw);
+
+  const [balRes, tokRes, sigRes] = await Promise.all([
+    solRpc('getBalance', [raw]).catch(() => null),
+    solRpc('getTokenAccountsByOwner', [raw, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }, { encoding: 'jsonParsed' }]).catch(() => null),
+    solRpc('getSignaturesForAddress', [raw, { limit: 1 }]).catch(() => null),
+  ]);
+  const balSol = (balRes?.value || 0) / 1e9;
+  const splCount = (tokRes?.value || []).length;
+  const sig = Array.isArray(sigRes) ? sigRes[0] : null;
+  const lastSeen = sig?.blockTime ? new Date(sig.blockTime * 1000).toISOString() : null;
+
+  const solUsd = (await cgPricesByIds(['solana']))['solana'] ?? null;
+  const dormant = !!lastSeen && (Date.now() - Date.parse(lastSeen)) > 180 * 86_400_000;
+  if (splCount) labels.push(`${splCount} SPL token account(s)`);
+  if (balSol >= 10000) labels.push('whale (native SOL)');
+  if (dormant) labels.push('dormant (no activity in 180+ days)');
+
+  let level: 'clean' | 'caution' | 'high' | 'critical' = 'clean';
+  if (localHit) { level = 'critical'; reasons.push('This address is on the OFAC SDN sanctions list. Do not transact.'); labels.push('SANCTIONED'); }
+  else reasons.push('No match on the OFAC SDN list (daily snapshot). No live on-chain oracle exists for Solana.');
+  const sanctionsScreen = { ofac_snapshot: localHit ? 'hit' : 'clear', live_oracle: 'n/a (Solana)' };
+
+  return {
+    address: raw, chain: 'solana', valid: true, type: 'account', known_label: null,
+    risk: { level, sanctioned: !!localHit, screen: sanctionsScreen, tainted_counterparty: null, reasons },
+    native: { symbol: 'SOL', balance: balSol, usd: solUsd ? balSol * solUsd : null },
+    activity: { outbound_tx: null, first_seen: null, last_seen: lastSeen, days_active: null, dormant },
+    tokens: [], tokens_hidden: 0, labels,
+    summary: `Solana account holding ${balSol.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL${solUsd ? ` (~$${Math.round(balSol * solUsd).toLocaleString()})` : ''} and ${splCount} SPL token account(s). Risk: ${level}.`,
+    disclaimer: 'Heuristic diligence on public on-chain data (Solana). Not investment or legal advice.',
+    data_sources: ['Solana RPC (balance + tokens + activity)', 'OFAC SDN list', 'CoinGecko (price)'],
+    generated_at: new Date().toISOString(),
+  };
+}
+
 router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Response) => {
   const raw = String(req.params.address || '').trim();
-  // Tron path (base58, T…) — different data sources, same report shape.
-  if (TRON.test(raw)) {
+  // Non-EVM paths (different data sources, same report shape). Order matters: Tron
+  // and legacy-BTC also fit the base58 alphabet, so Solana is checked last.
+  const nonEvm: Record<string, (a: string) => Promise<any>> =
+    TRON.test(raw) ? { tron: tronReport } :
+    BTC.test(raw) ? { bitcoin: btcReport } :
+    (!EVM.test(raw) && SOL.test(raw)) ? { solana: solReport } : {};
+  const [chainName, fn] = Object.entries(nonEvm)[0] || [];
+  if (fn) {
     try {
-      return res.json(await tronReport(raw));
+      return res.json(await fn(raw));
     } catch (err) {
-      console.error('[wallet-intel tron] lookup failed:', err instanceof Error ? err.message : String(err));
+      console.error(`[wallet-intel ${chainName}] lookup failed:`, err instanceof Error ? err.message : String(err));
       return res.status(502).json({ error: 'Wallet lookup failed. Please try again.' });
     }
   }
   if (!EVM.test(raw)) {
     return res.status(400).json({
-      error: 'Enter a valid Ethereum (0x… 40 hex) or Tron (T…) address.',
+      error: 'Enter a valid Ethereum (0x…), Tron (T…), Bitcoin, or Solana address.',
     });
   }
   const addr = raw.toLowerCase();

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.3 - 2026-07-18
+
+**Wallet Intelligence: Bitcoin + Solana support, and the report now opens in its own full-page tab.**
+
+- **Two more chains — Bitcoin and Solana** — alongside Ethereum and Tron; the address type is auto-detected. Bitcoin (`bc1…`/`1…`/`3…`) uses the keyless mempool.space API for balance + tx count + last activity; Solana uses the public RPC for SOL balance, SPL-token-account count, and last activity. Both screen against the OFAC snapshot (which includes **526 Bitcoin** and Solana addresses) — so the tool now covers essentially the entire OFAC crypto address space (BTC + TRON + EVM + SOL).
+- **The report opens in a dedicated new tab** (`/wallet`) instead of expanding inside the dashboard card — the inline report was overflowing the box. The dashboard now shows a compact search that launches the full-page report; the report page auto-runs from `?address=` and lets you look up another address inline.
+
 ## 2.9.2 - 2026-07-18
 
 **Wallet Intelligence: Tron support + a real token filter (value-ranked, spam hidden) + more report detail.**
