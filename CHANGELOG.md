@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.9.2 - 2026-07-18
+
+**Wallet Intelligence: Tron support + a real token filter (value-ranked, spam hidden) + more report detail.**
+
+- **Tron addresses now supported** (`T…` base58, alongside `0x…` EVM). Sanctions screen runs against the OFAC snapshot (which includes 267 Tron addresses); account balance, TRC-20 holdings, and first/last activity come from the keyless TronGrid API; a curated TRC-20 map (USDT/USDC/USDD/JST/BTT/WIN/SUN/WBTC) is priced via CoinGecko. Same report shape and risk verdict as the EVM path.
+- **Token holdings are now value-ranked and spam-filtered.** The list was surfacing airdrop-spam by raw amount; now every held token is **priced** (EVM via the Alchemy Prices API, Tron via CoinGecko), tokens worth ≥ $1 are shown sorted by USD value, and everything unpriced or sub-$1 (i.e. spam/dust) is hidden with an honest count. To avoid missing real tokens buried under spam, we scan a wide balance set and **price first, then fetch metadata only for priced tokens** (also cuts RPC calls). Falls back to amount-ranked display only if the price service is unavailable — never silently hides real holdings.
+- **More detail in the report:** a sanctions-screen status line (OFAC snapshot / live-oracle state), a "last active" field (now derived from inbound *and* outbound activity), and the native symbol/chain rendered correctly per chain.
+- Exchange "Wallet Intel" panel: accepts both address types, cleaner input/button styling, USD value column.
+
 ## 2.9.1 - 2026-07-18
 
 **Wallet Intelligence — paste an Ethereum address, get read-only diligence (sanctions, type, holdings, activity). Independently code-reviewed and hardened before ship.**

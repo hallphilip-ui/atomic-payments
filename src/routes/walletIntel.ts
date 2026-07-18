@@ -10,7 +10,22 @@ import { screenAddressLocal, screenAddressOracleChecked, screenAddresses } from 
 const router = Router();
 
 const EVM = /^0x[a-fA-F0-9]{40}$/;
+const TRON = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
 const CHAIN_ID = 1;
+
+// Curated top TRC-20 tokens (Tron): contract → symbol, decimals, CoinGecko id for
+// pricing. USDT dominates real value on Tron, so this small map covers most wallets;
+// anything not here is counted as "unpriced/other" rather than shown as noise.
+const TRON_TOKENS: Record<string, { sym: string; dec: number; cg: string }> = {
+  TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t: { sym: 'USDT', dec: 6, cg: 'tether' },
+  TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8: { sym: 'USDC', dec: 6, cg: 'usd-coin' },
+  TPYmHEhy5n8TCEfYGqW2rPxsghSfzghPDn: { sym: 'USDD', dec: 18, cg: 'usdd' },
+  TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9: { sym: 'JST', dec: 18, cg: 'just' },
+  TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4: { sym: 'BTT', dec: 18, cg: 'bittorrent' },
+  TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7: { sym: 'WIN', dec: 6, cg: 'wink' },
+  TSSMHYeV2uE9qYH95DqyoCuNCzEL1NvU3S: { sym: 'SUN', dec: 18, cg: 'sun-token' },
+  TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9: { sym: 'WBTC', dec: 8, cg: 'wrapped-bitcoin' },
+};
 
 // Per-CLIENT limit. Requests arrive via the exchange's Cloudflare Pages proxy, which
 // does a server-side fetch — so the origin sees Cloudflare's egress IP, not the user,
@@ -59,13 +74,157 @@ async function ethUsd(): Promise<number | null> {
   return ethPx?.usd ?? null;
 }
 
+// USD prices for ERC-20 contracts (CoinGecko, by contract address). A real token
+// has a price feed; airdrop-spam almost never does — so an ABSENT price is the spam
+// signal we filter on. `ok` distinguishes "service answered, this token has no price"
+// (spam → hide) from "price service was down" (→ don't hide real holdings).
+async function tokenPrices(contracts: string[]): Promise<{ prices: Record<string, number>; ok: boolean }> {
+  const prices: Record<string, number> = {};
+  const uniq = [...new Set(contracts.filter((c) => EVM.test(c)).map((c) => c.toLowerCase()))];
+  if (!uniq.length) return { prices, ok: true };
+  // Alchemy Prices API (by contract). Reliable + batched + already on our key —
+  // CoinGecko's contract endpoint silently fails on large batches. A token with no
+  // price comes back with an empty `prices` array → absent here → treated as spam.
+  const key = (process.env.ATOMIC_ALCHEMY_KEY || '').trim();
+  if (!key) return { prices, ok: false };
+  let ok = false;
+  for (let i = 0; i < uniq.length; i += 25) {
+    const chunk = uniq.slice(i, i + 25);
+    try {
+      const r = await fetch(`https://api.g.alchemy.com/prices/v1/${key}/tokens/by-address`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addresses: chunk.map((a) => ({ network: 'eth-mainnet', address: a })) }),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!r.ok) continue;
+      ok = true;
+      const j = (await r.json()) as { data?: Array<{ address?: string; prices?: Array<{ currency?: string; value?: string }> }> };
+      for (const row of j.data || []) {
+        const p = (row.prices || []).find((x) => x.currency === 'usd');
+        const v = p ? Number(p.value) : NaN;
+        if (row.address && Number.isFinite(v)) prices[String(row.address).toLowerCase()] = v;
+      }
+    } catch { /* best-effort per chunk */ }
+  }
+  return { prices, ok };
+}
+
 const hexToNum = (h: any): number => { try { return Number(BigInt(h)); } catch { return 0; } };
+
+// CoinGecko USD prices by coin id (for native TRX + curated TRC-20s). Best-effort.
+async function cgPricesByIds(ids: string[]): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  const uniq = [...new Set(ids.filter(Boolean))];
+  if (!uniq.length) return out;
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&ids=' + uniq.join(','),
+      { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return out;
+    const j = (await r.json()) as Record<string, { usd?: number }>;
+    for (const [k, v] of Object.entries(j)) if (typeof v?.usd === 'number') out[k] = v.usd;
+  } catch { /* best-effort */ }
+  return out;
+}
+
+// Tron diligence — same report shape as EVM. Sanctions via the local OFAC snapshot
+// (267 Tron addresses; the on-chain oracle is EVM-only). Account/holdings from the
+// keyless TronGrid API; curated TRC-20 map priced via CoinGecko, value-ranked.
+async function tronReport(raw: string): Promise<any> {
+  const reasons: string[] = [];
+  const labels: string[] = ['Tron account (TRC-20)'];
+
+  // Local OFAC screen — addresses are stored lowercased, matched case-insensitively.
+  const localHit = screenAddressLocal(raw);
+
+  let balTrx = 0, createTime: number | null = null, lastOp: number | null = null;
+  let holdings: Array<{ contract: string; raw: string }> = [];
+  try {
+    const r = await fetch(`https://api.trongrid.io/v1/accounts/${raw}`,
+      { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(9000) });
+    const j = (await r.json()) as any;
+    const a = (j?.data || [])[0];
+    if (a) {
+      balTrx = (a.balance || 0) / 1e6;
+      createTime = a.create_time || null;
+      lastOp = a.latest_opration_time || a.latest_operation_time || null;
+      holdings = (a.trc20 || [])
+        .map((m: any) => { const e = Object.entries(m || {})[0]; return e ? { contract: String(e[0]), raw: String(e[1]) } : null; })
+        .filter(Boolean);
+    }
+  } catch { /* account read best-effort */ }
+
+  const known = holdings.filter((h) => TRON_TOKENS[h.contract]);
+  const px = await cgPricesByIds(['tron', ...known.map((h) => TRON_TOKENS[h.contract].cg)]);
+  const trxUsd = px['tron'] ?? null;
+
+  let tokens = known.map((h) => {
+    const meta = TRON_TOKENS[h.contract];
+    let amount = 0;
+    try { amount = Number(BigInt(h.raw)) / 10 ** meta.dec; } catch { /* keep 0 */ }
+    const price = px[meta.cg] ?? null;
+    return { symbol: meta.sym, name: '', amount, contract: h.contract, price, usd: price != null ? amount * price : null };
+  }).filter((t) => t.usd == null || t.usd >= 1).sort((a, b) => (b.usd || 0) - (a.usd || 0));
+  const tokensHidden = holdings.length - tokens.length;
+
+  const now = Date.now();
+  const firstSeen = createTime ? new Date(createTime).toISOString() : null;
+  const lastSeen = lastOp ? new Date(lastOp).toISOString() : null;
+  const daysActive = createTime ? Math.round((now - createTime) / 86_400_000) : null;
+  const dormant = !!lastOp && (now - lastOp) > 180 * 86_400_000;
+
+  const stableHeld = tokens.some((t) => ['USDT', 'USDC', 'USDD', 'TUSD'].includes(t.symbol));
+  if (stableHeld) labels.push('holds stablecoins');
+  if (balTrx >= 1_000_000) labels.push('whale (native TRX)');
+  if (dormant) labels.push('dormant (no activity in 180+ days)');
+  if (daysActive != null && daysActive <= 14) labels.push(`newly active (~${daysActive}d old)`);
+
+  let level: 'clean' | 'caution' | 'high' | 'critical' = 'clean';
+  if (localHit) {
+    level = 'critical';
+    reasons.push('This address is on the OFAC SDN sanctions list. Do not transact.');
+    labels.push('SANCTIONED');
+  }
+  const sanctionsScreen = { ofac_snapshot: localHit ? 'hit' : 'clear', live_oracle: 'n/a (Tron)' };
+  if (level === 'clean') {
+    reasons.push('No match on the OFAC SDN list (daily snapshot, includes Tron). The live on-chain oracle covers EVM chains only.');
+  }
+
+  const summary = `Tron account holding ${balTrx.toLocaleString(undefined, { maximumFractionDigits: 2 })} TRX${trxUsd ? ` (~$${Math.round(balTrx * trxUsd).toLocaleString()})` : ''} and ${tokens.length} priced token(s)${daysActive != null ? `, ~${daysActive}d old` : ''}. Risk: ${level}.`;
+
+  return {
+    address: raw,
+    chain: 'tron',
+    valid: true,
+    type: 'account',
+    known_label: null,
+    risk: { level, sanctioned: !!localHit, screen: sanctionsScreen, tainted_counterparty: null, reasons },
+    native: { symbol: 'TRX', balance: balTrx, usd: trxUsd ? balTrx * trxUsd : null },
+    activity: { outbound_tx: null, first_seen: firstSeen, last_seen: lastSeen, days_active: daysActive, dormant },
+    tokens,
+    tokens_hidden: tokensHidden,
+    labels,
+    summary,
+    disclaimer: 'Heuristic diligence on public on-chain data (Tron mainnet). Not investment or legal advice; labels are indicative, not definitive.',
+    data_sources: ['TronGrid (account + TRC-20)', 'OFAC SDN list (Tron addresses)', 'CoinGecko (prices)'],
+    generated_at: new Date().toISOString(),
+  };
+}
 
 router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Response) => {
   const raw = String(req.params.address || '').trim();
+  // Tron path (base58, T…) — different data sources, same report shape.
+  if (TRON.test(raw)) {
+    try {
+      return res.json(await tronReport(raw));
+    } catch (err) {
+      console.error('[wallet-intel tron] lookup failed:', err instanceof Error ? err.message : String(err));
+      return res.status(502).json({ error: 'Wallet lookup failed. Please try again.' });
+    }
+  }
   if (!EVM.test(raw)) {
     return res.status(400).json({
-      error: 'Enter a valid Ethereum address (0x… 40 hex). Only Ethereum mainnet is supported today.',
+      error: 'Enter a valid Ethereum (0x… 40 hex) or Tron (T…) address.',
     });
   }
   const addr = raw.toLowerCase();
@@ -99,23 +258,44 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     if (known) labels.push(`known: ${known}`);
     labels.push(isContract ? 'contract' : (delegated ? 'EIP-7702 delegated EOA' : 'EOA (externally-owned account)'));
 
-    // --- token holdings (Alchemy) ---
-    let tokens: Array<{ symbol: string; name: string; amount: number; contract: string }> = [];
+    // --- token holdings (Alchemy), value-ranked + spam-filtered ---
+    // Order matters: PRICE first (one cheap batched call), then fetch metadata only
+    // for tokens that HAVE a price. A spam-flooded wallet can bury its few real tokens
+    // beyond any fixed metadata cap, so we scan a wide balance set but only pay for
+    // metadata on the real ones. An absent price is the spam signal.
+    let tokens: Array<{ symbol: string; name: string; amount: number; contract: string; price: number | null; usd: number | null }> = [];
+    let tokensHidden = 0;
     try {
       const tb = await rpcCall(CHAIN_ID, 'alchemy_getTokenBalances', [addr, 'erc20']);
-      const nonzero = (tb?.tokenBalances || [])
+      const held: Array<{ contract: string; raw: string }> = (tb?.tokenBalances || [])
         .filter((t: any) => { try { return BigInt(t.tokenBalance) > 0n; } catch { return false; } })
-        .slice(0, 12);
-      tokens = (await Promise.all(nonzero.map(async (t: any) => {
+        .map((t: any) => ({ contract: String(t.contractAddress).toLowerCase(), raw: String(t.tokenBalance) }))
+        .slice(0, 120);
+      const totalHeld = held.length;
+
+      const meta = async (t: { contract: string; raw: string }, price: number | null) => {
         try {
-          const m = await rpcCall(CHAIN_ID, 'alchemy_getTokenMetadata', [t.contractAddress]);
+          const m = await rpcCall(CHAIN_ID, 'alchemy_getTokenMetadata', [t.contract]);
           const dec = Number.isFinite(m?.decimals) ? m.decimals : 18;
-          const amount = hexToNum(t.tokenBalance) / 10 ** dec;
+          const amount = hexToNum(t.raw) / 10 ** dec;
           if (!(amount > 0) || !m?.symbol) return null;
-          return { symbol: m.symbol, name: m.name || '', amount, contract: t.contractAddress };
+          return { symbol: String(m.symbol), name: m.name || '', amount, contract: t.contract, price, usd: price != null ? amount * price : null };
         } catch { return null; }
-      }))).filter(Boolean) as any;
-      tokens.sort((a, b) => b.amount - a.amount);
+      };
+
+      const { prices, ok: pricesOk } = await tokenPrices(held.map((t) => t.contract));
+      if (!pricesOk) {
+        // Price service unavailable — don't misclassify real holdings as spam; show
+        // the first few by raw amount, unpriced, rather than hiding everything.
+        tokens = ((await Promise.all(held.slice(0, 12).map((t) => meta(t, null)))).filter(Boolean)) as any;
+        tokensHidden = Math.max(0, totalHeld - tokens.length);
+      } else {
+        const priced = held.filter((t) => prices[t.contract] != null);
+        const valued = ((await Promise.all(priced.map((t) => meta(t, prices[t.contract])))).filter(Boolean)) as any[];
+        const kept = valued.filter((t) => t.usd != null && t.usd >= 1).sort((a, b) => b.usd - a.usd);
+        tokens = kept.slice(0, 12);
+        tokensHidden = totalHeld - tokens.length; // everything unpriced or sub-$1 = spam/dust
+      }
     } catch { /* holdings best-effort */ }
 
     const stableHeld = tokens.some((t) => ['USDC', 'USDT', 'DAI', 'USDE', 'FRAX'].includes(t.symbol.toUpperCase()));
@@ -218,6 +398,7 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
         days_active: daysActive, dormant,
       },
       tokens,
+      tokens_hidden: tokensHidden,
       labels,
       summary,
       disclaimer: 'Heuristic diligence on public on-chain data (Ethereum mainnet). Not investment or legal advice; labels are indicative, not definitive.',
