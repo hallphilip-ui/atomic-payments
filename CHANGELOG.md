@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.11.0 - 2026-07-19
+
+**Wallet Intelligence: outstanding token approvals + funding provenance.**
+
+- **Token approvals** — the wallet's top held tokens are checked against a curated set of well-known spenders (Uniswap V2/V3/Universal, Permit2, 1inch v5/v6, 0x, Seaport, CoW), and any live allowance is reported with **unlimited** flagged. An unlimited allowance lets that contract move the token at any time, indefinitely — it's a real and under-watched risk surface.
+  - **Honest scope, stated in the response.** Discovering approvals to *arbitrary* spenders needs an Approval-event log scan, and `eth_getLogs` is unavailable on our RPC access (the paid upstream rejects it; the public fallback refuses archive queries — verified at 9k, 40k, 45k and 50k block spans). What does work is `allowance(owner, spender)`, which returns **current** state — so coverage for every spender we can name is complete and all-time, while approvals to unlisted contracts are **not** detected. The report says exactly that rather than implying a clean bill of health. An earlier draft claimed "spenders seen in the last ~50k blocks" — that discovery was silently failing, and the claim was removed rather than left to mislead.
+  - Unlimited approvals to mainstream routers are reported as **informational, not a risk verdict** — that's ordinary DeFi hygiene-debt, not evidence of compromise.
+- **Funding provenance** — who sent the **first inbound transfer**, with date, asset and amount, labelled against known exchange hot wallets (Binance/Coinbase/Kraken/OKX/Bitfinex). A wallet first funded from a regulated exchange reads very differently from one funded by an unknown contract. Labels are best-effort and the raw address is always shown so it can be verified independently.
+
 ## 2.10.0 - 2026-07-19
 
 **Wallet Intelligence goes multi-chain — portfolio across every EVM chain, transaction history, counterparties, and ENS.**

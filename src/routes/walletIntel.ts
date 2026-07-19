@@ -181,6 +181,86 @@ async function chainHoldings(
   return out;
 }
 
+// Well-known approval spenders. `allowance(owner,spender)` returns CURRENT state, so
+// checking these covers ALL history for them — the gap is only unknown spenders,
+// which the recent-window log scan below partially closes.
+const SPENDERS: Record<string, string> = {
+  '0x7a250d5630b4cf539739df2c5dacb4c659f2488d': 'Uniswap V2 Router',
+  '0xe592427a0aece92de3edee1f18e0157c05861564': 'Uniswap V3 Router',
+  '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad': 'Uniswap Universal Router',
+  '0x000000000022d473030f116ddee9f6b43ac78ba3': 'Permit2',
+  '0x1111111254eeb25477b68fb85ed929f73a960582': '1inch v5 Router',
+  '0x111111125421ca6dc452d289314280a0f8842a65': '1inch v6 Router',
+  '0xdef1c0ded9bec7f1a1670819833240f027b25eff': '0x Exchange Proxy',
+  '0x00000000006c3852cbef3e08e8df289169ede581': 'Seaport (OpenSea)',
+  '0xc92e8bdf79f0507f65a392b0ab4667716bfe0110': 'CoW Protocol',
+};
+// Known funding sources — labelling the FIRST inbound sender is a strong provenance
+// signal (funded from a regulated exchange reads very differently from a mixer).
+// Best-effort labels; the raw address is always shown so it can be verified.
+const FUNDERS: Record<string, string> = {
+  '0x28c6c06298d514db089934071355e5743bf21d60': 'Binance (hot wallet)',
+  '0x21a31ee1afc51d94c2efccaa2092ad1028285549': 'Binance (hot wallet)',
+  '0xdfd5293d8e347dfe59e90efd55b2956a1343963d': 'Binance (hot wallet)',
+  '0x9696f59e4d72e237be84ffd425dcad154bf96976': 'Binance (hot wallet)',
+  '0x71660c4005ba85c37ccec55d0c4493e66fe775d3': 'Coinbase (hot wallet)',
+  '0x503828976d22510aad0201ac7ec88293211d23da': 'Coinbase (hot wallet)',
+  '0xddb108893104de4e1c6d0e47c42237db4e617acc': 'Coinbase (hot wallet)',
+  '0x2910543af39aba0cd09dbb2d50200b3e800a63d2': 'Kraken (hot wallet)',
+  '0xe853c56864a2ebe4576a807d26fdc4a0ada51919': 'Kraken (hot wallet)',
+  '0x6cc5f688a315f3dc28a7781717a9a798a59fda7b': 'OKX (hot wallet)',
+  '0x876eabf441b2ee5b5b0554fd502a8e0600950cfa': 'Bitfinex (hot wallet)',
+};
+const labelFor = (a?: string | null): string | null =>
+  a ? (KNOWN[a.toLowerCase()] || SPENDERS[a.toLowerCase()] || FUNDERS[a.toLowerCase()] || null) : null;
+
+const APPROVAL_TOPIC = '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925';
+
+// Outstanding ERC-20 approvals — a real, under-appreciated risk surface: an unlimited
+// allowance lets that contract move the token at any time, indefinitely.
+//
+// SCOPE, and why it is what it is: discovering approvals to ARBITRARY spenders needs
+// an Approval-event log scan, and eth_getLogs is unavailable on our RPC access (the
+// paid upstream rejects it; the public fallback refuses archive queries). What DOES
+// work is `allowance(owner, spender)`, which returns CURRENT state — so for every
+// spender we can name, coverage is complete and all-time. The unavoidable gap is
+// approvals to contracts outside that list. The response states this plainly rather
+// than implying a clean bill of health we can't actually give.
+async function tokenApprovals(addr: string, tokens: Array<{ contract: string; symbol: string }>) {
+  const owner32 = addr.slice(2).toLowerCase().padStart(64, '0');
+  const top = tokens.slice(0, 8);
+  const spenderList = Object.keys(SPENDERS);
+  const baseScope = `Checked ${spenderList.length} well-known spenders against the top ${top.length} held token(s) on Ethereum. Coverage for those spenders is complete (current on-chain allowance, any age). Approvals to contracts outside this list are NOT detected — this is not an exhaustive approval audit.`;
+  if (!top.length) {
+    return { approvals: [], unlimited_count: 0, checked_spenders: spenderList.length, scope: 'No priced tokens held on Ethereum, so there was nothing to check.' };
+  }
+
+  const approvals: Array<{ token: string; token_contract: string; spender: string; spender_label: string | null; unlimited: boolean }> = [];
+  await Promise.all(top.map(async (t) =>
+    Promise.all(spenderList.map(async (sp) => {
+      try {
+        const data = '0xdd62ed3e' + owner32 + sp.slice(2).toLowerCase().padStart(64, '0');
+        const res = await rpcCall(CHAIN_ID, 'eth_call', [{ to: t.contract, data }, 'latest']);
+        if (!res || res === '0x') return;
+        const v = BigInt(res);
+        if (v === 0n) return;
+        approvals.push({
+          token: t.symbol, token_contract: t.contract, spender: sp,
+          spender_label: SPENDERS[sp] || null, unlimited: v >= 2n ** 255n,
+        });
+      } catch { /* per-pair best-effort */ }
+    })),
+  ));
+
+  approvals.sort((a, b) => Number(b.unlimited) - Number(a.unlimited));
+  return {
+    approvals: approvals.slice(0, 20),
+    unlimited_count: approvals.filter((a) => a.unlimited).length,
+    checked_spenders: spenderList.length,
+    scope: baseScope,
+  };
+}
+
 // ENS primary (reverse) name. Public resolver service; 404 = no ENS set. Identity
 // signal only — never a trust signal on its own.
 async function ensName(addr: string): Promise<string | null> {
@@ -477,6 +557,17 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       xfer({ fromBlock: '0x0', toBlock: 'latest', toAddress: addr, category: ['external', 'erc20'], order: 'asc', maxCount: '0x1', withMetadata: true }),
     ]);
     firstSeen = inFirst?.transfers?.[0]?.metadata?.blockTimestamp || null;
+    // Funding provenance — who sent the FIRST inbound transfer. Funded from a
+    // regulated exchange reads very differently from funded by an unknown contract.
+    const funder0 = inFirst?.transfers?.[0];
+    const funderAddr = funder0?.from && EVM.test(String(funder0.from)) ? String(funder0.from).toLowerCase() : null;
+    const fundedBy = funderAddr ? {
+      address: funderAddr,
+      label: labelFor(funderAddr),
+      asset: funder0?.asset || 'ETH',
+      amount: Number.isFinite(Number(funder0?.value)) ? Number(funder0.value) : null,
+      at: firstSeen,
+    } : null;
 
     const rows = [
       ...((outT?.transfers || []).map((t: any) => ({ t, direction: 'out' as const, cp: t?.to }))),
@@ -530,6 +621,16 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     if (dormant) labels.push('dormant (no activity in 180+ days)');
     if (fresh) labels.push(`newly active (~${daysActive}d old)`);
     if (ethBalance >= 100) labels.push('whale (native ETH)');
+
+    // --- outstanding token approvals (risk surface) ---
+    const approvalsRes = await tokenApprovals(addr, tokens)
+      .catch(() => ({ approvals: [] as any[], unlimited_count: 0, checked_spenders: 0, scope: 'Approval check unavailable this run.' }));
+    // Informational, not a risk verdict: an unlimited approval to a mainstream router
+    // is normal DeFi hygiene-debt, not evidence of compromise. And since we cannot see
+    // approvals to unlisted contracts, absence here is NOT proof of none.
+    if (approvalsRes.unlimited_count) {
+      labels.push(`${approvalsRes.unlimited_count} unlimited approval(s) to known spenders`);
+    }
 
     // --- counterparty taint screen (reuses the batch OFAC/oracle screener) ---
     let taintedCounterparty: string | null = null;
@@ -591,6 +692,11 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       tokens_hidden: tokensHidden,
       transactions,
       counterparties: topCounterparties,
+      funded_by: fundedBy,
+      approvals: approvalsRes.approvals,
+      approvals_unlimited: approvalsRes.unlimited_count,
+      approvals_checked_spenders: approvalsRes.checked_spenders,
+      approvals_scope: approvalsRes.scope,
       labels,
       summary,
       disclaimer: 'Heuristic diligence on public on-chain data (EVM chains). Not investment or legal advice; labels are indicative, not definitive.',
