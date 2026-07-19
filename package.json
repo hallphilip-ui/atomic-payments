@@ -1,6 +1,6 @@
 {
   "name": "atomic-payments",
-  "version": "2.9.3",
+  "version": "2.10.0",
   "main": "src/index.ts",
   "scripts": {
     "start": "ts-node --files src/index.ts",

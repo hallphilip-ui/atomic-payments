@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.10.0 - 2026-07-19
+
+**Wallet Intelligence goes multi-chain — portfolio across every EVM chain, transaction history, counterparties, and ENS.**
+
+- **Multi-chain EVM.** One `0x` address is now scanned across **Ethereum, Base, Arbitrum, Optimism, Polygon and Avalanche** in parallel, with a per-chain breakdown (native + value-ranked tokens) and a **combined `portfolio_total_usd`**. Previously the report was Ethereum-only and materially understated any modern wallet — vitalik.eth reads $19,399 across 6 chains vs $12,394 on Ethereum alone.
+- **Recent transaction history.** The last 15 transfers (both directions), each with date, direction, asset, amount and counterparty. We were already fetching these and discarding everything but the timestamps.
+- **Address-poisoning / spoof detection.** Scam tokens impersonate real ones with non-ASCII homoglyphs (e.g. `ĖTḨ` for `ETH`) and dust a wallet to plant a lookalike in its history. Those transfers are now flagged `suspected_spam` and dimmed, so genuine activity isn't buried.
+- **Top counterparties.** The eight most-frequent addresses, with sent-to / received-from split and known-contract labels (routers, tokens). Previously collected only for the sanctions screen and reduced to a boolean.
+- **ENS primary name** resolved for EVM addresses (identity signal only, never a trust signal).
+- Token pricing now runs per-chain through Alchemy's Prices API; metadata is fetched only for tokens that have a price, so a spam-flooded wallet can't bury its real holdings behind a metadata cap.
+
 ## 2.9.3 - 2026-07-18
 
 **Wallet Intelligence: Bitcoin + Solana support, and the report now opens in its own full-page tab.**

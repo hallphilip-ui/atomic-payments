@@ -82,7 +82,7 @@ async function ethUsd(): Promise<number | null> {
 // has a price feed; airdrop-spam almost never does — so an ABSENT price is the spam
 // signal we filter on. `ok` distinguishes "service answered, this token has no price"
 // (spam → hide) from "price service was down" (→ don't hide real holdings).
-async function tokenPrices(contracts: string[]): Promise<{ prices: Record<string, number>; ok: boolean }> {
+async function tokenPrices(network: string, contracts: string[]): Promise<{ prices: Record<string, number>; ok: boolean }> {
   const prices: Record<string, number> = {};
   const uniq = [...new Set(contracts.filter((c) => EVM.test(c)).map((c) => c.toLowerCase()))];
   if (!uniq.length) return { prices, ok: true };
@@ -98,7 +98,7 @@ async function tokenPrices(contracts: string[]): Promise<{ prices: Record<string
       const r = await fetch(`https://api.g.alchemy.com/prices/v1/${key}/tokens/by-address`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ addresses: chunk.map((a) => ({ network: 'eth-mainnet', address: a })) }),
+        body: JSON.stringify({ addresses: chunk.map((a) => ({ network, address: a })) }),
         signal: AbortSignal.timeout(8000),
       });
       if (!r.ok) continue;
@@ -115,6 +115,82 @@ async function tokenPrices(contracts: string[]): Promise<{ prices: Record<string
 }
 
 const hexToNum = (h: any): number => { try { return Number(BigInt(h)); } catch { return 0; } };
+
+// The same 0x address exists on every EVM chain, so one paste is scanned across all
+// of them. `net` is the Alchemy network slug (RPC + Prices API); `cg` prices the
+// native coin. Ethereum stays the "primary" chain — activity, counterparties and the
+// sanctions screen run there only, to bound RPC fan-out.
+const EVM_CHAINS = [
+  { id: 1, key: 'ethereum', name: 'Ethereum', sym: 'ETH', net: 'eth-mainnet', cg: 'ethereum' },
+  { id: 8453, key: 'base', name: 'Base', sym: 'ETH', net: 'base-mainnet', cg: 'ethereum' },
+  { id: 42161, key: 'arbitrum', name: 'Arbitrum', sym: 'ETH', net: 'arb-mainnet', cg: 'ethereum' },
+  { id: 10, key: 'optimism', name: 'Optimism', sym: 'ETH', net: 'opt-mainnet', cg: 'ethereum' },
+  { id: 137, key: 'polygon', name: 'Polygon', sym: 'POL', net: 'polygon-mainnet', cg: 'polygon-ecosystem-token' },
+  { id: 43114, key: 'avalanche', name: 'Avalanche', sym: 'AVAX', net: 'avax-mainnet', cg: 'avalanche-2' },
+];
+
+type ChainHoldings = {
+  key: string; name: string;
+  native: { symbol: string; balance: number; usd: number | null };
+  tokens: Array<{ symbol: string; name: string; amount: number; contract: string; price: number | null; usd: number | null }>;
+  tokens_hidden: number; total_usd: number;
+};
+
+// Native + value-ranked token holdings for one EVM chain. Price FIRST (one batched
+// call), then pay for metadata only on tokens that have a price — an absent price is
+// the spam signal, and a spam-flooded wallet would otherwise bury its real tokens.
+async function chainHoldings(
+  chain: typeof EVM_CHAINS[number], addr: string, nativeUsd: number | null,
+): Promise<ChainHoldings> {
+  const out: ChainHoldings = {
+    key: chain.key, name: chain.name,
+    native: { symbol: chain.sym, balance: 0, usd: null },
+    tokens: [], tokens_hidden: 0, total_usd: 0,
+  };
+  const balHex = await rpcCall(chain.id, 'eth_getBalance', [addr, 'latest']).catch(() => null);
+  out.native.balance = balHex ? hexToNum(balHex) / 1e18 : 0;
+  out.native.usd = nativeUsd != null ? out.native.balance * nativeUsd : null;
+
+  try {
+    const tb = await rpcCall(chain.id, 'alchemy_getTokenBalances', [addr, 'erc20']);
+    const held: Array<{ contract: string; raw: string }> = (tb?.tokenBalances || [])
+      .filter((t: any) => { try { return BigInt(t.tokenBalance) > 0n; } catch { return false; } })
+      .map((t: any) => ({ contract: String(t.contractAddress).toLowerCase(), raw: String(t.tokenBalance) }))
+      .slice(0, 120);
+    const totalHeld = held.length;
+    if (totalHeld) {
+      const { prices, ok } = await tokenPrices(chain.net, held.map((t) => t.contract));
+      const candidates = ok ? held.filter((t) => prices[t.contract] != null) : held.slice(0, 8);
+      const valued = (await Promise.all(candidates.slice(0, 12).map(async (t) => {
+        try {
+          const m = await rpcCall(chain.id, 'alchemy_getTokenMetadata', [t.contract]);
+          const dec = Number.isFinite(m?.decimals) ? m.decimals : 18;
+          const amount = hexToNum(t.raw) / 10 ** dec;
+          if (!(amount > 0) || !m?.symbol) return null;
+          const price = ok ? (prices[t.contract] ?? null) : null;
+          return { symbol: String(m.symbol), name: m.name || '', amount, contract: t.contract, price, usd: price != null ? amount * price : null };
+        } catch { return null; }
+      }))).filter(Boolean) as ChainHoldings['tokens'];
+      out.tokens = (ok ? valued.filter((t) => t.usd != null && t.usd >= 1) : valued)
+        .sort((a, b) => (b.usd || 0) - (a.usd || 0)).slice(0, 12);
+      out.tokens_hidden = Math.max(0, totalHeld - out.tokens.length);
+    }
+  } catch { /* holdings best-effort per chain */ }
+
+  out.total_usd = (out.native.usd || 0) + out.tokens.reduce((s, t) => s + (t.usd || 0), 0);
+  return out;
+}
+
+// ENS primary (reverse) name. Public resolver service; 404 = no ENS set. Identity
+// signal only — never a trust signal on its own.
+async function ensName(addr: string): Promise<string | null> {
+  try {
+    const r = await fetch(`https://api.ensdata.net/${addr}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const j = (await r.json()) as any;
+    return j?.ens_primary || j?.ens || null;
+  } catch { return null; }
+}
 
 // CoinGecko USD prices by coin id (for native TRX + curated TRC-20s). Best-effort.
 async function cgPricesByIds(ids: string[]): Promise<Record<string, number>> {
@@ -337,14 +413,21 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
   const labels: string[] = [];
 
   try {
-    // --- core reads + live sanctions oracle, in parallel ---
-    const [balHex, code, nonceHex, px, oracleRes] = await Promise.all([
-      rpcCall(CHAIN_ID, 'eth_getBalance', [addr, 'latest']).catch(() => null),
+    // --- core reads + live sanctions oracle + ENS + native prices, in parallel ---
+    const [code, nonceHex, px, oracleRes, ens, nativePx] = await Promise.all([
       rpcCall(CHAIN_ID, 'eth_getCode', [addr, 'latest']).catch(() => '0x'),
       rpcCall(CHAIN_ID, 'eth_getTransactionCount', [addr, 'latest']).catch(() => '0x0'),
       ethUsd(),
       screenAddressOracleChecked(addr).catch(() => ({ hit: null, ran: false })),
+      ensName(addr).catch(() => null),
+      cgPricesByIds([...new Set(EVM_CHAINS.map((c) => c.cg))]).catch(() => ({} as Record<string, number>)),
     ]);
+    // Multi-chain holdings — every EVM chain, in parallel.
+    const chains = (await Promise.all(
+      EVM_CHAINS.map((c) => chainHoldings(c, addr, nativePx[c.cg] ?? null).catch(() => null)),
+    )).filter(Boolean) as ChainHoldings[];
+    const eth = chains.find((c) => c.key === 'ethereum');
+    const balHex = null; // native ETH now comes from the Ethereum chain entry below
     // Local OFAC snapshot (sync, authoritative) + the live oracle above. Track whether
     // the live layer actually ran so we never assert "clean" on a failed check.
     const localHit = screenAddressLocal(addr);
@@ -356,7 +439,8 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     const codeStr = (code || '0x').toLowerCase();
     const delegated = codeStr.startsWith('0xef0100');
     const isContract = codeStr !== '0x' && !delegated;
-    const ethBalance = balHex ? hexToNum(balHex) / 1e18 : 0;
+    const ethBalance = eth?.native.balance || 0;
+    const portfolioUsd = chains.reduce((s, c) => s + (c.total_usd || 0), 0);
     const outboundTx = hexToNum(nonceHex);
     const known = KNOWN[addr];
 
@@ -368,40 +452,10 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     // for tokens that HAVE a price. A spam-flooded wallet can bury its few real tokens
     // beyond any fixed metadata cap, so we scan a wide balance set but only pay for
     // metadata on the real ones. An absent price is the spam signal.
-    let tokens: Array<{ symbol: string; name: string; amount: number; contract: string; price: number | null; usd: number | null }> = [];
-    let tokensHidden = 0;
-    try {
-      const tb = await rpcCall(CHAIN_ID, 'alchemy_getTokenBalances', [addr, 'erc20']);
-      const held: Array<{ contract: string; raw: string }> = (tb?.tokenBalances || [])
-        .filter((t: any) => { try { return BigInt(t.tokenBalance) > 0n; } catch { return false; } })
-        .map((t: any) => ({ contract: String(t.contractAddress).toLowerCase(), raw: String(t.tokenBalance) }))
-        .slice(0, 120);
-      const totalHeld = held.length;
-
-      const meta = async (t: { contract: string; raw: string }, price: number | null) => {
-        try {
-          const m = await rpcCall(CHAIN_ID, 'alchemy_getTokenMetadata', [t.contract]);
-          const dec = Number.isFinite(m?.decimals) ? m.decimals : 18;
-          const amount = hexToNum(t.raw) / 10 ** dec;
-          if (!(amount > 0) || !m?.symbol) return null;
-          return { symbol: String(m.symbol), name: m.name || '', amount, contract: t.contract, price, usd: price != null ? amount * price : null };
-        } catch { return null; }
-      };
-
-      const { prices, ok: pricesOk } = await tokenPrices(held.map((t) => t.contract));
-      if (!pricesOk) {
-        // Price service unavailable — don't misclassify real holdings as spam; show
-        // the first few by raw amount, unpriced, rather than hiding everything.
-        tokens = ((await Promise.all(held.slice(0, 12).map((t) => meta(t, null)))).filter(Boolean)) as any;
-        tokensHidden = Math.max(0, totalHeld - tokens.length);
-      } else {
-        const priced = held.filter((t) => prices[t.contract] != null);
-        const valued = ((await Promise.all(priced.map((t) => meta(t, prices[t.contract])))).filter(Boolean)) as any[];
-        const kept = valued.filter((t) => t.usd != null && t.usd >= 1).sort((a, b) => b.usd - a.usd);
-        tokens = kept.slice(0, 12);
-        tokensHidden = totalHeld - tokens.length; // everything unpriced or sub-$1 = spam/dust
-      }
-    } catch { /* holdings best-effort */ }
+    // Ethereum holdings come from the multi-chain scan above (kept as the primary
+    // chain's `tokens` for the report's headline table).
+    const tokens = eth?.tokens || [];
+    const tokensHidden = eth?.tokens_hidden || 0;
 
     const stableHeld = tokens.some((t) => ['USDC', 'USDT', 'DAI', 'USDE', 'FRAX'].includes(t.symbol.toUpperCase()));
     if (stableHeld) labels.push('holds stablecoins');
@@ -411,34 +465,58 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     // last_seen must reflect BOTH directions — a receive-only wallet has no outbound
     // transfer, so outbound alone would wrongly report it as never-active. Out query
     // is capped at 15 (also the counterparty set screened below — bounds RPC fan-out).
-    let firstSeen: string | null = null, lastOut: string | null = null, lastIn: string | null = null;
+    let firstSeen: string | null = null;
     const counterparties = new Set<string>();
-    try {
-      const out = await rpcCall(CHAIN_ID, 'alchemy_getAssetTransfers', [{
-        fromBlock: '0x0', toBlock: 'latest', fromAddress: addr,
-        category: ['external', 'erc20'], order: 'desc', maxCount: '0x0f', withMetadata: true,
-      }]);
-      const outs = out?.transfers || [];
-      if (outs.length) lastOut = outs[0]?.metadata?.blockTimestamp || null;
-      for (const t of outs) if (t?.to && EVM.test(t.to)) counterparties.add(String(t.to).toLowerCase());
-    } catch { /* best-effort */ }
-    try {
-      const inLast = await rpcCall(CHAIN_ID, 'alchemy_getAssetTransfers', [{
-        fromBlock: '0x0', toBlock: 'latest', toAddress: addr,
-        category: ['external', 'erc20'], order: 'desc', maxCount: '0x1', withMetadata: true,
-      }]);
-      lastIn = inLast?.transfers?.[0]?.metadata?.blockTimestamp || null;
-    } catch { /* best-effort */ }
-    try {
-      const inFirst = await rpcCall(CHAIN_ID, 'alchemy_getAssetTransfers', [{
-        fromBlock: '0x0', toBlock: 'latest', toAddress: addr,
-        category: ['external', 'erc20'], order: 'asc', maxCount: '0x1', withMetadata: true,
-      }]);
-      firstSeen = inFirst?.transfers?.[0]?.metadata?.blockTimestamp || null;
-    } catch { /* best-effort */ }
+    const cpCount: Record<string, { count: number; out: number; in: number }> = {};
+    let transactions: Array<{ ts: string; direction: 'in' | 'out'; asset: string; amount: number | null; counterparty: string | null; counterparty_label: string | null }> = [];
 
-    // ISO-8601 timestamps sort chronologically; take the most recent of either direction.
-    const lastSeen = [lastOut, lastIn].filter(Boolean).sort().slice(-1)[0] || null;
+    const xfer = (params: any) => rpcCall(CHAIN_ID, 'alchemy_getAssetTransfers', [params]).catch(() => null);
+    const [outT, inT, inFirst] = await Promise.all([
+      xfer({ fromBlock: '0x0', toBlock: 'latest', fromAddress: addr, category: ['external', 'erc20'], order: 'desc', maxCount: '0x14', withMetadata: true }),
+      xfer({ fromBlock: '0x0', toBlock: 'latest', toAddress: addr, category: ['external', 'erc20'], order: 'desc', maxCount: '0x14', withMetadata: true }),
+      xfer({ fromBlock: '0x0', toBlock: 'latest', toAddress: addr, category: ['external', 'erc20'], order: 'asc', maxCount: '0x1', withMetadata: true }),
+    ]);
+    firstSeen = inFirst?.transfers?.[0]?.metadata?.blockTimestamp || null;
+
+    const rows = [
+      ...((outT?.transfers || []).map((t: any) => ({ t, direction: 'out' as const, cp: t?.to }))),
+      ...((inT?.transfers || []).map((t: any) => ({ t, direction: 'in' as const, cp: t?.from }))),
+    ].filter((r) => r.t?.metadata?.blockTimestamp)
+      .sort((a, b) => Date.parse(b.t.metadata.blockTimestamp) - Date.parse(a.t.metadata.blockTimestamp));
+
+    for (const r of rows) {
+      const cp = r.cp && EVM.test(String(r.cp)) ? String(r.cp).toLowerCase() : null;
+      if (!cp) continue;
+      counterparties.add(cp);
+      const e = (cpCount[cp] ||= { count: 0, out: 0, in: 0 });
+      e.count++; r.direction === 'out' ? e.out++ : e.in++;
+    }
+
+    transactions = rows.slice(0, 15).map((r) => {
+      const cp = r.cp && EVM.test(String(r.cp)) ? String(r.cp).toLowerCase() : null;
+      const v = Number(r.t.value);
+      const asset = r.t.asset || 'ETH';
+      // Address-poisoning / spoof detection: scam tokens impersonate real ones with
+      // non-ASCII homoglyphs (e.g. "ĖTḨ" for ETH) and dust an address to get their
+      // lookalike into its history. Flag them so real activity isn't buried.
+      const spoofed = /[^\x20-\x7E]/.test(asset);
+      return {
+        ts: r.t.metadata.blockTimestamp,
+        direction: r.direction,
+        asset,
+        amount: Number.isFinite(v) ? v : null,
+        counterparty: cp,
+        counterparty_label: cp ? (KNOWN[cp] || null) : null,
+        suspected_spam: spoofed,
+      };
+    });
+
+    const topCounterparties = Object.entries(cpCount)
+      .sort((a, b) => b[1].count - a[1].count).slice(0, 8)
+      .map(([address, s]) => ({ address, count: s.count, sent_to: s.out, received_from: s.in, label: KNOWN[address] || null }));
+
+    // Most recent activity in either direction (a receive-only wallet has no outbound).
+    const lastSeen = rows[0]?.t?.metadata?.blockTimestamp || null;
     const now = Date.now();
     const lastMs = lastSeen ? Date.parse(lastSeen) : NaN;
     const dormant = Number.isFinite(lastMs) && (now - lastMs) > 180 * 86_400_000;
@@ -485,18 +563,25 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
         : 'Clear on the daily OFAC snapshot, but the live on-chain sanctions oracle was unreachable this check — treat as provisional and re-run shortly.');
     }
 
+    const activeChains = chains.filter((c) => c.total_usd > 0 || c.native.balance > 0);
+    const who = ens ? `${ens} — ` : '';
+    const portfolioStr = portfolioUsd > 0 ? ` Portfolio ≈ $${Math.round(portfolioUsd).toLocaleString()} across ${activeChains.length} chain(s).` : '';
     const summary = isContract
-      ? `Smart contract${known ? ` — ${known}` : ''}. ${outboundTx.toLocaleString()} outbound tx. Risk: ${level}.`
-      : `EOA${known ? ` (${known})` : ''} holding ${ethBalance.toFixed(4)} ETH${px ? ` (~$${Math.round(ethBalance * px).toLocaleString()})` : ''} and ${tokens.length} token(s), ${outboundTx.toLocaleString()} outbound tx${daysActive != null ? `, ~${daysActive}d old` : ''}. Risk: ${level}.`;
+      ? `${who}Smart contract${known ? ` — ${known}` : ''}. ${outboundTx.toLocaleString()} outbound tx.${portfolioStr} Risk: ${level}.`
+      : `${who}EOA${known ? ` (${known})` : ''} holding ${ethBalance.toFixed(4)} ETH${px ? ` (~$${Math.round(ethBalance * px).toLocaleString()})` : ''} on Ethereum, ${outboundTx.toLocaleString()} outbound tx${daysActive != null ? `, ~${daysActive}d old` : ''}.${portfolioStr} Risk: ${level}.`;
 
     return res.json({
       address: raw,
+      ens,
       chain: 'ethereum',
       valid: true,
       type: isContract ? 'contract' : 'EOA',
       known_label: known || null,
       risk: { level, sanctioned: !!selfHit, screen: sanctionsScreen, tainted_counterparty: taintedCounterparty, reasons },
       native: { symbol: 'ETH', balance: ethBalance, usd: px ? ethBalance * px : null },
+      portfolio_total_usd: portfolioUsd,
+      // Per-chain breakdown — only chains where the address actually holds something.
+      chains: chains.filter((c) => c.total_usd > 0 || c.native.balance > 0),
       activity: {
         outbound_tx: outboundTx,
         first_seen: firstSeen, last_seen: lastSeen,
@@ -504,10 +589,12 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       },
       tokens,
       tokens_hidden: tokensHidden,
+      transactions,
+      counterparties: topCounterparties,
       labels,
       summary,
-      disclaimer: 'Heuristic diligence on public on-chain data (Ethereum mainnet). Not investment or legal advice; labels are indicative, not definitive.',
-      data_sources: ['Ethereum RPC (Alchemy)', 'OFAC SDN list + on-chain sanctions oracle', 'CoinGecko (ETH price)'],
+      disclaimer: 'Heuristic diligence on public on-chain data (EVM chains). Not investment or legal advice; labels are indicative, not definitive.',
+      data_sources: ['Alchemy RPC + Prices (Ethereum, Base, Arbitrum, Optimism, Polygon, Avalanche)', 'OFAC SDN list + on-chain sanctions oracle', 'ENS (ensdata)', 'CoinGecko (native prices)'],
       generated_at: new Date().toISOString(),
     });
   } catch (err) {
