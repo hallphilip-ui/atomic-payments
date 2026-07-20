@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.30.1 - 2026-07-20
+
+**Receiver spec: record Balancer v3 as the 0%-fee flash-loan source.**
+
+- New spec §2.1: Balancer's Vault lends flash-free (0% vs Aave's 0.05%), so the spec now treats the borrow source as a **configurable dependency** rather than hardcoding Aave. Scope line and audit brief updated to match.
+- States the two facts that stop this mattering as much as it looks: it saves ~$50 of a ~$950 cost base (swap + slippage dominate, so break-even only moves ~0.95%→~0.90%), and it is **not** a shortcut around the contract — Balancer calls back into `receiveFlashLoan` with its own caller guard and repayment, analogous to Aave but not identical.
+- Flags the trap: Balancer's `feeAmount` is 0 today but governance-settable, so **read it, don't assume 0** — the same discipline the spec already demands for Aave's premium.
+- Audit brief now asks quoting firms to state whether they cover one source or both, since the callback and its security checks are source-specific.
+- Docs only. No contract written; build still gated on Phase 0 (0 cleared).
+
 ## 2.30.0 - 2026-07-20
 
 **MEV-capture probe — measured the 15% assumption against real liquidations, and the finding is that it can't be measured from public data.**

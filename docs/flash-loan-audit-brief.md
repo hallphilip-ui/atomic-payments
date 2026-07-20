@@ -13,8 +13,12 @@ reserve, executes a pre-validated arbitrage route across DEX routers, repays pri
 plus the 0.05% premium, and reverts if the operation would not clear a minimum profit.
 
 **Size:** ~300 lines, one contract, no proxy, no upgradeability.
-**Chain:** Ethereum mainnet (Aave v3). Possibly Base/Arbitrum later — please quote
-per-chain marginal cost if it is not zero.
+**Chain:** Ethereum mainnet. Possibly Base/Arbitrum later — please quote per-chain
+marginal cost if it is not zero.
+**Flash-loan source:** Aave v3 by default; **we may instead target Balancer v3 (0% fee)**,
+whose callback (`receiveFlashLoan`) and caller guard differ from Aave's. We will name the
+final source before code-freeze — please note whether your quote covers one source or both,
+since the callback and its security checks are source-specific (spec §2.1).
 **Custody:** the contract holds no user funds and no persistent balance. Only the
 owner's own capital is ever at risk, and only via gas and premiums.
 

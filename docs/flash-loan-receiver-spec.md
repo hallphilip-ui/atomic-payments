@@ -24,8 +24,10 @@ the operation would not clear a minimum profit.
 (`interestRateMode != 0`); any strategy or opportunity discovery (that lives off-chain);
 holding user funds; any upgradeability.
 
-**Target.** Aave v3. Not v4 — v4 has no flash-loan primitive; the full source contains
-zero occurrences of `flash` (verified 2026-07-20, 460 files, with controls).
+**Target.** Aave v3 as the default source, with **Balancer v3 (0% fee) a configurable
+alternative** — see §2.1. Not Aave v4: it has no flash-loan primitive; the full source
+contains zero occurrences of `flash` (verified 2026-07-20, 460 files, with controls). The
+borrow source is a dependency, not a fixed part of the design.
 
 ---
 
@@ -50,6 +52,42 @@ function POOL() external view returns (IPool);
 single-reserve (which matches the strategy), and the `FLASH_BORROWER` fee waiver that
 `flashLoan` offers is not available to us anyway — it requires an Aave governance
 proposal and is worth 5 bps.
+
+### 2.1 The cheaper source: Balancer v3 (0% fee)
+
+**Aave's 0.05% premium is not the cheapest borrow available.** Balancer's Vault lends its
+entire consolidated token balance flash-free — **0% fee** — via v3's transient-unlock
+mechanism (v2 exposes the same through `Vault.flashLoan`). For a purely flash-loan-funded
+strategy, Balancer is the cheaper leg, and the spec should treat the borrow source as a
+**configurable dependency**, not hardcode Aave.
+
+Two facts keep this from mattering as much as it looks, both worth stating so the
+implementer does not over-index on it:
+
+1. **It saves $50 of a ~$950 cost base.** On a $100k loan the flash fee is ~$50; the swap
+   fees and slippage (~$900) dominate and are unaffected by the source. 0% moves
+   break-even from ~0.95% to ~0.90% — real, but not decisive. Do not pick a source for
+   the fee alone; liquidity depth for the specific asset matters more.
+2. **It is NOT a shortcut around the contract.** Balancer flash loans call back into
+   `IFlashLoanRecipient.receiveFlashLoan(tokens, amounts, feeAmounts, userData)` and
+   require full repayment (to the Vault) before the transaction ends. That is the SAME
+   shape as Aave, with its OWN guards:
+
+   - **R4-equiv** — `require(msg.sender == address(vault))`. Balancer's `IFlashLoanRecipient`
+     base provides no caller check either; the receiver must assert the Vault is the caller.
+   - **Repayment** — transfer `amount + feeAmount` back to the Vault (Balancer PULLs less
+     reliably than Aave; follow the current Balancer docs for the exact settle call on the
+     v3 Vault). `feeAmount` is 0 today but **read it, do not assume 0** — governance can
+     turn on a flash-loan fee, exactly as Aave's premium is governance-set.
+   - The residual-balance / griefing invariant (§6) and the profitability revert (R7)
+     apply identically.
+
+**Implication for this spec:** an implementer may target Balancer instead of, or in
+addition to, Aave. If so, `POOL()` resolution (§3) is replaced by the Balancer Vault
+address (immutable per chain), the callback interface changes to `receiveFlashLoan`, and
+the two guards and the repayment leg must be re-verified against Balancer's — they are
+analogous but not identical. Everything else in this spec is source-agnostic. The audit
+brief must name whichever source is chosen, since the callback and its guards differ.
 
 ---
 
