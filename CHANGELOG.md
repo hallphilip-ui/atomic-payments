@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.26.0 - 2026-07-20
+
+**Mode A run against the PancakeSwap surface — it reconciles, unlike Venus.**
+
+- **`scripts/replay-mode-a-pancake.js`** — reads every DEX pair's reserves directly from chain, independently recomputes price and spread, and compares against the scanner's snapshot. Factory and token addresses are declared **separately from the scanner** on purpose, so a wrong address there cannot silently agree with itself here.
+- **Result: 5 agree, 0 diverge, 0 unresolved.** The prices reconcile to 8 significant figures on the stable pairs. This matters because PancakeSwap arb is the **only** surface counted as build evidence — had it been mis-measuring like Venus, Phase 0 would have been measuring noise and the 0.95% bar would have meant nothing.
+- **The more useful finding is how fast the spreads decay.** In the ~90s between snapshot and verification: BTCB moved **2,713% relative** (0.0038% → 0.1069%), WBNB moved 77%, and **ETH inverted its sign entirely** (0.0596% → −0.0283%) — the arb direction reversed. Absolute moves stayed small, so none approach the 0.95% bar, but this is direct evidence that spreads at this scale are noise moving faster than a 180s poll interval. Relative move and direction-flip are now reported alongside the absolute delta.
+- **Two bugs in my own verification script, found and fixed before reporting.** (1) The quote-side reserve is denominated in the quote *token*, not dollars — printing a WBNB-quoted pool with a `$` understated depth ~570x and made CAKE/WBNB look like a dead `$46` pool when it holds **$26,558**. The scanner's own liquidity filter was right; the checker was wrong. (2) The pass/fail tolerance used an absolute floor only, which hid large relative moves behind an "AGREE".
+- **Stated limit:** this recomputes from the same primitives the scanner uses, so it catches stale data, wrong pairs, dead pools and arithmetic drift — but not a shared conceptual error in the price formula itself.
+
 ## 2.25.1 - 2026-07-20
 
 **Counter comment corrected after the scanner fix.**
