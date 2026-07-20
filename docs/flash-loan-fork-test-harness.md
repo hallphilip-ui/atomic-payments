@@ -7,6 +7,32 @@
 
 ---
 
+## 0. The 15% MEV-capture assumption — measured 2026-07-20, and the finding is "can't be measured this way"
+
+`scripts/mev-capture-probe.js` reads real settled Aave V3 Ethereum liquidations and, for
+each, computes what the winner surrendered as priority fee versus the gross bonus. The
+intent was to validate the model's assumption that a liquidator keeps only ~15% of the
+bonus. The result on 25 recent liquidations:
+
+- **22 of 25 winners paid ~0 visible priority fee.** On Ethereum that is the signature of
+  **private orderflow** (Flashbots-style): the bid is a direct payment to the block
+  builder, which does **not** appear in the transaction receipt. Without transaction
+  tracing (`debug_traceTransaction` / `trace_transaction`), that bid is invisible, so the
+  probe reports a meaningless "100% capture" for those rows — an artefact of unseen bids.
+- **The 3 that were public are roughly consistent with the model.** Two WBTC liquidations
+  paid **72–73% of the bonus** in priority fee (implied capture ~27% *before* swap and
+  flash costs, which would drag it toward the assumed 15%); one paid 8%. Small sample, but
+  nothing here refutes 15%.
+
+**Conclusion: the 15% assumption cannot be validated from public receipt data, because
+the competition happens in the private mempool.** Measuring it requires a **trace-capable
+RPC**, which our current Alchemy access does not provide. This is the one concrete place
+in the whole project where a paid / trace-enabled endpoint would earn its cost. Until
+then, 15% remains an unvalidated modelling input — but now a *characterised* one: we know
+why it's hard, and exactly what would close it.
+
+---
+
 ## 1. What this harness is really for
 
 The obvious purpose is testing the contract. The **more valuable** purpose is testing

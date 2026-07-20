@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.30.0 - 2026-07-20
+
+**MEV-capture probe — measured the 15% assumption against real liquidations, and the finding is that it can't be measured from public data.**
+
+- **`scripts/mev-capture-probe.js`** reads settled Aave V3 Ethereum liquidations (subgraph → tx hash → receipt + block) and computes what each winner surrendered as priority fee versus the gross bonus. This measures what searchers KEEP, which is what the 15% assumption is about — a mempool watcher would only show what they BID.
+- **Finding on 25 liquidations: 22/25 winners paid ~0 visible priority fee.** That is the signature of private orderflow (Flashbots) — the bid is a direct builder payment invisible in the receipt without transaction tracing. The probe honestly reports this rather than pretending the resulting "100% capture" is real.
+- **The 3 public ones are roughly consistent with the model:** two WBTC liquidations paid 72–73% of the bonus in priority fee (~27% capture before swap/flash costs, which drag toward 15%). Nothing refutes the 15%; it simply can't be broadly confirmed from receipts.
+- **Concrete conclusion:** validating the 15% requires a trace-capable RPC (`debug_traceTransaction`), which our Alchemy access lacks. This is the one place in the project where a paid/trace endpoint would earn its cost — a real answer to the "does more infra help" question. Recorded in the fork-test harness doc §0.
+- Built the probe honestly: it prints its own limits (implied capture ignores swap + flash cost, so it's an upper bound), skips dust and unpriceable tokens (a Pendle PT token) rather than distorting, and states plainly when it is NOT measuring the target number.
+
+**Process note:** three self-inflicted bugs were found and fixed mid-build — a silently-swallowed price error, `https.get(url, opts, cb)` dropping the key from the path, and an env-var placement mistake in my own diagnostics that produced a false "Alchemy blocks Node clients" conclusion. The last was reverted once `fetch` was confirmed working (HTTP 200) rather than shipping the wrong explanation and an unnecessary curl workaround.
+
 ## 2.29.0 - 2026-07-20
 
 **Continuous instrument validation — the Mode A checks now run hourly instead of when someone remembers.**
