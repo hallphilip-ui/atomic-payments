@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.29.0 - 2026-07-20
+
+**Continuous instrument validation — the Mode A checks now run hourly instead of when someone remembers.**
+
+- **`src/arb/validation.ts`**, `GET /arb-desk/validation`, and a card at the top of the Flash Lab. Runs the three Mode A checks on a schedule: Venus phantom-rate, PancakeSwap reserve recompute + off-chain price cross-check, and Aave arithmetic + live-parameter drift.
+- **Why it exists:** the Venus surface was 100% phantom for an unknown length of time and nothing surfaced it until a manual check. Manual validation only catches what someone thinks to look for. A regression now shows as a number.
+- **First live run — `warn`:**
+  - `venus` **ok** — 25 candidates → 0 confirmed, 25 rejected as phantom. A *high* phantom rate is healthy here: it is the on-chain gate doing its job. The regression to watch for is the opposite — candidates arriving and everything being confirmed, meaning the gate stopped gating.
+  - `pancake` **ok** — 5 reconcile, 0 diverge, 5/5 within 5% of external references.
+  - `aave` **warn** — 14/14 rows reconcile, 2 using a stale liquidation bonus.
+- Cached by default with `?fresh=1` to force a run: a fresh pass hits several RPCs plus an external price API, and a stale-but-honest number beats hammering upstreams on every page load. The card shows the report's age.
+- Placed **above** the would-have-cleared counter deliberately — if a surface is broken, the count below it means nothing.
+- Deliberately **not** wired to alerting. It is an instrument, not a pager.
+
+**Item 4 from the plan (extend drift checks beyond Ethereum) was dropped, not built.** I had said the scanner "models other chains on assumptions nobody has checked" — it does not. The liquidation feed is Ethereum-only (`AAVE_V3_SUBGRAPH  # Aave V3 Ethereum`), so checking Base or Arbitrum parameters would validate values we never use. The real version of that concern was the Ethereum coverage gap fixed in 2.28.0.
+
 ## 2.28.0 - 2026-07-20
 
 **Mode A for the Aave surface — and it caught a coverage gap in today's own drift check.**

@@ -25,6 +25,7 @@ import assistantRoutes from './routes/assistant';
 import observabilityRoutes from './routes/observability';
 import arbRoutes from './routes/arb';
 import { startClearanceLogger } from './arb/clearanceLog';
+import { startValidation } from './arb/validation';
 import marketRoutes from './routes/markets';
 import fxRoutes from './routes/fx';
 import offrampRoutes from './routes/offramp';
@@ -628,4 +629,7 @@ app.listen(port, bindHost, () => {
   // recorded even when nobody has the desk open. This is the evidence behind the
   // flash-loan build/no-build decision.
   startClearanceLogger();
+  // Hourly instrument validation — catches a surface silently going wrong, which is
+  // exactly how the Venus phantom problem survived undetected until a manual check.
+  startValidation();
 });

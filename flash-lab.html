@@ -120,6 +120,12 @@
         <div class="meta" id="breakeven"></div>
       </div>
 
+      <div class="card" id="valCard" style="display:none">
+        <h2>Instrument validation <span style="font-weight:400;color:var(--muted);font-size:12px">· hourly · are the scanners still telling the truth?</span></h2>
+        <div id="valBody"></div>
+        <div class="meta" style="margin-top:10px">Every number on this page comes from a scanner. On 2026-07-20 the Venus surface was found to be <b>100% phantom</b> — flagging positions with zero real shortfall, claims up to $1.4M — and nothing surfaced it until a manual check. These run continuously so a surface going wrong shows up as a number, not a surprise.</div>
+      </div>
+
       <div class="card" id="clearCard" style="display:none">
         <h2>Would-have-cleared counter <span style="font-weight:400;color:var(--muted);font-size:12px">· the build/no-build evidence — how many opportunities cleared a real bar, after every cost, at tradeable size</span></h2>
         <div id="clearHeadline"></div>
@@ -414,6 +420,30 @@
       renderBsc(d.bsc);
     }
 
+    // Instrument validation — deliberately above the counter, because if a surface is
+    // broken the counter below it is meaningless.
+    async function loadValidation(){
+      var k=key();
+      try{
+        var r=await fetch('/arb-desk/validation', k?{headers:{'x-atomic-operator-key':k}}:{});
+        if(!r.ok) return;
+        var d=await r.json();
+        document.getElementById('valCard').style.display='block';
+        var tone={ok:['#f4faf5','#cfe8d4','all checks passing'],
+                  warn:['#fff9ec','#f0dcae','attention'],
+                  fail:['#fff6f6','#f3d0d0','FAILING']}[d.overall]||['#f7f7fb','#e8e9f0','unknown'];
+        var pill=function(s){ return '<span class="pill '+(s==='ok'?'yes':s==='fail'?'no':'taken')+'">'+esc(s)+'</span>'; };
+        document.getElementById('valBody').innerHTML =
+          '<div style="background:'+tone[0]+';border:1px solid '+tone[1]+';border-radius:8px;padding:12px 14px;margin-bottom:10px;font-size:13px">'+
+          '<b>'+esc(String(d.overall).toUpperCase())+'</b> — '+tone[2]+
+          ' <span style="color:var(--muted)">· checked '+(d.age_sec==null?'just now':(d.age_sec<90?'just now':Math.round(d.age_sec/60)+'m ago'))+'</span></div>'+
+          '<div class="scroll"><table><thead><tr><th>Surface</th><th>Status</th><th>Detail</th></tr></thead><tbody>'+
+          (d.checks||[]).map(function(c){
+            return '<tr><td><b>'+esc(c.surface)+'</b></td><td>'+pill(c.status)+'</td><td style="text-align:left">'+esc(c.detail)+'</td></tr>';
+          }).join('')+'</tbody></table></div>';
+      }catch(e){ /* hidden rather than a false all-clear */ }
+    }
+
     // Would-have-cleared counter. Deliberately the first card: it is the one number
     // that decides whether a ~$10-40k contract build is justified.
     async function loadClearance(){
@@ -592,6 +622,7 @@
         }
         if(!r.ok){ throw new Error('HTTP '+r.status); }
         render(await r.json()); show(true);
+        loadValidation();
         loadClearance();
         loadAave();   // deliberately not awaited — Aave's API must not delay or break the desk
       }catch(e){

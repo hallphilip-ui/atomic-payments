@@ -4,6 +4,7 @@ import { validateOperatorCredential } from '../security/operatorRules';
 import { verifyCfAccessEmail, isCfAccessEnabled } from '../security/cfAccessVerifier';
 import { isDeskAdminEmail, deskAdminListConfigured } from '../security/deskAdminRules';
 import { runClearancePass, marginIsDegenerate } from '../arb/clearanceLog';
+import { runValidation, readValidation } from '../arb/validation';
 
 // Operator-gated read-only view of the arbitrage scanner's paper-trade forward test.
 // The scanner (separate log-only service at /opt/atomic-arb-scanner) writes a compact
@@ -390,6 +391,18 @@ router.get('/arb-desk/clearance-log', async (req: Request, res: Response) => {
       ? `No AVAILABLE opportunity has cleared ${led.threshold_pct}% net in ${days.toFixed(1)} days (${led.evaluated.toLocaleString()} rows evaluated).`
       : `${n} available opportunit${n === 1 ? 'y has' : 'ies have'} cleared ${led.threshold_pct}% net across ${days.toFixed(1)} days (${led.evaluated.toLocaleString()} evaluated).`,
   });
+});
+
+// Continuous instrument validation. Returns the last scheduled report; ?fresh=1 forces
+// a run. Fresh runs hit several RPCs and an external price API, so the cached report is
+// the default — a stale-but-honest number beats hammering upstreams on every page load.
+router.get('/arb-desk/validation', async (req: Request, res: Response) => {
+  const auth = await deskAuth(req);
+  if (!auth) return res.status(401).json({ error: 'Sign in required.' });
+  const fresh = String(req.query.fresh || '') === '1';
+  const report = fresh ? await runValidation() : (readValidation() || await runValidation());
+  const ageSec = Math.round((Date.now() - Date.parse(report.at)) / 1000);
+  return res.json({ ...report, age_sec: Number.isFinite(ageSec) ? ageSec : null });
 });
 
 function num(v: unknown): number | null {
