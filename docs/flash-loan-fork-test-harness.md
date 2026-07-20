@@ -160,6 +160,63 @@ that briefly reported "21 cleared").
 
 ---
 
+## 7a. First run — 2026-07-20 · **21 of 21 rows were phantoms**
+
+Mode A was implemented (`scripts/replay-mode-a.js`) and run against the live ledger. It
+asks Venus's own Comptroller, at each row's observed block, whether the position the
+scanner flagged was actually liquidatable:
+`getAccountLiquidity(account)` → `(error, liquidity, shortfall)`. **`shortfall > 0` is
+the protocol's definition of liquidatable.**
+
+**Result: 0 confirmed, 21 phantom.** Not one flagged position had any shortfall on-chain.
+
+| Account | Scanner claimed shortfall | On-chain shortfall |
+|---|---|---|
+| `0x000000006c…` | $1,437,894 | **$0** |
+| `0x00000000a3…` | $1,260,121 | **$0** |
+| `0x0000000098…` | $775,981 | **$0** |
+| `0xb70e998999…` | $67,873 | **$0** (and $9,707 *excess* liquidity) |
+
+*…and 17 more, all $0.*
+
+**Ruling out a broken test — this mattered more than the result.** Twenty of the 21 rows
+returned liquidity **and** shortfall of exactly zero, which is also the signature of
+"this account has no position in the pool you are querying." Three checks were run before
+accepting the finding:
+
+1. **Right pool?** The scanner reads the Venus *Core Pool* subgraph
+   (`bsc_opps.py:40`), and `0xfD36E2…8384` is the Core Comptroller. They match.
+2. **Does the call work at all?** `0xb70e9989…` returned a non-zero $9,707.31 liquidity,
+   proving the call, the ABI decode and archive access all function.
+3. **Are these real Venus users?** `getAssetsIn()` returns **5 entered markets** for every
+   account sampled. They are genuine Core participants, not empty addresses.
+
+So the zeros are real: 20 accounts have no live position (entered markets historically,
+balances since closed) and 1 is healthy with excess collateral. **None was liquidatable.**
+
+**What this means.** The Venus surface reports opportunities that do not exist. Its
+"liquidatable" status comes from subgraph oracle prices that update only on interaction,
+so it is reading stale state and inferring distress that the live oracle does not see.
+The scanner's own note anticipated this — *"a position shown liquidatable may already be
+healthy"* — but the scale was unknown until now. It is not an edge case. It is **all of
+them**.
+
+**Impact on the build decision: none, and that is the point.** Venus rows were already
+classified retrospective and excluded from the evidence count, so the headline number
+(0 cleared) is unchanged. What the run validates is the *method*: Mode A found a wholly
+fictitious surface in its first execution, at zero cost, with no contract and no audit.
+
+**Follow-up required** (not yet done): the Venus scanner should read
+`getAccountLiquidity` on-chain rather than deriving health from subgraph prices, or its
+liquidatable list should be labelled unverified in the UI. Until then, treat every Venus
+figure on the Flash Lab as unproven.
+
+**Caveat, stated plainly:** most rows sat only ~177 blocks behind head when queried, so
+this exercised archive access lightly. The conclusion rests on the on-chain state at the
+observed block being authoritative, which it is, not on deep history.
+
+---
+
 ## 8. Build order
 
 1. `export-ledger.ts` — trivial, do it now so the fixture format is fixed early.

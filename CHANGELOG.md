@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.25.0 - 2026-07-20
+
+**Mode A built and run — and its first execution found an entire scanner surface reporting opportunities that do not exist.**
+
+- **`scripts/export-ledger.js`** — clearance ledger to fork-test fixture. Rows without an `observed_block` go to a `skipped` list with a reason rather than being dropped, so a harness cannot pass over a subset and call it a full pass.
+- **`scripts/replay-mode-a.js`** — model validation, no contract required. Asks Venus's own Comptroller, at each row's observed block, whether the flagged position was actually liquidatable (`getAccountLiquidity` → `shortfall > 0`).
+- **Result: 0 confirmed, 21 phantom.** Not one Venus position the scanner flagged had any shortfall on-chain. Claimed shortfalls ran as high as **$1,437,894** against an on-chain shortfall of **$0**. One account showed $9,707 of *excess* liquidity while the scanner claimed it was $67,873 underwater.
+- **The test was validated before the result was accepted.** Twenty rows returned liquidity and shortfall both exactly zero — also the signature of querying the wrong pool. Three checks ruled that out: the scanner reads Venus *Core* and `0xfD36E2…8384` is the Core Comptroller; one account returned a non-zero reading, proving call, decode and archive access all work; and `getAssetsIn()` shows **5 entered markets** for every account sampled, so these are real Core participants.
+- **Cause:** Venus health is derived from subgraph oracle prices that update only on interaction. The scanner is reading stale state and inferring distress the live oracle does not see. Its own note anticipated this — the scale did not.
+- **No impact on the build decision, which is the point.** Venus was already classified retrospective and excluded from the evidence count, so the headline is still 0 cleared. What this validates is the *method*: Mode A found a fictitious surface on its first run, at zero cost, with no contract and no audit spend.
+- **Follow-up outstanding:** the Venus scanner should read `getAccountLiquidity` on-chain, or its list must be labelled unverified in the UI. Until then every Venus figure on the Flash Lab is unproven.
+
 ## 2.24.0 - 2026-07-20
 
 **Fork-test harness design — and a live defect it exposed before it could cost us the evidence.**
