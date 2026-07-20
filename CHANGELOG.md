@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.21.1 - 2026-07-20
+
+**Aave v4 flash-loan question settled against the source — the answer is no.**
+
+- Downloaded the full public `aave/aave-v4` source (460 Solidity files) and grepped it. **Zero** occurrences of `flash`, `executeOperation`, or `flashLoan` — case-insensitive, across every file. Controls in the same search: `borrow` 132 files, `supply` 140, `liquidationCall` 15, proving the search works. `ISpoke`/`IHub`/`IHubBase` were also read function-by-function: no flash-loan entrypoint.
+- **Aave v4 has no flash-loan capability at all.** This supersedes the earlier "mechanism exists but no documented entrypoint" reading, which was inferred from the docs.
+- Reconciles the v4 docs' mention of a 0.05% flash-loan fee on Position Swaps: v4 core has no swap engine either (the only `swap` hits are OpenZeppelin helpers). Swaps run off-core via an intent model with CoW Protocol, so the flash loan behind them is sourced **outside** Aave v4 and the fee is passed through — not a primitive v4 exposes.
+- Records that providing collateral does not change the answer. Collateral is what flash loans exist to avoid; the collateral-backed variant (`flashLoan()` with `interestRateMode != 0`) is a **v3** feature and still requires the v3 receiver contract.
+
 ## 2.21.0 - 2026-07-20
 
 **Flash-loan build requirements documented** (`docs/flash-loan-build-requirements.md`).

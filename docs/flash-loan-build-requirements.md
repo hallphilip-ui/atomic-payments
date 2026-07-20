@@ -243,12 +243,36 @@ costs faster.**
 **Build against v3.** The flash-loan guide, interfaces and reference implementations are
 all v3, and v3 is deployed on 15+ chains.
 
-**v4 has a flash-loan mechanism but no documented public entrypoint.** Its docs mention
-a 0.05% flash-loan fee and a per-reserve enable flag, and its swap engine uses flash
-loans internally. But across all 28 v4 pages there are **zero** occurrences of
-`executeOperation`, `IFlashLoanReceiver`, `flashLoan()` or `flashLoanSimple`. Whether
-`ISpoke`/`IHub` exposes a callable flash-loan function is **unverified** — it would need
-reading the `aave/aave-v4` source. Do not assume the v3 receiver pattern carries over.
+**v4 CANNOT originate a flash loan. Settled against the source, 2026-07-20.**
+
+Downloaded the full `aave/aave-v4` source (public repo, 460 Solidity files) and grepped
+it. Case-insensitive, across every file:
+
+| Term | Files containing it |
+|---|---|
+| `borrow` | 132 |
+| `supply` | 140 |
+| `liquidationCall` | 15 |
+| **`flash`** | **0** |
+| **`executeOperation`** | **0** |
+| **`flashLoan`** | **0** |
+
+The first three are the control — they prove the search works. There is **no flash-loan
+capability anywhere in Aave v4 core.** `ISpoke`, `IHub` and `IHubBase` were also read
+function-by-function: no flash-loan entrypoint in any of them.
+
+**Reconciling this with the v4 docs**, which do mention a 0.05% flash-loan fee on
+Position Swaps: v4 core contains no swap engine either — the only `swap` hits are
+OpenZeppelin dependency helpers. Swaps are executed **off-core** via an intent model
+(`IIntentConsumer` is the only relevant interface, and the docs name CoW Protocol as the
+execution venue). So the flash loan behind a Position Swap is sourced from **outside
+Aave v4** — most likely v3 or another protocol — and the fee is passed through to the
+user. It is not a primitive v4 exposes to integrators.
+
+**Conclusion: build against v3. v4 is not an option for flash loans, with or without
+collateral.** Providing collateral does not change this — collateral is what flash loans
+exist to avoid, and the collateral-backed variant (`flashLoan()` with
+`interestRateMode != 0`) is a **v3** feature that still requires the v3 receiver contract.
 
 **v4 is also an API break.** There is no single Pool: you call **Spokes** (3 hubs, 10+
 spokes on Ethereum), reserves are `uint256 reserveId` rather than asset addresses, and
