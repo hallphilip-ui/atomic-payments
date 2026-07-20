@@ -32,6 +32,29 @@ const TRON_TOKENS: Record<string, { sym: string; dec: number; cg: string }> = {
   TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9: { sym: 'WBTC', dec: 8, cg: 'wrapped-bitcoin' },
 };
 
+// Does a TRC-20 have a real price feed? The curated map above is only the majors, so
+// absence from it means nothing — USDV is a legitimate stablecoin and was being libelled
+// as spam. CoinGecko's tron contract endpoint is the actual authority. Free tier caps at
+// ONE contract per call, hence the cache + the caller only asking about displayed rows.
+// Returns null (= unknown, do NOT flag) when the lookup itself fails.
+const tronPriceCache = new Map<string, boolean>();
+async function tronTokenPriced(contract: string): Promise<boolean | null> {
+  if (TRON_TOKENS[contract]) return true;
+  if (tronPriceCache.has(contract)) return tronPriceCache.get(contract)!;
+  try {
+    const r = await fetch(
+      `https://api.coingecko.com/api/v3/simple/token_price/tron?contract_addresses=${encodeURIComponent(contract)}&vs_currencies=usd`,
+      { signal: AbortSignal.timeout(8000) },
+    );
+    if (!r.ok) return null; // rate-limited or down → unknown, not spam
+    const j: any = await r.json();
+    if (j?.error_code) return null;
+    const has = Object.keys(j || {}).length > 0;
+    tronPriceCache.set(contract, has);
+    return has;
+  } catch { return null; }
+}
+
 // Per-CLIENT limit. Requests arrive via the exchange's Cloudflare Pages proxy, which
 // does a server-side fetch — so the origin sees Cloudflare's egress IP, not the user,
 // and req.ip would collapse everyone into ONE global bucket (a trivial self-DoS). The
@@ -356,15 +379,31 @@ async function tronReport(raw: string): Promise<any> {
     e.count++; out ? e.out++ : e.in++;
   }
 
-  const trTransactions = trRows.slice(0, 15).map((t: any) => {
+  const trShown = trRows.slice(0, 15);
+
+  // Price-feed lookup for the distinct non-major contracts on show. Sequential because
+  // the free tier is one-contract-per-call; in practice this is 1-4 requests.
+  const trPriced = new Map<string, boolean | null>();
+  for (const c of [...new Set(trShown.map((t: any) => String(t?.token_info?.address || '')).filter(Boolean))] as string[]) {
+    trPriced.set(c, await tronTokenPriced(c));
+  }
+
+  const trTransactions = trShown.map((t: any) => {
     const info = t.token_info || {};
     const dec = Number.isFinite(Number(info.decimals)) ? Number(info.decimals) : 6;
     let amount: number | null = null;
     try { amount = Number(BigInt(t.value)) / 10 ** dec; } catch { /* keep null */ }
     const sym = String(info.symbol || '?');
-    // Tron spam/poisoning tokens typically use non-ASCII glyphs or a domain name as
-    // the symbol (e.g. "tre.pw") to bait a visit. Flag so real flow isn't buried.
-    const spoofed = /[^\x20-\x7E]/.test(sym) || /\.[a-z]{2,}$/i.test(sym);
+    // Spam detection, most→least certain. Symbol-pattern bait is high confidence. The
+    // price-feed check is weaker but real: `false` means CoinGecko has no market for the
+    // contract. `null` = lookup failed → left unflagged rather than guessed at.
+    const contract = String(info.address || '');
+    const spamReason =
+      /[^\x20-\x7E]/.test(sym) ? 'non-ASCII symbol impersonating a real ticker'
+      : /\.[a-z]{2,}$/i.test(sym) ? 'domain-name symbol (bait to visit a site)'
+      : (trPriced.get(contract) === false) ? 'unrecognised token — no price feed'
+      : null;
+    const spoofed = !!spamReason;
     return {
       ts: new Date(Number(t.block_timestamp)).toISOString(),
       chain: 'Tron',
@@ -374,6 +413,7 @@ async function tronReport(raw: string): Promise<any> {
       counterparty: t.from === raw ? (t.to || null) : (t.from || null),
       counterparty_label: null, // the label corpus is EVM-only; Tron is unlabelled
       suspected_spam: spoofed,
+      spam_reason: spamReason,
     };
   });
 
@@ -726,14 +766,40 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       e.count++; r.direction === 'out' ? e.out++ : e.in++;
     }
 
-    transactions = rows.slice(0, 15).map((r) => {
+    const shown = rows.slice(0, 15);
+
+    // Symbol patterns only catch bait that *looks* fake. Plain-ASCII scam tokens
+    // ("DDYS") need a second signal: no price feed anywhere = worthless airdrop.
+    // Priced per chain over the displayed rows only, and a chain whose price call
+    // FAILED is left unchecked — a dead lookup must not manufacture spam flags.
+    const priced = new Set<string>();
+    const checked = new Set<string>();
+    await Promise.all(EVM_CHAINS.map(async (c) => {
+      const cs = shown.filter((r) => r.chain.id === c.id)
+        .map((r) => String(r.t?.rawContract?.address || ''))
+        .filter((a) => EVM.test(a)).map((a) => a.toLowerCase());
+      if (!cs.length) return;
+      const { prices, ok } = await tokenPrices(c.net, cs);
+      if (!ok) return;
+      cs.forEach((a) => checked.add(`${c.id}:${a}`));
+      Object.keys(prices).forEach((a) => priced.add(`${c.id}:${a.toLowerCase()}`));
+    }));
+
+    transactions = shown.map((r) => {
       const cp = r.cp && EVM.test(String(r.cp)) ? String(r.cp).toLowerCase() : null;
       const v = Number(r.t.value);
       const asset = r.t.asset || 'ETH';
       // Address-poisoning / spoof detection: scam tokens impersonate real ones with
-      // non-ASCII homoglyphs (e.g. "ĖTḨ" for ETH) and dust an address to get their
-      // lookalike into its history. Flag them so real activity isn't buried.
-      const spoofed = /[^\x20-\x7E]/.test(asset);
+      // non-ASCII homoglyphs (e.g. "ĖTḨ" for ETH) or advertise a site in the symbol,
+      // then dust an address to get into its history. Flag so real flow isn't buried.
+      const contract = String(r.t?.rawContract?.address || '').toLowerCase();
+      const ck = `${r.chain.id}:${contract}`;
+      const spamReason =
+        /[^\x20-\x7E]/.test(asset) ? 'non-ASCII symbol impersonating a real ticker'
+        : /\.[a-z]{2,}$/i.test(asset) ? 'domain-name symbol (bait to visit a site)'
+        : (checked.has(ck) && !priced.has(ck)) ? 'unrecognised token — no price feed'
+        : null;
+      const spoofed = !!spamReason;
       return {
         ts: r.t.metadata.blockTimestamp,
         chain: r.chain.name,
@@ -743,6 +809,7 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
         counterparty: cp,
         counterparty_label: labelFor(cp),
         suspected_spam: spoofed,
+        spam_reason: spamReason,
       };
     });
 

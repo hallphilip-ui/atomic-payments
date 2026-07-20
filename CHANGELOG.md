@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.16.0 - 2026-07-20
+
+**Spam flagging: renamed to what it actually claims, and taught to catch plain-ASCII scam tokens.**
+
+- **`spoofed` → `suspected spam`.** The badge now matches the API field it renders (`suspected_spam`) and stops asserting more certainty than the check earns. Each badge carries a **tooltip with the specific reason** it fired, so a flag is auditable rather than an opaque verdict.
+- **New signal: no price feed.** Symbol-pattern matching only catches bait that *looks* fake — it silently missed plain-ASCII scam tokens (`DDYS`, `TVRa`, `AML` all sat unflagged next to a caught `tre.pw`). Transfers on the displayed rows are now checked for a real market: Alchemy Prices per chain on EVM, CoinGecko's tron contract endpoint on Tron.
+- **Best catch: fake native-asset tokens.** On vitalik.eth this flags an ERC-20 *literally named "ETH"* — it has a contract address, so it's distinguishable from real native ETH transfers, which stay unflagged. Previously the two were identical in the list.
+- **Corrected a false positive before shipping.** The first Tron implementation used "absent from our curated 8-token map" as a proxy for "no price feed" and libelled **USDV**, a real stablecoin, as spam. Replaced with an actual price lookup; TUSD — also outside the curated map — now correctly passes.
+- **Fails to unflagged, never to spam.** A price lookup that errors or rate-limits returns *unknown*, and unknown tokens are left unmarked. A dead upstream must not manufacture accusations against a wallet.
+- **Honest reason strings.** `unrecognised token — no price feed` states the evidence, not a conclusion. A legitimate token with no CoinGecko market will trip it; the wording is chosen so that reading the flag tells you exactly what was and wasn't established.
+
 ## 2.15.0 - 2026-07-20
 
 **Flash Lab: a live "what a flash loan actually costs" reference.**
