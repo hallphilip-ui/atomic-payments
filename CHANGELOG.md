@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.21.0 - 2026-07-20
+
+**Flash-loan build requirements documented** (`docs/flash-loan-build-requirements.md`).
+
+- Full sweep of all 91 pages of aave.com/docs plus the aave-v3-origin source, turned into a labelled build checklist: **[PROTOCOL]** (Aave requires it), **[ENGINEERING]** (you fail without it), **[JUDGEMENT]** (your call).
+- **The headline: a flash loan cannot be done from a wallet, an API, or an SDK.** It is a callback into a contract you deployed. AaveKit's entire write surface (supply/borrow/repay/withdraw/liquidate/swap) contains no flash-loan action — verified across the whole hooks reference.
+- Documents the two mandatory security guards (`msg.sender == POOL`, `initiator == address(this)`), what each prevents, and the fact that **`FlashLoanReceiverBase` provides neither** — the most misunderstood point, and the one the third-party repo we reviewed got wrong.
+- **Premium verified on-chain**, not from docs: `FLASHLOAN_PREMIUM_TOTAL()` returns `5` (bps) on the live Ethereum Pool. Documents reading it at runtime rather than hardcoding, since governance can change it per market.
+- Concludes `FLASH_BORROWER` is not worth pursuing: waives the fee only on `flashLoan()` (never `flashLoanSimple`), grants no extra capacity, and requires an Aave governance proposal — worth $50 of a ~$950 cost base.
+- **Correction recorded:** an earlier claim in this session that "Aave v4 does not support flash loans" was wrong. v4 documents a 0.05% flash-loan fee and a per-reserve enable flag, and its swap engine uses them internally. What is true is narrower: v4 documents no public developer entrypoint (zero occurrences of `executeOperation`/`IFlashLoanReceiver`/`flashLoan()` across its 28 pages). The on-chain probe that prompted the error tested a v3-era getter name, whose absence proves nothing about v4.
+- Notes v4 is an API break regardless: no single Pool, calls go to Spokes, reserves are `uint256 reserveId`, approvals go to the hub.
+
 ## 2.20.0 - 2026-07-20
 
 **Live Aave protocol data on the Flash Lab — and it caught four stale assumptions in our own model.**
