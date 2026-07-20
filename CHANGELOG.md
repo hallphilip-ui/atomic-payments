@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.17.0 - 2026-07-20
+
+**Security: an Access login no longer confers arb-desk admin.**
+
+- **The hole.** `deskAdmin()` returned any verified Cloudflare Access email *regardless of whether the caller needed admin* — the `requireAdmin` argument was ignored on the Access path. The Access allow-list was being treated as the admin list. That was safe while the allow-list held exactly one person and stopped being safe the moment a second was added: anyone granted desk visibility could rewrite live scanner thresholds via `POST /arb-desk/config` and repoint the ntfy alert topic via `POST /arb-desk/test-alert` — i.e. silently redirect the alert stream somewhere the owner can't see.
+- **The split.** `deskAdmin(req, bool)` is replaced by `deskAuth(req)` returning `{ who, admin }`. Identity and authority are now separate answers. Read routes accept any authenticated caller; write routes require `.admin` and return **403** (with the signed-in identity) rather than a misleading 401. There is no boolean argument left to forget at a call site.
+- **New `ARB_DESK_ADMIN_EMAILS`** (comma-separated, case-insensitive) controls who may change desk settings via an Access login. Rules live in `src/security/deskAdminRules.ts` alongside `operatorRules`, so they're unit-testable without an Express app.
+- **Fails closed.** An unset or blank list grants admin to **nobody** via Access — a missing config must never read as "allow everyone". The operator ADMIN key is unaffected, so this cannot lock an owner out. A startup warning names the variable when Access is on and the list is empty.
+- **New contract test** `npm run test:desk-auth`, covering fail-closed behaviour, case-insensitivity, and near-miss addresses (`owner@example.com.evil.com`, `notowner@example.com`). **Verified it fails** when the original bug is reintroduced — a regression test that never fails proves nothing.
+- **Migration:** browser admin is OFF until `ARB_DESK_ADMIN_EMAILS` is set on the box. Use the operator admin key until then.
+
 ## 2.16.1 - 2026-07-20
 
 **Fix: `/assets/ga.js` 404'd on every page.**

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { readFileSync, statSync, writeFileSync } from 'fs';
 import { validateOperatorCredential } from '../security/operatorRules';
 import { verifyCfAccessEmail, isCfAccessEnabled } from '../security/cfAccessVerifier';
+import { isDeskAdminEmail, deskAdminListConfigured } from '../security/deskAdminRules';
 
 // Operator-gated read-only view of the arbitrage scanner's paper-trade forward test.
 // The scanner (separate log-only service at /opt/atomic-arb-scanner) writes a compact
@@ -37,19 +38,35 @@ const CONFIG_BOUNDS: Record<string, [number, number]> = {
   max_assets: [5, 1000], interval_sec: [30, 3600], window_hours: [1, 168]
 };
 
-// Resolve the viewer for a desk request: operator ADMIN key, or a per-person Cloudflare
-// Access login. Returns the identity string, or null if unauthenticated/insufficient.
-async function deskAdmin(req: Request, requireAdmin: boolean): Promise<string | null> {
+// Admin rules live in src/security/deskAdminRules (unit-tested there). Access identity
+// != admin: the Access allow-list grants visibility, this grants the right to change
+// live scanner settings. Unset list = admin for nobody via Access (fail closed).
+if (isCfAccessEnabled() && !deskAdminListConfigured()) {
+  console.warn(
+    '[arb-desk] Cloudflare Access is on but ARB_DESK_ADMIN_EMAILS is empty — no Access ' +
+    'login can perform admin actions. Set it to the owner email(s) to restore browser admin.'
+  );
+}
+
+type DeskAuth = { who: string; admin: boolean };
+
+// Resolve the caller for a desk request. Returns WHO they are and WHETHER they may
+// make changes — the two are separate questions, which is the whole point of the split.
+// null means unauthenticated (401); { admin: false } means authenticated viewer (403
+// on write). Callers must check `.admin` themselves; there is no boolean flag to forget.
+async function deskAuth(req: Request): Promise<DeskAuth | null> {
   const opHeader = req.headers['x-atomic-operator-key'];
   const opKey = Array.isArray(opHeader) ? opHeader[0] : opHeader;
   if (opKey) {
     const role = validateOperatorCredential(opKey);
-    if (role === 'admin' || (role === 'readonly' && !requireAdmin)) return 'operator-key';
+    if (role === 'admin') return { who: 'operator-key', admin: true };
+    if (role === 'readonly') return { who: 'operator-key(readonly)', admin: false };
   }
   if (isCfAccessEnabled()) {
     const jwt = req.headers['cf-access-jwt-assertion'];
     const email = await verifyCfAccessEmail(Array.isArray(jwt) ? jwt[0] : jwt);
-    if (email) return email; // Access allow-list already restricts who this can be
+    // Access proves identity. It does not confer admin.
+    if (email) return { who: email, admin: isDeskAdminEmail(email) };
   }
   return null;
 }
@@ -92,13 +109,14 @@ router.get('/v1/admin/arb', (_req: Request, res: Response) => {
 
 // Browser desk feed — self-gated: operator key OR per-person Cloudflare Access login.
 router.get('/arb-desk/data', async (req: Request, res: Response) => {
-  const who = await deskAdmin(req, false); // read: operator (any role) or Access login
-  if (!who) {
+  const auth = await deskAuth(req); // read: any authenticated caller, admin not required
+  if (!auth) {
     return res.status(401).json({
       error: 'Sign in required.',
       accepts: ['x-atomic-operator-key: <key>', 'Cloudflare Access session (per-person)']
     });
   }
+  const who = auth.who;
   return sendSnapshot(res, who);
 });
 
@@ -106,13 +124,14 @@ router.get('/arb-desk/data', async (req: Request, res: Response) => {
 // the atomic-flash-sim service). Same self-gate as the desk: operator key OR a
 // per-person Cloudflare Access login (the /arb-desk/* prefix is Access-protected).
 router.get('/arb-desk/flash-data', async (req: Request, res: Response) => {
-  const who = await deskAdmin(req, false);
-  if (!who) {
+  const auth = await deskAuth(req);
+  if (!auth) {
     return res.status(401).json({
       error: 'Sign in required.',
       accepts: ['x-atomic-operator-key: <key>', 'Cloudflare Access session (per-person)']
     });
   }
+  const who = auth.who;
   try {
     const snap = JSON.parse(readFileSync(FLASH_SNAPSHOT_PATH, 'utf8'));
     snap.snapshot_age_sec = Math.round((Date.now() - statSync(FLASH_SNAPSHOT_PATH).mtimeMs) / 1000);
@@ -137,11 +156,19 @@ router.get('/arb-desk/flash-data', async (req: Request, res: Response) => {
 });
 
 // Admin-tunable scanner controls: writes config.json that the scanner reads each cycle.
-// Requires ADMIN (operator admin key, or a per-person Access login — the Access allow-list
-// already restricts who that can be). NOT under /v1/admin, so it self-gates here.
+// Requires ADMIN: the operator admin key, or an Access login whose email is listed in
+// ARB_DESK_ADMIN_EMAILS. Being on the Access allow-list is NOT sufficient — that grants
+// visibility, not the right to retune a live scanner. NOT under /v1/admin, so it
+// self-gates here.
 router.post('/arb-desk/config', async (req: Request, res: Response) => {
-  const who = await deskAdmin(req, true);
-  if (!who) return res.status(401).json({ error: 'Admin sign-in required.' });
+  const auth = await deskAuth(req);
+  if (!auth) return res.status(401).json({ error: 'Admin sign-in required.' });
+  if (!auth.admin) return res.status(403).json({
+    error: 'Your account has view access to the desk but is not an admin.',
+    detail: 'Changing scanner settings requires the operator admin key, or your email in ARB_DESK_ADMIN_EMAILS.',
+    signed_in_as: auth.who,
+  });
+  const who = auth.who;
 
   const body = (req.body || {}) as Record<string, unknown>;
   // Merge onto existing config so saving one section can't wipe another (e.g. the ntfy topic).
@@ -177,8 +204,15 @@ router.post('/arb-desk/config', async (req: Request, res: Response) => {
 
 // Send a test push to the configured ntfy topic so the admin can confirm delivery.
 router.post('/arb-desk/test-alert', async (req: Request, res: Response) => {
-  const who = await deskAdmin(req, true);
-  if (!who) return res.status(401).json({ error: 'Admin sign-in required.' });
+  const auth = await deskAuth(req);
+  if (!auth) return res.status(401).json({ error: 'Admin sign-in required.' });
+  // Non-admins must not be able to probe or confirm the alert channel.
+  if (!auth.admin) return res.status(403).json({
+    error: 'Your account has view access to the desk but is not an admin.',
+    detail: 'Sending test alerts requires the operator admin key, or your email in ARB_DESK_ADMIN_EMAILS.',
+    signed_in_as: auth.who,
+  });
+  const who = auth.who;
   let cfg: Record<string, unknown> = {};
   try { cfg = JSON.parse(readFileSync(CONFIG_PATH, 'utf8')); } catch { /* none */ }
   const topic = typeof cfg.ntfy_topic === 'string' ? cfg.ntfy_topic.trim() : '';
