@@ -76,15 +76,79 @@ async function priceOn(dex, base, quote, block) {
   return { price, quoteLiq: Number(quoteRes) / 1e18, pair };
 }
 
+// ---------------------------------------------------------------------------
+// EXTERNAL PRICE CROSS-CHECK
+//
+// Recomputing from getReserves catches stale data and wrong pairs, but it shares the
+// scanner's price FORMULA — so a conceptual error there (inverted ratio, wrong decimals,
+// base/quote swapped) would make both agree and both be wrong. An off-chain reference
+// is the only thing that catches that class of bug.
+//
+// Two sources are used because one can be unavailable: Binance is geo-restricted from
+// some locations, CoinGecko is keyless everywhere. Neither is perfectly "independent" —
+// CoinGecko aggregates exchanges, some of which are DEXes — but both are independent of
+// OUR arithmetic, which is the thing under test.
+//
+// Expect small divergence as NORMAL: DEX-vs-CEX basis, and BTCB/ETH on BSC are pegged
+// wrappers that trade a touch off spot. A formula error does not look like 0.3% — it
+// looks like an inverted price or an order of magnitude.
+const CG_IDS = {
+  WBNB: 'binancecoin', ETH: 'ethereum', BTCB: 'bitcoin',
+  CAKE: 'pancakeswap-token', USDC: 'usd-coin', USDT: 'tether',
+};
+const BINANCE_USD = { WBNB: 'BNBUSDT', ETH: 'ETHUSDT', BTCB: 'BTCUSDT', CAKE: 'CAKEUSDT', USDC: 'USDCUSDT' };
+
+async function externalUsd() {
+  const out = { cg: {}, binance: {}, sources: [] };
+  try {
+    const ids = [...new Set(Object.values(CG_IDS))].join(',');
+    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`,
+      { signal: AbortSignal.timeout(15000) });
+    if (r.ok) {
+      const j = await r.json();
+      for (const [sym, id] of Object.entries(CG_IDS)) {
+        if (j[id] && Number.isFinite(j[id].usd)) out.cg[sym] = j[id].usd;
+      }
+      if (Object.keys(out.cg).length) out.sources.push('coingecko');
+    }
+  } catch { /* source unavailable */ }
+  try {
+    const syms = JSON.stringify(Object.values(BINANCE_USD));
+    const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(syms)}`,
+      { signal: AbortSignal.timeout(15000) });
+    if (r.ok) {
+      const j = await r.json();
+      if (Array.isArray(j)) {
+        const bySym = Object.fromEntries(j.map((x) => [x.symbol, Number(x.price)]));
+        for (const [sym, bsym] of Object.entries(BINANCE_USD)) {
+          if (Number.isFinite(bySym[bsym])) out.binance[sym] = bySym[bsym];
+        }
+        out.binance.USDT = 1; // the quote asset of every Binance pair above
+        if (Object.keys(out.binance).length > 1) out.sources.push('binance');
+      }
+    }
+  } catch { /* geo-restricted or down */ }
+  return out;
+}
+
+/** Reference price of base expressed in quote, from one external source. */
+function refPrice(px, base, quote) {
+  const b = px[base], q = px[quote];
+  return Number.isFinite(b) && Number.isFinite(q) && q > 0 ? b / q : null;
+}
+
 async function main() {
   const snap = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
   const rows = snap.pancake_arb || [];
   const ageSec = Math.round((Date.now() - Date.parse(snap.updated)) / 1000);
   const bnbPrice = Number((snap.assumptions || {}).bnb_price_usd) || null;
-  console.log(`  snapshot age: ${ageSec}s · ${rows.length} pancake rows · BNB $${bnbPrice}\n`);
+  const ext = await externalUsd();
+  console.log(`  snapshot age: ${ageSec}s · ${rows.length} pancake rows · BNB $${bnbPrice}`);
+  console.log(`  external sources: ${ext.sources.length ? ext.sources.join(', ') : 'NONE REACHABLE — formula unverified'}\n`);
   if (!rows.length) { console.log('  nothing to verify'); return; }
 
   let agree = 0, diverge = 0, unresolved = 0;
+  let extOk = 0, extWarn = 0, extFail = 0, extSkip = 0;
   for (const row of rows) {
     const [base, quote] = String(row.pair).split('/');
     if (!TOKEN[base] || !TOKEN[quote]) { console.log(`  SKIP ${row.pair} — unknown token`); unresolved++; continue; }
@@ -118,13 +182,42 @@ async function main() {
     // healthy pool look dead — CAKE/WBNB showed "$46" when it holds ~$26k. Convert first.
     const toUsd = (v) => (quote === 'WBNB' && bnbPrice ? v * bnbPrice : v);
     const raw = quote === 'WBNB' ? `  (${buy.quoteLiq.toFixed(1)} / ${sell.quoteLiq.toFixed(1)} WBNB)` : '';
-    console.log(`      quote liq: buy $${Math.round(toUsd(buy.quoteLiq)).toLocaleString()} · sell $${Math.round(toUsd(sell.quoteLiq)).toLocaleString()}${raw}\n`);
+    console.log(`      quote liq: buy $${Math.round(toUsd(buy.quoteLiq)).toLocaleString()} · sell $${Math.round(toUsd(sell.quoteLiq)).toLocaleString()}${raw}`);
+
+    // --- external cross-check: does our PRICE FORMULA produce a sane number at all? ---
+    const mid = (buy.price + sell.price) / 2;
+    const refs = [];
+    for (const [name, px] of [['coingecko', ext.cg], ['binance', ext.binance]]) {
+      const rp = refPrice(px, base, quote);
+      if (rp) refs.push([name, rp]);
+    }
+    if (!refs.length) {
+      extSkip++;
+      console.log(`      external  : no reference for ${base}/${quote} — formula UNVERIFIED\n`);
+    } else {
+      const parts = refs.map(([name, rp]) => {
+        const dev = (mid / rp - 1) * 100;
+        return `${name} ${rp.toPrecision(8)} (${dev >= 0 ? '+' : ''}${dev.toFixed(3)}%)`;
+      });
+      const worst = Math.max(...refs.map(([, rp]) => Math.abs((mid / rp - 1) * 100)));
+      // >5% is not basis — it is an inverted ratio, wrong decimals, or a swapped pair.
+      const tag = worst > 5 ? 'FAIL' : worst > 1 ? 'WARN' : 'OK';
+      if (tag === 'FAIL') extFail++; else if (tag === 'WARN') extWarn++; else extOk++;
+      console.log(`      external  : ${tag}  on-chain mid ${mid.toPrecision(8)} vs ${parts.join(' · ')}\n`);
+    }
   }
 
   console.log('  ── Pancake Mode A summary ──');
-  console.log(`  agree     : ${agree}`);
-  console.log(`  diverge   : ${diverge}`);
-  console.log(`  unresolved: ${unresolved}`);
+  console.log(`  reserve recompute → agree ${agree} · diverge ${diverge} · unresolved ${unresolved}`);
+  console.log(`  external price    → ok ${extOk} · warn ${extWarn} · FAIL ${extFail} · no-ref ${extSkip}`);
+  if (extFail > 0) {
+    console.log('\n  EXTERNAL FAIL: an on-chain price is >5% from independent references.');
+    console.log('  That is not DEX/CEX basis — it points at an inverted ratio, wrong decimals,');
+    console.log('  or a swapped base/quote in the price formula SHARED by scanner and checker.');
+  } else if (extOk + extWarn > 0) {
+    console.log('\n  Price formula corroborated against off-chain references — the one class of');
+    console.log('  error a reserve-recompute cannot catch, since it shares the same arithmetic.');
+  }
   if (diverge === 0 && agree > 0) {
     console.log('\n  The scanner\'s pancake prices reconcile with chain state. This surface is');
     console.log('  measuring something real — unlike Venus, which was 100% phantom.');

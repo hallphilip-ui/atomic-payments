@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.27.0 - 2026-07-20
+
+**External price cross-check — the last unvalidated class of error in the Pancake surface is now closed.**
+
+- Recomputing from `getReserves` catches stale data, wrong pairs and dead pools, but it shares the scanner's price **formula** — so an inverted ratio, wrong decimals or swapped base/quote would make checker and scanner agree while both were wrong. Only an off-chain reference catches that.
+- **Two independent sources, because one can be unavailable.** Binance is geo-restricted from some locations (it refused from the dev machine, worked from the VPS); CoinGecko is keyless everywhere. Neither is perfectly independent — CoinGecko aggregates exchanges, some of them DEXes — but both are independent of *our arithmetic*, which is the thing under test.
+- **Result: 5 OK, 0 warn, 0 fail.** Every on-chain mid sits within **0.29%** of both references. Best agreement was ETH/USDT at **0.006%** from CoinGecko. The price formula is corroborated.
+- Classification is deliberately coarse: **>5% is FAIL**, because that is not DEX/CEX basis — it is an order-of-magnitude or inversion bug. 1–5% warns. Small divergence is expected and normal: DEX-vs-CEX basis, and BTCB/ETH on BSC are pegged wrappers that trade slightly off spot.
+- If neither source is reachable the run says **"formula UNVERIFIED"** rather than passing silently — an absent check must not read as a passed one.
+
+**Validation status of the Phase 0 instruments is now complete:** Venus was 100% phantom and has been fixed to confirm on-chain; PancakeSwap reconciles against both chain state and off-chain references. The headline is unchanged at **0 available cleared** — but it now rests on instruments that have been tested rather than trusted.
+
 ## 2.26.0 - 2026-07-20
 
 **Mode A run against the PancakeSwap surface — it reconciles, unlike Venus.**
