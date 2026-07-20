@@ -130,6 +130,39 @@ Pool genuinely is the caller. The attacker now drives our logic with full contro
 inputs, using Aave as a laundering proxy. R4 alone is not sufficient — this is the
 subtle one.
 
+### 5.1 Reference implementations are uniformly unsafe — two data points
+
+This is not a hypothetical risk that careful implementers avoid. The public tutorials and
+repos people copy from **ship the pattern with the guards missing**, so an implementer who
+starts from a "working example" inherits the vulnerability by default.
+
+- **`github.com/lraunakl/AAVE-FLASHLOAN`** (reviewed 2026-07-20) — omits both guards,
+  and additionally does not compile (`executeOperation` absent from the flagship
+  contract, undefined `IDex`) and traps funds (`Dex.sol` has no constructor). 66 stars,
+  18 forks. People are forking non-compiling, fund-trapping code believing it works.
+
+- **Chainstack "Aave V3 flash loans with Hardhat" tutorial** (reviewed 2026-07-20,
+  Avalanche Fuji). Cleaner — it compiles and the repayment leg is correct — but its
+  `executeOperation` is a mock (`/** YOUR CUSTOM LOGIC HERE */`, borrow-and-repay only)
+  and it **also omits both guards**:
+
+  ```solidity
+  function executeOperation(address asset, uint256 amount, uint256 premium,
+      address initiator, bytes calldata params) external override returns (bool) {
+      /** YOUR CUSTOM LOGIC HERE */
+      uint256 amountOwed = amount + premium;
+      IERC20(asset).approve(address(POOL), amountOwed);
+      return true;
+  }
+  ```
+
+  Note `initiator` is declared and never read — the exact R5 omission.
+
+**Conclusion for the auditor and the implementer:** treat any starting skeleton as
+guard-free until proven otherwise, and make R4 + R5 the first thing added and the first
+thing verified. Two independent references, both unsafe, is the evidence that the audit
+(project plan Phase 3) is not optional.
+
 ---
 
 ## 6. The residual-balance invariant
