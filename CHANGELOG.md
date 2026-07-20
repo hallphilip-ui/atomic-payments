@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.22.0 - 2026-07-20
+
+**Would-have-cleared counter + flash-loan project plan.**
+
+- **New counter** (`src/arb/clearanceLog.ts`, `GET /arb-desk/clearance-log`, card on the Flash Lab). Polls the scanner snapshots every 5 minutes and records every row whose net profit — after flash fee, both swap legs, slippage and gas — clears **0.95% of capital** and **$50 absolute**, using the *competitive* net throughout. Purpose: make the ~$10-40k build/no-build decision a number rather than a judgement call.
+- **Surfaces are split by availability, and this is the whole point.** Only PancakeSwap cross-DEX arb counts toward the headline, because it reads live on-chain reserves and can genuinely answer "was there an opening just now". Aave rows are *completed* liquidations already won by someone else; Venus rows derive from lagging subgraph oracle prices. Both are recorded as **retrospective — explicitly not evidence**.
+- **A bug caught before it became a green light.** The first cut reported "21 opportunities cleared". It was an artefact: Venus pays a **fixed 10% liquidation incentive**, so every row nets exactly `(10% x 15%) - 0.05% - 0.45% = 1.00%` regardless of size. At a 0.95% bar every row passes; at 1.05% none do. The test could not be failed on merit, so it measured nothing. Added `marginIsDegenerate()` to detect that class of defect rather than depend on someone noticing.
+- Ledger carries a schema version so rows judged under different rules can never be mixed into one count.
+- **Current reading: 0 available opportunities cleared** (64 rows evaluated), 21 retrospective, degeneracy flag firing.
+- **New project plan** (`docs/flash-loan-project-plan.md`): six gated phases with falsifiable exit criteria, a budget table (audit dominates; deployment gas is $0.71 at today's 0.186 gwei), pre-agreed hard-stop conditions, and an up-front list of what would make the case *against* proceeding.
+
 ## 2.21.1 - 2026-07-20
 
 **Aave v4 flash-loan question settled against the source — the answer is no.**

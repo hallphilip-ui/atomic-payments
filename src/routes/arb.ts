@@ -3,6 +3,7 @@ import { readFileSync, statSync, writeFileSync } from 'fs';
 import { validateOperatorCredential } from '../security/operatorRules';
 import { verifyCfAccessEmail, isCfAccessEnabled } from '../security/cfAccessVerifier';
 import { isDeskAdminEmail, deskAdminListConfigured } from '../security/deskAdminRules';
+import { runClearancePass, marginIsDegenerate } from '../arb/clearanceLog';
 
 // Operator-gated read-only view of the arbitrage scanner's paper-trade forward test.
 // The scanner (separate log-only service at /opt/atomic-arb-scanner) writes a compact
@@ -359,6 +360,29 @@ router.get('/arb-desk/aave-live', async (req: Request, res: Response) => {
       detail: err instanceof Error ? err.message : String(err),
     });
   }
+});
+
+// Would-have-cleared counter. The build/no-build evidence: how many opportunities
+// would have cleared a real profitability bar, after all costs, at tradeable size.
+router.get('/arb-desk/clearance-log', async (req: Request, res: Response) => {
+  const auth = await deskAuth(req);
+  if (!auth) return res.status(401).json({ error: 'Sign in required.' });
+  // Fold in the current snapshots before answering, so the number is never stale.
+  const led = runClearancePass();
+  const started = Date.parse(led.window_start);
+  const days = Number.isFinite(started)
+    ? Math.max(0, (Date.now() - started) / 86_400_000) : 0;
+  const n = led.cleared.length;
+  return res.json({
+    ...led,
+    days_running: Math.round(days * 100) / 100,
+    cleared_count: n,
+    retrospective_count: led.retrospective.length,
+    retrospective_degenerate: marginIsDegenerate(led.retrospective),
+    verdict: n === 0
+      ? `No AVAILABLE opportunity has cleared ${led.threshold_pct}% net in ${days.toFixed(1)} days (${led.evaluated.toLocaleString()} rows evaluated).`
+      : `${n} available opportunit${n === 1 ? 'y has' : 'ies have'} cleared ${led.threshold_pct}% net across ${days.toFixed(1)} days (${led.evaluated.toLocaleString()} evaluated).`,
+  });
 });
 
 function num(v: unknown): number | null {

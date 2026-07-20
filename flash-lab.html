@@ -120,6 +120,14 @@
         <div class="meta" id="breakeven"></div>
       </div>
 
+      <div class="card" id="clearCard" style="display:none">
+        <h2>Would-have-cleared counter <span style="font-weight:400;color:var(--muted);font-size:12px">· the build/no-build evidence — how many opportunities cleared a real bar, after every cost, at tradeable size</span></h2>
+        <div id="clearHeadline"></div>
+        <div class="kpis" id="clearKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+        <div id="clearBody"></div>
+        <div class="meta" style="margin-top:10px" id="clearRules"></div>
+      </div>
+
       <div class="card" id="aaveCard" style="display:none">
         <h2>Aave protocol — live <span id="aaveMeta" style="font-weight:400;color:var(--muted);font-size:12px"></span></h2>
         <div id="aaveDrift"></div>
@@ -406,6 +414,66 @@
       renderBsc(d.bsc);
     }
 
+    // Would-have-cleared counter. Deliberately the first card: it is the one number
+    // that decides whether a ~$10-40k contract build is justified.
+    async function loadClearance(){
+      var k=key();
+      try{
+        var r=await fetch('/arb-desk/clearance-log', k?{headers:{'x-atomic-operator-key':k}}:{});
+        if(!r.ok) return;
+        var d=await r.json();
+        document.getElementById('clearCard').style.display='block';
+
+        var n=d.cleared_count||0;
+        document.getElementById('clearHeadline').innerHTML = n===0
+          ? '<div style="background:#f4faf5;border:1px solid #cfe8d4;border-radius:8px;padding:14px 16px;margin-bottom:12px">'+
+            '<div style="font-size:26px;font-weight:700;color:var(--green,#2f7d3a);line-height:1.1">0</div>'+
+            '<div style="font-size:13px;margin-top:5px">opportunities cleared <b>'+d.threshold_pct+'%</b> net in <b>'+
+            (d.days_running||0).toFixed(1)+' days</b> — from '+(d.evaluated||0).toLocaleString()+' evaluated.</div>'+
+            '<div style="font-size:12px;color:var(--muted);margin-top:6px">Counts only opportunities that were actually <b>available</b> — live-price surfaces. On this evidence, building the contract buys the ability to execute trades that have not occurred.</div></div>'
+          : '<div style="background:#fff9ec;border:1px solid #f0dcae;border-radius:8px;padding:14px 16px;margin-bottom:12px">'+
+            '<div style="font-size:26px;font-weight:700;line-height:1.1">'+n+'</div>'+
+            '<div style="font-size:13px;margin-top:5px">opportunit'+(n===1?'y':'ies')+' cleared <b>'+d.threshold_pct+'%</b> net in <b>'+
+            (d.days_running||0).toFixed(1)+' days</b> — from '+(d.evaluated||0).toLocaleString()+' evaluated.</div>'+
+            '<div style="font-size:12px;color:var(--muted);margin-top:6px">Each row below was profitable after ALL modelled costs. Recurring hits would be a real build case.</div></div>';
+
+        var ev=d.evaluated_by_surface||{};
+        document.getElementById('clearKpis').innerHTML=[
+          ['Cleared', n],
+          ['Evaluated', (d.evaluated||0).toLocaleString()],
+          ['Days running', (d.days_running||0).toFixed(1)],
+          ['Hit rate', (d.evaluated? (n/d.evaluated*100).toFixed(3):'0.000')+'%']
+        ].map(function(x){ return '<div class="kpi"><div class="l">'+x[0]+'</div><div class="v">'+x[1]+'</div></div>'; }).join('');
+
+        function tbl(rows){
+          return '<div class="scroll"><table><thead><tr><th>When</th><th>Surface</th><th>Detail</th><th>Capital</th><th>Net</th><th>Net %</th></tr></thead><tbody>'+
+            rows.slice(0,25).map(function(c){
+              return '<tr><td>'+esc(String(c.at).slice(0,16).replace('T',' '))+'</td><td>'+esc(c.surface)+'</td>'+
+                '<td>'+esc(c.detail)+'</td><td>'+money(c.capital_usd)+'</td>'+
+                '<td>'+signed(c.net_usd)+'</td><td>'+esc(c.net_pct)+'%</td></tr>';
+            }).join('')+'</tbody></table></div>';
+        }
+        var retro=d.retrospective||[], rn=d.retrospective_count||0;
+        document.getElementById('clearBody').innerHTML =
+          (n===0
+            ? '<div class="empty">Nothing available has cleared the bar. Evaluated by surface: '+
+              Object.keys(ev).map(function(s){return esc(s)+' '+ev[s].toLocaleString();}).join(' · ')+'</div>'
+            : tbl(d.cleared||[]))
+          + (rn? '<div style="margin-top:18px">'+
+              '<div style="font-size:13px;font-weight:600;margin-bottom:4px">Retrospective — '+rn+' row'+(rn===1?'':'s')+' · <span style="color:var(--red)">not evidence</span></div>'+
+              '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">These were profitable on paper but were <b>not available to us</b>. Aave rows are completed liquidations already won by someone else. Venus rows derive from lagging subgraph oracle prices'+
+              (d.retrospective_degenerate?' <b>and their margin is constant by construction</b> — Venus pays a fixed 10% incentive, so every row nets exactly 1.00% regardless of size. Raise the bar to 1.05% and all of them vanish. That is arithmetic, not opportunity.':'.')+
+              '</div>'+tbl(retro)+'</div>' : '');
+
+        document.getElementById('clearRules').innerHTML =
+          '<b>What counts.</b> Net profit after every modelled cost (flash fee, both swap legs, slippage, gas) '+
+          'must be ≥ <b>'+d.threshold_pct+'%</b> of capital deployed AND ≥ <b>$'+d.min_profit_usd+'</b> absolute. '+
+          'The <i>competitive</i> net is used throughout — what a searcher would keep after bidding for the block, '+
+          'not what the winner made. Shallow pools are excluded. Venus rows are re-costed here, because the '+
+          'scanner’s Venus figure does not deduct costs.';
+      }catch(e){ /* counter unavailable — leave hidden rather than show a false zero */ }
+    }
+
     // Live Aave protocol data. Fetched separately from the snapshot because it
     // comes from Aave's API rather than our scanner, and must not be able to
     // fail the whole desk if their API is down.
@@ -524,6 +592,7 @@
         }
         if(!r.ok){ throw new Error('HTTP '+r.status); }
         render(await r.json()); show(true);
+        loadClearance();
         loadAave();   // deliberately not awaited — Aave's API must not delay or break the desk
       }catch(e){
         document.getElementById('meta') && (document.getElementById('meta').textContent='Load error: '+e.message);
