@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { rpcCall } from './rpc';
 import { screenAddressLocal, screenAddressOracleChecked, screenAddresses } from '../compliance/sanctions';
+import { lookupLabel } from '../compliance/addressLabels';
 
 // Wallet Intelligence — LOG-ONLY, READ-ONLY diligence on a pasted EVM address.
 // Public (no funds, no keys, only public on-chain data + our OFAC screen). Reuses
@@ -211,8 +212,24 @@ const FUNDERS: Record<string, string> = {
   '0x6cc5f688a315f3dc28a7781717a9a798a59fda7b': 'OKX (hot wallet)',
   '0x876eabf441b2ee5b5b0554fd502a8e0600950cfa': 'Bitfinex (hot wallet)',
 };
-const labelFor = (a?: string | null): string | null =>
-  a ? (KNOWN[a.toLowerCase()] || SPENDERS[a.toLowerCase()] || FUNDERS[a.toLowerCase()] || null) : null;
+// Curated maps first (highest confidence, hand-verified), then the ~33k refreshed
+// corpus. Returns the display name; use labelInfo() when the tags/risk matter.
+const labelFor = (a?: string | null): string | null => {
+  if (!a) return null;
+  const k = a.toLowerCase();
+  return KNOWN[k] || SPENDERS[k] || FUNDERS[k] || lookupLabel(k)?.name || null;
+};
+const labelInfo = (a?: string | null): { name: string | null; tags: string[]; scam: boolean } => {
+  if (!a) return { name: null, tags: [], scam: false };
+  const k = a.toLowerCase();
+  const curated = KNOWN[k] || SPENDERS[k] || FUNDERS[k] || null;
+  const corpus = lookupLabel(k);
+  return {
+    name: curated || corpus?.name || null,
+    tags: corpus?.tags || [],
+    scam: corpus?.risk === 'scam',
+  };
+};
 
 const APPROVAL_TOPIC = '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925';
 
@@ -522,9 +539,11 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     const ethBalance = eth?.native.balance || 0;
     const portfolioUsd = chains.reduce((s, c) => s + (c.total_usd || 0), 0);
     const outboundTx = hexToNum(nonceHex);
-    const known = KNOWN[addr];
+    const selfLabel = labelInfo(addr);
+    const known = selfLabel.name;
 
     if (known) labels.push(`known: ${known}`);
+    for (const t of selfLabel.tags.slice(0, 3)) labels.push(t);
     labels.push(isContract ? 'contract' : (delegated ? 'EIP-7702 delegated EOA' : 'EOA (externally-owned account)'));
 
     // --- token holdings (Alchemy), value-ranked + spam-filtered ---
@@ -635,7 +654,18 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
 
     const topCounterparties = Object.entries(cpCount)
       .sort((a, b) => b[1].count - a[1].count).slice(0, 8)
-      .map(([address, s]) => ({ address, count: s.count, sent_to: s.out, received_from: s.in, label: labelFor(address) }));
+      .map(([address, s]) => {
+        const li = labelInfo(address);
+        return { address, count: s.count, sent_to: s.out, received_from: s.in, label: li.name, tags: li.tags, scam: li.scam };
+      });
+
+    // Scam/drainer counterparties — the highest-value signal the label corpus adds.
+    // Screened across EVERY counterparty seen, not just the top 8 shown.
+    const scamCounterparties = [...counterparties]
+      .map((a) => ({ address: a, info: labelInfo(a) }))
+      .filter((x) => x.info.scam)
+      .slice(0, 10)
+      .map((x) => ({ address: x.address, label: x.info.name }));
 
     // Most recent activity in either direction (a receive-only wallet has no outbound).
     const lastSeen = rows[0]?.t?.metadata?.blockTimestamp || null;
@@ -676,9 +706,16 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       level = 'critical';
       reasons.push(`This address is on a sanctions list (${selfHit.source}). Do not transact.`);
       labels.push('SANCTIONED');
+    } else if (selfLabel.scam) {
+      level = 'critical';
+      reasons.push(`This address is on a public scam/phishing blacklist${selfLabel.name ? ` — "${selfLabel.name}"` : ''}. Do not send funds to it.`);
+      labels.push('REPORTED SCAM ADDRESS');
     } else if (taintedCounterparty) {
       level = 'high';
       reasons.push(`Sent funds to a sanctioned/flagged address (${taintedCounterparty.slice(0, 10)}…). Possible taint.`);
+    } else if (scamCounterparties.length) {
+      level = 'high';
+      reasons.push(`Interacted with ${scamCounterparties.length} address(es) on a public scam/phishing blacklist (e.g. ${scamCounterparties[0].address.slice(0, 10)}…) — possible drainer exposure or a compromised wallet.`);
     } else if (fresh && (ethBalance > 5 || stableHeld)) {
       level = 'caution';
       reasons.push('Newly created and already holding meaningful value — verify provenance before trusting.');
@@ -723,6 +760,8 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       tokens_hidden: tokensHidden,
       transactions,
       counterparties: topCounterparties,
+      scam_counterparties: scamCounterparties,
+      labels_note: 'Address labels come from public corpora (Etherscan nametags, ScamSniffer, MEW darklist). They cover exchange HOT wallets, not the per-user DEPOSIT addresses exchanges generate — so an unlabelled counterparty is "not in the corpus", not "not an exchange".',
       funded_by: fundedBy,
       approvals: approvalsRes.approvals,
       approvals_unlimited: approvalsRes.unlimited_count,

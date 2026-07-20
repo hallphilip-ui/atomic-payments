@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.13.0 - 2026-07-20
+
+**Wallet Intelligence: a self-refreshing address-label corpus — hex becomes meaning, and scam exposure becomes a risk verdict.**
+
+- **~33,000 labelled addresses**, refreshed daily from free public corpora with no key, no signup and no vendor — the same architecture as the OFAC refresher (disk cache, restored at boot, min-size guard so a bad download can never shrink the corpus). Sources: **Etherscan nametags** (~30k: exchange hot wallets, protocols, routers, pools, bridges, `mev-bot`/`airdrop-hunter` tags), **ScamSniffer blacklist** (~2.5k drainers) and the **MyEtherWallet darklist** (~700 phishing addresses with comments). Live count on first load: **32,953 entries, 3,182 scam/phishing**.
+- **Scam exposure is now a risk verdict, not a footnote.** If the subject address is blacklisted → **critical** ("This address is on a public scam/phishing blacklist"). If it has *interacted with* blacklisted addresses → **high**, flagged as possible drainer exposure or a compromised wallet. Screened across every counterparty seen, not just the eight displayed. Verified end-to-end: a corpus scam address returns critical and renders as `FAKE_Coindash_3`.
+- **Counterparties, transactions, funding provenance and the subject address itself** are all resolved through the corpus, so exchange hot wallets and protocols now show names instead of hex (e.g. a Binance hot wallet self-labels as "Binance", tagged `binance`).
+- **Stated limitation, in the API response and on the page:** these corpora contain exchange **hot** wallets, not the per-user **deposit** addresses exchanges generate — that requires clustering (Arkham/Nansen/Chainalysis) and isn't available from free data. So an unlabelled counterparty means *"not in the corpus"*, never *"not an exchange"*. Confirmed in practice: a Binance hot wallet's own counterparties come back unlabelled, because they're deposit addresses.
+
 ## 2.12.0 - 2026-07-19
 
 **Wallet Intelligence: activity is now multi-chain, and contract/NFT activity is no longer invisible.**
