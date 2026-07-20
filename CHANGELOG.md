@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.23.0 - 2026-07-20
+
+**Phase 1 deliverables: flash-loan receiver specification and audit brief.**
+
+- **`docs/flash-loan-receiver-spec.md`** — implementation-ready specification: exact interface, 15 numbered requirements, 6 auditor invariants, and 7 must-pass tests. Written so a Solidity engineer can implement unambiguously and an auditor can quote against it, while deliberately stopping short of the route logic itself.
+- Spells out *why* the two mandatory guards exist, including the subtle one: `initiator == address(this)`. Without it an attacker calls `Pool.flashLoan(ourContract, …)` with arbitrary parameters and the `msg.sender == POOL` check **passes**, because the Pool genuinely is the caller. Records that `FlashLoanReceiverBase` provides neither guard — inheriting it gives zero protection.
+- Documents the residual-balance invariant and the griefing attack it prevents, with the concrete mechanism (leftover balance pays an attacker-initiated premium, repeatedly).
+- **The Phase 2 exit criterion is a test**: replay real opportunities from the Phase 0 clearance ledger against a mainnet fork and assert capture. A contract that cannot capture an opportunity that demonstrably existed will not capture a live one.
+- **`docs/flash-loan-audit-brief.md`** — sendable brief for obtaining two comparable quotes: scope, threat model, and what to ask for. States plainly to prospective auditors that the build may not proceed, since the counter currently reads zero — better to say so up front than waste their time.
+- Both documents note the build remains gated on Phase 0. No contract has been written.
+
 ## 2.22.0 - 2026-07-20
 
 **Would-have-cleared counter + flash-loan project plan.**
