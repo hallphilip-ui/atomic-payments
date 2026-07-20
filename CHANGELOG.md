@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.25.1 - 2026-07-20
+
+**Counter comment corrected after the scanner fix.**
+
+- `clearanceLog.ts` justified classifying Venus as retrospective partly on "liquidatable status derives from lagging subgraph prices". That is no longer true — arb-scanner v1.1.0 confirms every position against the Venus Comptroller on-chain before reporting it.
+- Venus **stays retrospective**, but for the reasons that still hold: its margin is constant by construction (fixed 10% incentive), and a confirmed position is still contested by MEV bots in-block, so "genuinely liquidatable" never meant "ours to take". Correcting the stated reason rather than leaving a comment that would mislead the next reader into thinking the phantom problem is still live.
+- No behaviour change; the classification and the headline count are unchanged.
+
 ## 2.25.0 - 2026-07-20
 
 **Mode A built and run — and its first execution found an entire scanner surface reporting opportunities that do not exist.**

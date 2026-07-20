@@ -23,9 +23,13 @@
 //       - The Aave feed is of COMPLETED liquidations. Every row was already won by
 //         someone else, usually in the same block. It sizes the prize; it does not
 //         show an opening.
-//       - Venus liquidatable status derives from subgraph oracle prices that lag live
-//         prices. The scanner's own note says a position shown liquidatable "may
-//         already be healthy — or already seized by an MEV liquidator in-block."
+//       - Venus rows are now CONFIRMED liquidatable on-chain (scanner fix 2026-07-20:
+//         the subgraph proposes, the Comptroller's getAccountLiquidity decides). That
+//         removed the phantom problem — a Mode A replay had found all 21 flagged
+//         positions carried zero real shortfall. Venus stays RETROSPECTIVE regardless,
+//         for the two reasons above and below: its margin is constant by construction,
+//         and a confirmed position is still contested by MEV bots in-block, so
+//         "genuinely liquidatable" never meant "ours to take".
 //
 // Only PancakeSwap cross-DEX arb reads LIVE on-chain reserves and asks "is there a
 // spread right now" — so it is the only surface that can honestly answer "an
