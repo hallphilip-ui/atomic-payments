@@ -208,7 +208,11 @@ export async function runClearancePass(): Promise<Ledger> {
       if (seenRetro.has(key)) continue;
       seenRetro.add(key);
       led.retrospective.push({
-        key, surface: 'Venus (stale-oracle, fixed margin)', at: new Date().toISOString(),
+        // Label changed 2026-07-20 with the scanner fix: positions are now CONFIRMED
+        // liquidatable on-chain, so "stale-oracle" no longer describes them. The change
+        // also cleanly separates pre-fix phantom rows from post-fix genuine ones in the
+        // ledger — anything still carrying the old label is known-false and purgeable.
+        key, surface: 'Venus (on-chain confirmed, fixed margin)', at: new Date().toISOString(),
         detail: `${String(r.account || '').slice(0, 10)}… seizable $${Math.round(num(r.seizable_usd)).toLocaleString()}`,
         capital_usd: Math.round(capital), net_usd: Math.round(net * 100) / 100,
         net_pct: Math.round((net / capital) * 10000) / 100,

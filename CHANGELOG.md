@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.27.1 - 2026-07-20
+
+**Purged 21 proven-false rows from the clearance ledger.**
+
+- Every retrospective row in the ledger was a Venus phantom recorded *before* this evening's on-chain confirmation fix. Mode A proved all 21 had **zero** real shortfall, with claims up to $1.4M against an actual $0. Leaving proven-false data in a research instrument is worse than deleting it — it would have polluted Monday's scheduled report and any replay run.
+- **`scripts/purge-phantom-rows.js`** — auditable and repeatable rather than a one-off shell command. Dry-run by default, requires `--apply`, writes a timestamped backup first, records the purge in `ledger.purged[]` with its reason, and **never touches `cleared`** (the build evidence).
+- Targets rows by an **exact** legacy surface label, not a substring, so it cannot match post-fix rows.
+- **The Venus surface label was corrected too**, from `Venus (stale-oracle, fixed margin)` to `Venus (on-chain confirmed, fixed margin)` — "stale-oracle" stopped being true when the scanner started confirming against the Comptroller. The label change is what makes the purge unambiguous: anything still carrying the old string is known-false by construction.
+- Verified post-deploy: retrospective 0, cleared 0, and the counter does not re-add phantoms because the fixed scanner now reports zero confirmed liquidatable positions.
+
 ## 2.27.0 - 2026-07-20
 
 **External price cross-check — the last unvalidated class of error in the Pancake surface is now closed.**
