@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.12.0 - 2026-07-19
+
+**Wallet Intelligence: activity is now multi-chain, and contract/NFT activity is no longer invisible.**
+
+- **Transactions and counterparties span every EVM chain**, not just Ethereum. Holdings were already multi-chain, but activity wasn't — so a wallet that lives on Base looked inactive. Transfers are now gathered across Ethereum, Base, Arbitrum, Optimism, Polygon and Avalanche, merged, sorted by time, and each row is tagged with the chain it happened on. Verified on a live wallet: 15 transactions spanning Ethereum, Base and Arbitrum.
+- **`internal` and NFT transfers are now included** (`internal`, `erc721`, `erc1155` alongside `external`/`erc20`). Previously a wallet transacting through contracts could look quiet when it wasn't. `internal` isn't supported on every chain, so the call falls back to the narrow category set per chain rather than failing.
+- **Wallet age and funding provenance are computed across all chains** — the earliest inbound transfer on *any* chain, rather than assuming Ethereum. Funding provenance now reports which chain the first deposit landed on.
+- Counterparty and transaction labels now use the full label set (known contracts + spenders + exchange hot wallets), not just the contracts map.
+
 ## 2.11.0 - 2026-07-19
 
 **Wallet Intelligence: outstanding token approvals + funding provenance.**

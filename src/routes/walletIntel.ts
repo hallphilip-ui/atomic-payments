@@ -550,29 +550,59 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     const cpCount: Record<string, { count: number; out: number; in: number }> = {};
     let transactions: Array<{ ts: string; direction: 'in' | 'out'; asset: string; amount: number | null; counterparty: string | null; counterparty_label: string | null }> = [];
 
-    const xfer = (params: any) => rpcCall(CHAIN_ID, 'alchemy_getAssetTransfers', [params]).catch(() => null);
-    const [outT, inT, inFirst] = await Promise.all([
-      xfer({ fromBlock: '0x0', toBlock: 'latest', fromAddress: addr, category: ['external', 'erc20'], order: 'desc', maxCount: '0x14', withMetadata: true }),
-      xfer({ fromBlock: '0x0', toBlock: 'latest', toAddress: addr, category: ['external', 'erc20'], order: 'desc', maxCount: '0x14', withMetadata: true }),
-      xfer({ fromBlock: '0x0', toBlock: 'latest', toAddress: addr, category: ['external', 'erc20'], order: 'asc', maxCount: '0x1', withMetadata: true }),
-    ]);
-    firstSeen = inFirst?.transfers?.[0]?.metadata?.blockTimestamp || null;
-    // Funding provenance — who sent the FIRST inbound transfer. Funded from a
-    // regulated exchange reads very differently from funded by an unknown contract.
-    const funder0 = inFirst?.transfers?.[0];
+    // Activity is gathered across EVERY EVM chain, not just Ethereum — a wallet that
+    // lives on Base would otherwise look inactive. Categories include `internal`
+    // (contract-mediated ETH moves) and NFTs, so contract-driven wallets aren't
+    // invisible; `internal` isn't supported on every chain, hence the fallback.
+    const catsFor = (id: number) => id === 1
+      ? ['external', 'internal', 'erc20', 'erc721', 'erc1155']
+      : ['external', 'erc20', 'erc721', 'erc1155'];
+
+    async function xferOn(chainId: number, params: any) {
+      try {
+        return await rpcCall(chainId, 'alchemy_getAssetTransfers', [{ ...params, category: catsFor(chainId) }]);
+      } catch {
+        // Retry with the narrowest category set a chain is guaranteed to support.
+        try {
+          return await rpcCall(chainId, 'alchemy_getAssetTransfers', [{ ...params, category: ['external', 'erc20'] }]);
+        } catch { return null; }
+      }
+    }
+
+    const perChain = await Promise.all(EVM_CHAINS.map(async (c) => {
+      const base = { fromBlock: '0x0', toBlock: 'latest', withMetadata: true };
+      const [o, i, f] = await Promise.all([
+        xferOn(c.id, { ...base, fromAddress: addr, order: 'desc', maxCount: '0x0a' }),
+        xferOn(c.id, { ...base, toAddress: addr, order: 'desc', maxCount: '0x0a' }),
+        xferOn(c.id, { ...base, toAddress: addr, order: 'asc', maxCount: '0x1' }),
+      ]);
+      return { chain: c, outs: o?.transfers || [], ins: i?.transfers || [], first: f?.transfers?.[0] || null };
+    }));
+
+    // Earliest inbound across ALL chains = true wallet birth + funding provenance.
+    const firstCandidates = perChain
+      .map((p) => ({ chain: p.chain, t: p.first }))
+      .filter((x) => x.t?.metadata?.blockTimestamp)
+      .sort((a, b) => Date.parse(a.t.metadata.blockTimestamp) - Date.parse(b.t.metadata.blockTimestamp));
+    const earliest = firstCandidates[0] || null;
+    firstSeen = earliest?.t?.metadata?.blockTimestamp || null;
+
+    // Funding provenance — who sent that first inbound transfer, and on which chain.
+    const funder0 = earliest?.t;
     const funderAddr = funder0?.from && EVM.test(String(funder0.from)) ? String(funder0.from).toLowerCase() : null;
     const fundedBy = funderAddr ? {
       address: funderAddr,
       label: labelFor(funderAddr),
-      asset: funder0?.asset || 'ETH',
+      asset: funder0?.asset || earliest?.chain.sym || 'ETH',
       amount: Number.isFinite(Number(funder0?.value)) ? Number(funder0.value) : null,
       at: firstSeen,
+      chain: earliest?.chain.name || null,
     } : null;
 
-    const rows = [
-      ...((outT?.transfers || []).map((t: any) => ({ t, direction: 'out' as const, cp: t?.to }))),
-      ...((inT?.transfers || []).map((t: any) => ({ t, direction: 'in' as const, cp: t?.from }))),
-    ].filter((r) => r.t?.metadata?.blockTimestamp)
+    const rows = perChain.flatMap((p) => [
+      ...p.outs.map((t: any) => ({ t, direction: 'out' as const, cp: t?.to, chain: p.chain })),
+      ...p.ins.map((t: any) => ({ t, direction: 'in' as const, cp: t?.from, chain: p.chain })),
+    ]).filter((r) => r.t?.metadata?.blockTimestamp)
       .sort((a, b) => Date.parse(b.t.metadata.blockTimestamp) - Date.parse(a.t.metadata.blockTimestamp));
 
     for (const r of rows) {
@@ -593,18 +623,19 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       const spoofed = /[^\x20-\x7E]/.test(asset);
       return {
         ts: r.t.metadata.blockTimestamp,
+        chain: r.chain.name,
         direction: r.direction,
         asset,
         amount: Number.isFinite(v) ? v : null,
         counterparty: cp,
-        counterparty_label: cp ? (KNOWN[cp] || null) : null,
+        counterparty_label: labelFor(cp),
         suspected_spam: spoofed,
       };
     });
 
     const topCounterparties = Object.entries(cpCount)
       .sort((a, b) => b[1].count - a[1].count).slice(0, 8)
-      .map(([address, s]) => ({ address, count: s.count, sent_to: s.out, received_from: s.in, label: KNOWN[address] || null }));
+      .map(([address, s]) => ({ address, count: s.count, sent_to: s.out, received_from: s.in, label: labelFor(address) }));
 
     // Most recent activity in either direction (a receive-only wallet has no outbound).
     const lastSeen = rows[0]?.t?.metadata?.blockTimestamp || null;
