@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.19.0 - 2026-07-20
+
+**Flash Lab: the same hover help extended to all five tables — and two mislabelled columns fixed.**
+
+- **Two real labelling bugs found while writing the tooltips**, both of which overstated results:
+  - The BSC arb table's **`Net %` column was rendering dollars, not a percentage** — it shows `net_usd_on_clip`. Renamed to **`Net $ (on clip)`**. Sitting between `Slippage %` and `Min pool $`, a reader had every reason to take `-140.51` as a percentage.
+  - The Venus table's **`Net (competitive) $` does not deduct the flash fee, swap cost or gas** — unlike the identically-named column in the Aave table, it is only `gross bonus × 15%`. Renamed to **`Kept bonus (15%) $`**, and its tooltip now says in terms that it is a ceiling, not a net profit.
+- **Hover help on all 34 column headings** across the gas table, cost breakdown, Aave liquidations, PancakeSwap arb, and Venus liquidations.
+- **Per-row arithmetic on every derived figure** — each gas cell shows `units × gas price × ETH price`; each cost line shows the bps applied to your loan size; each BSC arb net shows the full `spread − fees − slippage − gas` subtraction and the conversion to dollars; each Venus row shows the close-factor and incentive maths.
+- **A visible `?` hint above every table** so the help is discoverable rather than something you must guess at.
+- **Verified against real data:** rendered the actual file against real flash-loan and BSC snapshots (14 Aave rows, 5 arb rows, 25 Venus rows) and confirmed every tooltip figure reconciles with the cell beside it.
+
 ## 2.18.0 - 2026-07-20
 
 **Flash Lab: the liquidations table now explains itself.**

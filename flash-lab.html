@@ -36,6 +36,9 @@
        clipped by the .scroll container's overflow. */
     th[title]{cursor:help;text-decoration:underline dotted var(--line);text-underline-offset:3px}
     td[title]{cursor:help}
+    .hoverhint{font-size:11.5px;color:var(--muted);margin:0 0 6px;display:flex;align-items:center;gap:5px}
+    .hoverhint::before{content:"?";display:inline-flex;align-items:center;justify-content:center;
+      width:14px;height:14px;border-radius:50%;border:1px solid var(--line);font-size:9.5px;font-weight:700;flex:none}
     details.formula{margin-top:12px;font-size:12.5px}
     details.formula summary{cursor:pointer;color:var(--muted);user-select:none}
     details.formula summary:hover{color:var(--fg)}
@@ -96,8 +99,12 @@
 
       <div class="card">
         <h2>What a flash loan actually costs <span style="font-weight:400;color:var(--muted);font-size:12px">· live gas · the key point: <b>gas is size-independent</b> — a $100k loan and a $10M loan burn the same gas. Only the fee legs scale with size.</span></h2>
+        <div class="hoverhint">Hover any column heading or figure for the calculation behind it.</div>
         <div class="scroll"><table id="gasTbl"><thead><tr>
-          <th>Gas price</th><th>250k gas</th><th>400k gas (typical arb)</th><th>600k gas</th>
+          <th title="Network gas price in gwei (1 gwei = 0.000000001 ETH).&#10;&#10;The highlighted row is the live price right now; the rest are reference points spanning calm to congested conditions, so you can see how the cost behaves.">Gas price</th>
+          <th title="USD cost of a transaction consuming 250,000 gas units.&#10;&#10;cost = gas units × gas price × ETH price&#10;&#10;A simple flash-loan arb sits near this.">250k gas</th>
+          <th title="USD cost of a transaction consuming 400,000 gas units — the figure used in the cost breakdown below.&#10;&#10;cost = gas units × gas price × ETH price">400k gas (typical arb)</th>
+          <th title="USD cost of a transaction consuming 600,000 gas units.&#10;&#10;cost = gas units × gas price × ETH price&#10;&#10;A complex multi-hop route with a liquidation sits near this.">600k gas</th>
         </tr></thead><tbody></tbody></table></div>
         <div style="margin-top:14px">
           <label style="font-size:12px;color:var(--muted)">Loan size $
@@ -106,13 +113,16 @@
           </label>
         </div>
         <div class="scroll" style="margin-top:8px"><table id="feeTbl"><thead><tr>
-          <th>Cost component</th><th>Scales with size?</th><th>Cost</th>
+          <th title="Each cost incurred by one round-trip flash-loan arbitrage: borrow, swap into the target asset, swap back, repay.">Cost component</th>
+          <th title="Whether this cost grows with the amount borrowed.&#10;&#10;Only gas does not — it is the same computation whether you borrow $1,000 or $10,000,000. Every other line is a percentage of size, so doubling the loan doubles it.">Scales with size?</th>
+          <th title="Cost in USD at the loan size entered above. Change that figure and this table recalculates.">Cost</th>
         </tr></thead><tbody></tbody></table></div>
         <div class="meta" id="breakeven"></div>
       </div>
 
       <div class="card">
         <h2>Aave liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· the classic flash-loan use — flash-borrow the debt, seize the discounted collateral, swap, repay. <b>Every row below was ALREADY executed by an MEV bot</b>; "net" is what the winner made, not what's on the table.</span></h2>
+        <div class="hoverhint">Hover any column heading or figure for the calculation behind it.</div>
         <div class="scroll"><table id="liqtbl"><thead><tr>
           <th title="Block timestamp of the liquidation, in UTC. This feed contains COMPLETED liquidations only — each one already happened.">When (UTC)</th>
           <th title="The collateral asset seized, and the debt asset repaid. The trade: flash-borrow the debt asset, repay the borrower's loan, receive their collateral at a discount, swap it back, repay the flash loan.">Collateral → Debt</th>
@@ -179,14 +189,29 @@
         <h2>BNB Chain <span id="bscMeta" style="font-weight:400;color:var(--muted);font-size:12px"></span></h2>
 
         <h2 style="font-size:13px;margin:14px 0 8px">PancakeSwap cross-DEX arb <span style="font-weight:400;color:var(--muted);font-size:12px">· same pair, PancakeSwap V2 vs Biswap vs ApeSwap, on-chain reserves. Depth-aware: a spread on a shallow pool is a mirage, not an edge. Flash-loanable (same-chain, atomic).</span></h2>
+        <div class="hoverhint">Hover any column heading or figure for the calculation behind it.</div>
         <div class="scroll"><table id="bscArbTbl"><thead><tr>
-          <th>Pair</th><th>Buy → Sell</th><th>Spread %</th><th>Fees %</th><th>Slippage %</th><th>Net %</th><th>Min pool $</th><th>Clears?</th>
+          <th title="The token pair being compared across decentralised exchanges. A 'shallow' tag means the smaller pool holds less than 4× the trade size — see Min pool $.">Pair</th>
+          <th title="Which DEX is cheaper (buy there) and which is dearer (sell there). The trade is to buy on the first and immediately sell on the second, in one atomic transaction.">Buy → Sell</th>
+          <th title="The raw price difference between the two DEXs.&#10;&#10;spread = (sell price ÷ buy price − 1) × 100&#10;&#10;This is the gross edge before any cost — and it is the number that looks exciting and almost never survives.">Spread %</th>
+          <th title="Combined swap fees of both DEXs, as a percentage.&#10;&#10;fees = buy DEX fee + sell DEX fee&#10;&#10;Typically ~0.25% each on BNB Chain, so ~0.5% round trip.">Fees %</th>
+          <th title="Price impact of actually trading the modelled clip size, derived from real on-chain pool reserves (constant product).&#10;&#10;slippage ≈ (clip ÷ buy pool liquidity + clip ÷ sell pool liquidity) × 100&#10;&#10;This is why shallow pools kill an apparent edge: the smaller the pool, the larger this gets.">Slippage %</th>
+          <th title="Profit in DOLLARS on the modelled clip size — not a percentage, despite sitting among percentage columns.&#10;&#10;net % = spread − fees − slippage − gas%&#10;net $ = net % × clip size&#10;&#10;This is the only column here that accounts for every cost.">Net $ (on clip)</th>
+          <th title="Quote-side liquidity of the SHALLOWER of the two pools.&#10;&#10;If this is less than 4× the clip size the row is tagged 'shallow', because the slippage of trading into it will eat the spread. A large spread on a tiny pool is a mirage.">Min pool $</th>
+          <th title="Whether net is above zero AND the pools are deep enough to be real.&#10;&#10;clears = net > 0 AND not shallow&#10;&#10;A shallow row never clears regardless of how good the spread looks.">Clears?</th>
         </tr></thead><tbody></tbody></table></div>
 
         <h2 style="font-size:13px;margin:18px 0 8px">Venus liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· borrowers health-scanned from the Venus subgraph; currently-liquidatable positions modeled through the flash-loan lens</span></h2>
         <div class="kpis" id="venusKpis" style="grid-template-columns:repeat(4,1fr)"></div>
+        <div class="hoverhint">Hover any column heading or figure for the calculation behind it.</div>
         <div class="scroll" style="margin-top:12px"><table id="venusTbl"><thead><tr>
-          <th>Account</th><th>Collateral $</th><th>Borrow $</th><th>Shortfall $</th><th>Seizable $</th><th>Gross bonus $</th><th>Net (competitive) $</th>
+          <th title="The borrower's wallet address, truncated. These are real under-collateralised positions on Venus, read from the subgraph.">Account</th>
+          <th title="USD value of the borrower's supplied collateral, already weighted by each asset's collateral factor — i.e. how much borrowing power it actually confers, not its raw market value.">Collateral $</th>
+          <th title="Total USD the borrower currently owes across all assets.">Borrow $</th>
+          <th title="How far underwater the position is.&#10;&#10;shortfall = borrowed − collateral&#10;&#10;Positive means the debt exceeds the collateral backing it, which is what makes the position liquidatable.">Shortfall $</th>
+          <th title="The most you are permitted to seize in one liquidation.&#10;&#10;seizable = min(borrowed × close factor, collateral)&#10;&#10;The close factor caps how much of a single position may be liquidated at once.">Seizable $</th>
+          <th title="The liquidation incentive in dollars — your gross edge before any cost.&#10;&#10;gross bonus = seizable × liquidation incentive&#10;&#10;See the KPIs above for the current incentive rate.">Gross bonus $</th>
+          <th title="The share of the bonus you would keep after bidding against rival searchers for the block: 15% of the gross bonus.&#10;&#10;kept = gross bonus × 15%&#10;&#10;IMPORTANT — unlike the Aave liquidations table above, this figure does NOT deduct the flash fee, swap cost or gas. It is an upper bound, not a net profit.">Kept bonus (15%) $</th>
         </tr></thead><tbody></tbody></table></div>
         <div class="empty" id="venusEmpty" style="display:none">No currently-liquidatable positions — MEV bots keep them cleared within blocks (the expected outcome).</div>
         <div class="meta" id="venusNote"></div>
@@ -225,11 +250,19 @@
       var scenarios = [];
       if (gwei!=null) scenarios.push([gwei, true]);
       [1,5,20,50,100].forEach(function(g){ scenarios.push([g,false]); });
+      var NL='&#10;';
       document.querySelector('#gasTbl tbody').innerHTML = scenarios.map(function(s){
         var gp=s[0], live=s[1];
-        var c=[250000,400000,600000].map(function(u){ var v=gasUsd(u,gp); return v==null?'—':'$'+v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); });
-        return '<tr'+(live?' style="background:#f3f1fe"':'')+'><td><b>'+(Math.round(gp*10000)/10000)+' gwei</b>'+(live?' <span class="pill yes">live</span>':'')+'</td>'+
-          '<td>'+c[0]+'</td><td>'+c[1]+'</td><td>'+c[2]+'</td></tr>';
+        var units=[250000,400000,600000];
+        var c=units.map(function(u){ var v=gasUsd(u,gp); return v==null?'—':'$'+v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); });
+        var tips=units.map(function(u,i){
+          if (gwei==null||eth==null) return 'Gas price or ETH price unavailable.';
+          return u.toLocaleString()+' gas × '+(Math.round(gp*10000)/10000)+' gwei × $'+
+            Number(eth).toLocaleString(undefined,{maximumFractionDigits:2})+' ETH'+NL+'= '+c[i]+NL+NL+
+            'Identical at any loan size — gas pays for computation, not for the amount borrowed.';
+        });
+        return '<tr'+(live?' style="background:#f3f1fe"':'')+'><td'+(live?' title="This is the network gas price right now."':'')+'><b>'+(Math.round(gp*10000)/10000)+' gwei</b>'+(live?' <span class="pill yes">live</span>':'')+'</td>'+
+          '<td title="'+tips[0]+'">'+c[0]+'</td><td title="'+tips[1]+'">'+c[1]+'</td><td title="'+tips[2]+'">'+c[2]+'</td></tr>';
       }).join('');
 
       var N = Math.max(0, parseFloat(document.getElementById('notional').value)||0);
@@ -239,15 +272,30 @@
       var slip     = N*(slipBps*2)/1e4;     // two legs
       var gasTypical = gasUsd(400000, gwei==null?0:gwei) || 0;
       var total = flashFee+swapFee+slip+gasTypical;
+      var Nfmt='$'+N.toLocaleString();
       var rows=[
-        ['Gas (400k units, at live '+(gwei==null?'—':(Math.round(gwei*10000)/10000)+' gwei')+')','<span style="color:var(--green)">No — fixed</span>', gasTypical],
-        ['Flash-loan fee ('+flashBps+' bps, Aave)','Yes', flashFee],
-        ['DEX swap fees ('+dexBps+' bps × 2 legs)','Yes', swapFee],
-        ['Slippage ('+slipBps+' bps × 2 legs)','Yes', slip]
+        ['Gas (400k units, at live '+(gwei==null?'—':(Math.round(gwei*10000)/10000)+' gwei')+')','<span style="color:var(--green)">No — fixed</span>', gasTypical,
+         '400,000 gas units at the live gas price.'+NL+NL+'This is the ONLY cost here that does not change when you change the loan size. Raise the loan to $10M and this stays put while every other line multiplies.'],
+        ['Flash-loan fee ('+flashBps+' bps, Aave)','Yes', flashFee,
+         'Aave v3 flash-loan premium.'+NL+NL+Nfmt+' × '+flashBps+' bps = $'+flashFee.toLocaleString(undefined,{maximumFractionDigits:2})],
+        ['DEX swap fees ('+dexBps+' bps × 2 legs)','Yes', swapFee,
+         'You swap twice — into the target asset and back out — so the DEX fee is charged on both legs.'+NL+NL+
+         Nfmt+' × '+dexBps+' bps × 2 = $'+swapFee.toLocaleString(undefined,{maximumFractionDigits:2})+NL+NL+'Usually the largest single cost.'],
+        ['Slippage ('+slipBps+' bps × 2 legs)','Yes', slip,
+         'Price impact of moving this much size through a pool, on both legs.'+NL+NL+
+         Nfmt+' × '+slipBps+' bps × 2 = $'+slip.toLocaleString(undefined,{maximumFractionDigits:2})+NL+NL+
+         'An estimate — real slippage depends on the specific pool depth at the moment of the trade.']
       ];
       document.querySelector('#feeTbl tbody').innerHTML = rows.map(function(r){
-        return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>$'+r[2].toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td></tr>';
-      }).join('') + '<tr style="font-weight:700"><td>Total round-trip cost</td><td></td><td>$'+total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td></tr>';
+        return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td title="'+r[3]+'">$'+r[2].toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td></tr>';
+      }).join('') + '<tr style="font-weight:700"><td>Total round-trip cost</td><td></td>'+
+        '<td title="gas $'+gasTypical.toLocaleString(undefined,{maximumFractionDigits:2})+
+        ' + flash fee $'+flashFee.toLocaleString(undefined,{maximumFractionDigits:2})+
+        ' + swap fees $'+swapFee.toLocaleString(undefined,{maximumFractionDigits:2})+
+        ' + slippage $'+slip.toLocaleString(undefined,{maximumFractionDigits:2})+
+        NL+'= $'+total.toLocaleString(undefined,{maximumFractionDigits:2})+
+        NL+NL+'You must clear this much gross on '+Nfmt+' before you make a single cent.">$'+
+        total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td></tr>';
 
       var bePct = N>0 ? (total/N*100) : 0;
       document.getElementById('breakeven').innerHTML =
@@ -347,15 +395,32 @@
       var a=b.assumptions||{};
       document.getElementById('bscMeta').textContent='· gas '+(a.gas_gwei==null?'—':a.gas_gwei+' gwei')+' · BNB $'+(a.bnb_price_usd||'—')+' · clip $'+(a.arb_clip_usd||'—')+(b.snapshot_age_sec==null?'':' · '+b.snapshot_age_sec+'s ago');
 
+      var NL='&#10;';
+      var clip=a.arb_clip_usd;
       var arb=b.pancake_arb||[];
       document.querySelector('#bscArbTbl tbody').innerHTML=arb.map(function(r){
         var shallow=r.shallow_pool?' <span class="pill taken">shallow</span>':'';
-        return '<tr><td><b>'+esc(r.pair)+'</b>'+shallow+'</td>'+
-          '<td>'+esc(r.buy_on)+' → '+esc(r.sell_on)+'</td>'+
-          '<td>'+esc(r.spread_pct)+'%</td><td>'+esc(r.fees_pct)+'%</td>'+
-          '<td>'+esc(r.slippage_pct)+'%</td><td>'+signed(r.net_usd_on_clip)+'</td>'+
-          '<td>'+(r.min_pool_liq_usd==null?'—':money(r.min_pool_liq_usd))+'</td>'+
-          '<td><span class="pill '+(r.would_clear?'yes':'no')+'">'+(r.would_clear?'yes':'no')+'</span></td></tr>';
+        var gasP=Number(r.gas_pct)||0;
+        var tipNet='PROFIT ON A '+money(clip)+' CLIP'+NL+NL+
+          'spread        '+r.spread_pct+'%'+NL+
+          '− fees        '+r.fees_pct+'%'+NL+
+          '− slippage    '+r.slippage_pct+'%'+NL+
+          '− gas         '+gasP.toFixed(4)+'%'+NL+
+          '────────────────────'+NL+
+          '= net         '+r.net_pct+'%'+NL+NL+
+          r.net_pct+'% × '+money(clip)+' = '+money(r.net_usd_on_clip);
+        var tipShallow=r.shallow_pool
+          ? NL+NL+'FLAGGED SHALLOW: the smaller pool holds less than 4× the clip, so this spread is very unlikely to be capturable at size.'
+          : '';
+        return '<tr><td title="Buy '+esc(r.buy_on)+' @ '+esc(r.buy_px)+', sell '+esc(r.sell_on)+' @ '+esc(r.sell_px)+tipShallow+'"><b>'+esc(r.pair)+'</b>'+shallow+'</td>'+
+          '<td title="Cheaper venue → dearer venue. Both legs execute in one atomic transaction, so the trade cannot half-fill.">'+esc(r.buy_on)+' → '+esc(r.sell_on)+'</td>'+
+          '<td title="('+esc(r.sell_px)+' ÷ '+esc(r.buy_px)+' − 1) × 100 = '+esc(r.spread_pct)+'%'+NL+NL+'Gross edge, before any cost.">'+esc(r.spread_pct)+'%</td>'+
+          '<td title="Swap fee on both venues combined = '+esc(r.fees_pct)+'%">'+esc(r.fees_pct)+'%</td>'+
+          '<td title="Price impact of pushing '+money(clip)+' through these pools, from real on-chain reserves = '+esc(r.slippage_pct)+'%'+NL+NL+'Thinner pool → larger number.">'+esc(r.slippage_pct)+'%</td>'+
+          '<td title="'+tipNet+'">'+signed(r.net_usd_on_clip)+'</td>'+
+          '<td title="Quote-side liquidity of the shallower pool. Below '+money((Number(clip)||0)*4)+' (4× the clip) the row is flagged shallow.">'+(r.min_pool_liq_usd==null?'—':money(r.min_pool_liq_usd))+'</td>'+
+          '<td title="net > 0 AND pools deep enough. Here: net '+(Number(r.net_pct)>0?'positive':'negative')+', pools '+(r.shallow_pool?'SHALLOW':'adequate')+'.">'+
+          '<span class="pill '+(r.would_clear?'yes':'no')+'">'+(r.would_clear?'yes':'no')+'</span></td></tr>';
       }).join('');
 
       var v=b.venus||{};
@@ -370,11 +435,19 @@
       }).join('');
       var rows=v.currently_liquidatable||[];
       document.getElementById('venusEmpty').style.display=rows.length?'none':'block';
+      var incent=v.liquidation_incentive_pct, cf=v.close_factor_pct;
       document.querySelector('#venusTbl tbody').innerHTML=rows.map(function(r){
-        return '<tr><td>'+esc((r.account||'').slice(0,10))+'…</td>'+
-          '<td>'+money(r.collateral_usd)+'</td><td>'+money(r.borrow_usd)+'</td>'+
-          '<td class="down">'+money(r.shortfall_usd)+'</td><td>'+money(r.seizable_usd)+'</td>'+
-          '<td class="up">'+money(r.gross_bonus_usd)+'</td><td>'+signed(r.net_competitive_usd)+'</td></tr>';
+        var tipKept='You keep 15% of the bonus after bidding for the block:'+NL+
+          money(r.gross_bonus_usd)+' × 15% = '+money(r.net_competitive_usd)+NL+NL+
+          'NOT A NET PROFIT. Unlike the Aave liquidations table, the flash fee, swap cost and gas have '+
+          'NOT been subtracted here. Treat this as a ceiling.';
+        return '<tr><td title="'+esc(r.account||'')+'">'+esc((r.account||'').slice(0,10))+'…</td>'+
+          '<td title="Supplied collateral, weighted by each asset\'s collateral factor — borrowing power, not raw market value.">'+money(r.collateral_usd)+'</td>'+
+          '<td title="Total owed across all borrowed assets.">'+money(r.borrow_usd)+'</td>'+
+          '<td class="down" title="'+money(r.borrow_usd)+' borrowed − '+money(r.collateral_usd)+' collateral = '+money(r.shortfall_usd)+NL+NL+'Positive means under-collateralised, hence liquidatable.">'+money(r.shortfall_usd)+'</td>'+
+          '<td title="min('+money(r.borrow_usd)+' × '+(cf==null?'close factor':cf+'%')+', '+money(r.collateral_usd)+') = '+money(r.seizable_usd)+NL+NL+'The close factor caps how much of one position can be liquidated at a time.">'+money(r.seizable_usd)+'</td>'+
+          '<td class="up" title="'+money(r.seizable_usd)+' × '+(incent==null?'liquidation incentive':incent+'%')+' = '+money(r.gross_bonus_usd)+NL+NL+'Gross edge, before any cost.">'+money(r.gross_bonus_usd)+'</td>'+
+          '<td title="'+tipKept+'">'+signed(r.net_competitive_usd)+'</td></tr>';
       }).join('');
       document.getElementById('venusNote').textContent=v.note||v.error||'';
     }
