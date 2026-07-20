@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.24.0 - 2026-07-20
+
+**Fork-test harness design — and a live defect it exposed before it could cost us the evidence.**
+
+- **Ledger schema 3: replay data.** Designing the harness surfaced that the clearance ledger recorded timestamps but **no block numbers**, and the scanner snapshots carry none either. Without a block a fork cannot be positioned, and AMM reserves at the observed instant are unrecoverable — overwritten by the next trade. Phase 2's exit criterion ("replay real opportunities and assert capture") was therefore **unexecutable**, and every hour of Phase 0 was accumulating un-replayable anecdote. Rows now capture `observed_block` and the raw `observed` scanner row. Verified live: block captured, 0 rows non-replayable.
+- A `null` block marks a row **not replayable** and is surfaced rather than hidden — the harness must skip and count those, never silently drop them.
+- **`docs/flash-loan-fork-test-harness.md`** — Foundry-based design with two modes. **Mode A validates our simulator and needs no contract at all**: replay a logged opportunity at its observed block and check whether the predicted net was actually achievable. If the model says 1.2% and the fork says 0.3%, every conclusion drawn from the Flash Lab is suspect — and that is findable *before* spending audit money.
+- Includes the step most replay harnesses omit: **assert the observation reproduces at the pinned block** before executing. If live reserves disagree with what was logged, the observation was already stale — a scanner bug, and it must fail loudly rather than be absorbed into a "contract underperformed" result.
+- Records honest limits: a fork has no rival searchers, so replay proves a trade was *profitable*, never that it was *winnable*. The 15% MEV-capture assumption stays unvalidated and remains the largest unknown in the economics.
+- Build order puts the three no-contract, no-spend steps first, since Mode A can invalidate the project on its own.
+
 ## 2.23.0 - 2026-07-20
 
 **Phase 1 deliverables: flash-loan receiver specification and audit brief.**

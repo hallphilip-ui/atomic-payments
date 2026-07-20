@@ -368,7 +368,7 @@ router.get('/arb-desk/clearance-log', async (req: Request, res: Response) => {
   const auth = await deskAuth(req);
   if (!auth) return res.status(401).json({ error: 'Sign in required.' });
   // Fold in the current snapshots before answering, so the number is never stale.
-  const led = runClearancePass();
+  const led = await runClearancePass();
   const started = Date.parse(led.window_start);
   const days = Number.isFinite(started)
     ? Math.max(0, (Date.now() - started) / 86_400_000) : 0;

@@ -53,11 +53,18 @@ const BSC_SNAPSHOT = process.env.BSC_SNAPSHOT_PATH ||
 
 // Ledger schema version. Bumping it invalidates old ledgers whose rows were judged by
 // different rules — mixing them would silently corrupt the count.
-const SCHEMA = 2;
+const SCHEMA = 3;
 
 export type ClearedRow = {
   key: string; surface: string; at: string; detail: string;
   capital_usd: number; net_usd: number; net_pct: number;
+  // REPLAY DATA. Without a block number a row cannot be re-tested against a fork, and
+  // the observation is lost the moment the pool moves. Phase 2's exit criterion is
+  // "replay real opportunities and assert capture", so capturing these at observation
+  // time is not optional — it is the difference between 30 days of usable evidence and
+  // 30 days of anecdotes. null block = row is NOT replayable; say so rather than hide it.
+  observed_block: number | null;
+  observed: Record<string, unknown> | null;  // raw scanner row, to diff against fork state
 };
 type Ledger = {
   schema: number;
@@ -90,6 +97,26 @@ export function readLedger(): Ledger {
   } catch { return empty(); }
 }
 
+// Chain heads at observation time. A row without one cannot be replayed, so this is
+// fetched per pass rather than per row (one call, not N) and cached briefly.
+const RPC: Record<string, string> = {
+  bsc: process.env.BSC_RPC_URL || 'https://bsc-rpc.publicnode.com',
+  ethereum: process.env.ETH_RPC_URL || 'https://ethereum-rpc.publicnode.com',
+};
+async function blockNumber(chain: 'bsc' | 'ethereum'): Promise<number | null> {
+  try {
+    const r = await fetch(RPC[chain], {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!r.ok) return null;
+    const j: any = await r.json();
+    const n = parseInt(j?.result, 16);
+    return Number.isFinite(n) ? n : null;
+  } catch { return null; }
+}
+
 function num(v: unknown): number { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 
 function qualifies(net: number, capital: number): boolean {
@@ -107,10 +134,14 @@ function recostVenus(r: any, gasUsd: number): { net: number; capital: number } {
   return { net: kept - flashFee - swap - gasUsd, capital: seizable };
 }
 
-export function runClearancePass(): Ledger {
+export async function runClearancePass(): Promise<Ledger> {
   const led = readLedger();
   const seenFwd = new Set(led.cleared.map((c) => c.key));
   const seenRetro = new Set(led.retrospective.map((c) => c.key));
+  // One call per chain per pass, not per row.
+  const [ethBlock, bscBlock] = await Promise.all([
+    blockNumber('ethereum'), blockNumber('bsc'),
+  ]);
   const bump = (s: string) => {
     led.evaluated++;
     led.evaluated_by_surface[s] = (led.evaluated_by_surface[s] || 0) + 1;
@@ -132,6 +163,7 @@ export function runClearancePass(): Ledger {
         detail: `${r.collateral} → ${r.repaid}, seized $${Math.round(num(r.seized_usd)).toLocaleString()}`,
         capital_usd: Math.round(capital), net_usd: Math.round(net * 100) / 100,
         net_pct: Math.round((net / capital) * 10000) / 100,
+        observed_block: ethBlock, observed: r,
       });
     }
   } catch { /* snapshot absent */ }
@@ -158,6 +190,7 @@ export function runClearancePass(): Ledger {
         detail: `${r.pair} ${r.buy_on}→${r.sell_on}, spread ${r.spread_pct}%`,
         capital_usd: Math.round(clip), net_usd: Math.round(net * 100) / 100,
         net_pct: Math.round((net / clip) * 10000) / 100,
+        observed_block: bscBlock, observed: r,
       });
     }
 
@@ -175,6 +208,7 @@ export function runClearancePass(): Ledger {
         detail: `${String(r.account || '').slice(0, 10)}… seizable $${Math.round(num(r.seizable_usd)).toLocaleString()}`,
         capital_usd: Math.round(capital), net_usd: Math.round(net * 100) / 100,
         net_pct: Math.round((net / capital) * 10000) / 100,
+        observed_block: bscBlock, observed: r,
       });
     }
   } catch { /* bsc snapshot absent */ }
@@ -202,7 +236,7 @@ export function marginIsDegenerate(rows: ClearedRow[]): boolean {
 let timer: NodeJS.Timeout | null = null;
 export function startClearanceLogger(intervalMs = 5 * 60 * 1000): void {
   if (timer) return;
-  try { runClearancePass(); } catch { /* never break boot */ }
-  timer = setInterval(() => { try { runClearancePass(); } catch { /* keep polling */ } }, intervalMs);
+  runClearancePass().catch(() => { /* never break boot */ });
+  timer = setInterval(() => { runClearancePass().catch(() => { /* keep polling */ }); }, intervalMs);
   if (typeof timer.unref === 'function') timer.unref();
 }
