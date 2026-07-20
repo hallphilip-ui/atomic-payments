@@ -1,6 +1,6 @@
 {
   "name": "atomic-payments",
-  "version": "2.17.1",
+  "version": "2.18.0",
   "main": "src/index.ts",
   "scripts": {
     "build": "tsc",

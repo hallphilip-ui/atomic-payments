@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.18.0 - 2026-07-20
+
+**Flash Lab: the liquidations table now explains itself.**
+
+- **Hover help on all 12 column headings.** Each states what the figure is and how it is derived — including the ones that mislead at a glance: `Seized $` is position size, not profit; `Bonus %` is the entire source of edge; `Clears?` means "would have been profitable if you had won it", not "was available to you".
+- **Per-row arithmetic on every figure.** Hovering a net value shows that row's actual sum laid out line by line (`gross − flash fee − swap − gas = net`), with real numbers rather than a generic formula. `Seized $` shows the borrow derivation, `Flash fee` shows the 0.05% applied to the borrowed amount, `Swap` shows the 0.45% applied to the seized amount.
+- **A "How these numbers are calculated" panel** under the table: the trade explained in prose, the five formulas, and why the two net columns diverge (the competitive column keeps 15% of the bonus, the rest bid away in priority fees).
+- **Makes the counter-intuitive point visible:** gas is trivial and size-independent, while the swap cost dominates and scales. "Flash loans are expensive because of gas" is backwards, and the per-row numbers now show it.
+- **Verified, not assumed:** the tooltip formulas were re-computed against 14 real snapshot rows and reconcile with every displayed value (net, competitive, and borrow) to within a cent. Rendering was confirmed against the real file and real data.
+- Native `title` tooltips used deliberately — a CSS bubble would be clipped by the table's `overflow-x` scroll container. Headers get `cursor:help` and a dotted underline so the help is discoverable.
+- Restates plainly that every row was already won by an MEV bot, and that the 15% capture rate is an estimate rather than a measurement.
+
 ## 2.17.1 - 2026-07-20
 
 **Document the arb-desk Access variables in `.env.example`.**

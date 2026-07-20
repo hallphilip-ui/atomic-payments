@@ -31,6 +31,17 @@
     .meta{font-size:12px;color:var(--muted);margin-top:10px}
     table{width:100%;border-collapse:collapse;font-size:12.5px}
     th{text-align:right;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+    /* Anything carrying a title= gets a hover affordance, so the help is discoverable
+       rather than hidden. Native title is used deliberately: a CSS bubble would be
+       clipped by the .scroll container's overflow. */
+    th[title]{cursor:help;text-decoration:underline dotted var(--line);text-underline-offset:3px}
+    td[title]{cursor:help}
+    details.formula{margin-top:12px;font-size:12.5px}
+    details.formula summary{cursor:pointer;color:var(--muted);user-select:none}
+    details.formula summary:hover{color:var(--fg)}
+    details.formula .body{margin-top:10px;padding:12px 14px;background:var(--bg2,#fafafc);
+      border:1px solid var(--line);border-radius:8px;line-height:1.65}
+    details.formula code{background:rgba(0,0,0,.05);padding:1px 5px;border-radius:4px;font-size:12px}
     th:first-child,td:first-child{text-align:left}
     td{padding:8px 10px;border-bottom:1px solid #f1f1f6;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
     tbody tr:hover{background:#fafafc}
@@ -103,10 +114,60 @@
       <div class="card">
         <h2>Aave liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· the classic flash-loan use — flash-borrow the debt, seize the discounted collateral, swap, repay. <b>Every row below was ALREADY executed by an MEV bot</b>; "net" is what the winner made, not what's on the table.</span></h2>
         <div class="scroll"><table id="liqtbl"><thead><tr>
-          <th>When (UTC)</th><th>Collateral → Debt</th><th>Seized $</th><th>Bonus %</th><th>Gross $</th>
-          <th>Flash fee</th><th>Swap</th><th>Gas</th><th>Net (unopposed)</th><th>Net (competitive)</th><th>Clears?</th><th>Status</th>
+          <th title="Block timestamp of the liquidation, in UTC. This feed contains COMPLETED liquidations only — each one already happened.">When (UTC)</th>
+          <th title="The collateral asset seized, and the debt asset repaid. The trade: flash-borrow the debt asset, repay the borrower's loan, receive their collateral at a discount, swap it back, repay the flash loan.">Collateral → Debt</th>
+          <th title="USD value of the collateral seized from the liquidated borrower. This is the size of the position, NOT the profit.">Seized $</th>
+          <th title="Aave's liquidation bonus for this collateral — the discount the liquidator gets. This is the entire source of edge; everything else on this row is a cost subtracted from it.">Bonus %</th>
+          <th title="The bonus expressed in dollars, before any cost.&#10;&#10;Gross = Seized − (Seized ÷ (1 + Bonus))&#10;&#10;This is the theoretical maximum anyone could make on this row.">Gross $</th>
+          <th title="Aave v3 flash-loan premium: 0.05% of the amount BORROWED (not of the seized value).&#10;&#10;Flash fee = (Seized ÷ (1 + Bonus)) × 0.05%">Flash fee</th>
+          <th title="Cost of swapping the seized collateral back into the debt asset: 0.30% DEX fee + 0.15% slippage, applied to the seized value.&#10;&#10;Swap = Seized × 0.45%&#10;&#10;This is usually the largest single cost.">Swap</th>
+          <th title="On-chain gas at the live network price, for 550,000 gas units (flash + liquidationCall + swap + repay).&#10;&#10;Size-independent: the same computation whether you borrow $1k or $1M. Note how small it is next to Swap.">Gas</th>
+          <th title="What the winner roughly made.&#10;&#10;Net = Gross − Flash fee − Swap − Gas&#10;&#10;Assumes you faced NO competition for the block — unrealistic for a public liquidation. Hover any figure in this column to see its arithmetic.">Net (unopposed)</th>
+          <th title="The realistic figure. You keep only 15% of the gross bonus; the other 85% is bid away as priority fee to win the block against rival searchers. Hard costs are unchanged.&#10;&#10;Net = (Gross × 15%) − Flash fee − Swap − Gas&#10;&#10;Hover any figure in this column to see its arithmetic.">Net (competitive)</th>
+          <th title="Whether Net (competitive) is above zero.&#10;&#10;'yes' does NOT mean this was available to you — it means it would have been profitable IF you had won it. Every row here was already won by someone else.">Clears?</th>
+          <th title="Always 'already taken'. This feed is COMPLETED liquidations: a professional MEV bot won each one, typically in the very block it became liquidatable.">Status</th>
         </tr></thead><tbody></tbody></table></div>
         <div class="empty" id="liqEmpty" style="display:none">No liquidations in the scanner feed yet.</div>
+
+        <details class="formula">
+          <summary>How these numbers are calculated — hover any column heading or figure for the detail</summary>
+          <div class="body">
+            <p style="margin:0 0 10px"><b>The trade.</b> A borrower's Aave loan falls below its required
+            collateral ratio. Anyone may repay part of their debt and, in exchange, seize their collateral
+            at a discount — the <i>liquidation bonus</i>. A flash loan funds the repayment, so no capital
+            of your own is needed: borrow the debt asset, repay the loan, seize the collateral, swap it
+            back, repay the flash loan, keep the difference. All in one transaction.</p>
+
+            <p style="margin:0 0 6px"><b>The arithmetic, per row:</b></p>
+            <div style="margin:0 0 10px">
+              <code>borrowed = seized ÷ (1 + bonus)</code><br>
+              <code>gross bonus = seized − borrowed</code><br>
+              <code>flash fee = borrowed × 0.05%</code> &nbsp;<span style="color:var(--muted)">(Aave v3 premium)</span><br>
+              <code>swap cost = seized × 0.45%</code> &nbsp;<span style="color:var(--muted)">(0.30% DEX fee + 0.15% slippage)</span><br>
+              <code>gas = 550,000 units × live gas price</code><br><br>
+              <code>net (unopposed) = gross − flash fee − swap − gas</code><br>
+              <code>net (competitive) = (gross × 15%) − flash fee − swap − gas</code>
+            </div>
+
+            <p style="margin:0 0 10px"><b>Why the two "net" columns differ, and why the second is the honest one.</b>
+            Liquidations are public and contested. Rival searchers bid against each other in priority fees
+            for the right to be first in the block, and that bidding competes away most of the bonus. The
+            competitive column models keeping <b>15%</b> of the gross bonus, with the other 85% bid away.
+            The hard costs — flash fee, swap, gas — do not shrink.</p>
+
+            <p style="margin:0 0 10px"><b>Note what dominates.</b> Gas is trivial — typically well under a
+            dollar, and identical whether you borrow $1,000 or $1,000,000, because it is the same
+            computation. The <i>swap cost</i> is the real expense, and it scales with size. Anyone whose
+            mental model is "flash loans are expensive because of gas" has it backwards.</p>
+
+            <p style="margin:0;color:var(--muted)"><b>What this table is not.</b> Every row already happened
+            and was already won by a professional MEV bot, usually in the same block the position became
+            liquidatable. A green figure in "Net (unopposed)" is what the <i>winner</i> made, not an
+            opportunity that was ever available to you. This table exists to size the prize and show how
+            little of it survives contact with competition — the 15% capture assumption is an estimate,
+            not a measurement.</p>
+          </div>
+        </details>
       </div>
 
       <div class="card">
@@ -219,13 +280,52 @@
       var L=d.liquidations||{}, rows=L.rows||[];
       var tb=document.querySelector('#liqtbl tbody');
       document.getElementById('liqEmpty').style.display=rows.length?'none':'block';
+      // Per-row arithmetic in the tooltip. money() returns PLAIN text so it is safe in an
+      // attribute; signed() returns a <span> and must never be used here. &#10; = newline.
+      var NL='&#10;';
       tb.innerHTML=rows.map(function(r){
+        var g=Number(r.gross_bonus_usd)||0, ff=Number(r.flash_fee_usd)||0,
+            sw=Number(r.swap_cost_usd)||0, hasGas=(r.gas_usd!=null), gs=hasGas?Number(r.gas_usd):0;
+        var gasTxt=hasGas?money(gs):'not priced';
+        var kept=g*0.15, bidAway=g-kept;
+
+        var mult=(1+(Number(r.bonus_pct)||0)/100).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+        var tipBorrow='Borrowed to repay the debt: '+money(r.borrow_usd)+NL+
+          '= seized '+money(r.seized_usd)+' ÷ '+mult+' (1 + the '+esc(r.bonus_pct)+'% bonus)';
+
+        var tipNet='WHAT THE WINNER MADE'+NL+NL+
+          'gross bonus      '+money(g)+NL+
+          '− flash fee      '+money(ff)+NL+
+          '− swap cost      '+money(sw)+NL+
+          '− gas            '+gasTxt+NL+
+          '─────────────────────────'+NL+
+          '= net            '+money(r.net_usd)+NL+NL+
+          'Assumes you faced no competition for this block.';
+
+        var tipComp='WHAT YOU WOULD REALISTICALLY MAKE'+NL+NL+
+          'You keep 15% of the bonus after the priority-fee bid war:'+NL+
+          money(g)+' × 15% = '+money(kept)+NL+NL+
+          'kept bonus       '+money(kept)+NL+
+          '− flash fee      '+money(ff)+NL+
+          '− swap cost      '+money(sw)+NL+
+          '− gas            '+gasTxt+NL+
+          '─────────────────────────'+NL+
+          '= net            '+money(r.net_usd_competitive)+NL+NL+
+          'The other 85% ('+money(bidAway)+') is bid away to win the block.';
+
+        var tipGross='Seized '+money(r.seized_usd)+' at a '+esc(r.bonus_pct)+'% discount.'+NL+
+          'Gross bonus = '+money(r.seized_usd)+' − '+money(r.borrow_usd)+' = '+money(g)+NL+NL+
+          'This is the maximum anyone could make here, before costs.';
+
         return '<tr><td>'+esc(r.ts)+'</td>'+
           '<td><b>'+esc(r.collateral)+'</b> → '+esc(r.repaid)+'</td>'+
-          '<td>'+money(r.seized_usd)+'</td><td>'+esc(r.bonus_pct)+'%</td>'+
-          '<td>'+money(r.gross_bonus_usd)+'</td><td>'+money(r.flash_fee_usd)+'</td>'+
-          '<td>'+money(r.swap_cost_usd)+'</td><td>'+(r.gas_usd==null?'—':money(r.gas_usd))+'</td>'+
-          '<td>'+signed(r.net_usd)+'</td><td>'+signed(r.net_usd_competitive)+'</td>'+
+          '<td title="'+tipBorrow+'">'+money(r.seized_usd)+'</td><td>'+esc(r.bonus_pct)+'%</td>'+
+          '<td title="'+tipGross+'">'+money(g)+'</td>'+
+          '<td title="0.05% of the '+money(r.borrow_usd)+' borrowed = '+money(ff)+'">'+money(ff)+'</td>'+
+          '<td title="0.45% of the '+money(r.seized_usd)+' seized (0.30% DEX fee + 0.15% slippage) = '+money(sw)+'">'+money(sw)+'</td>'+
+          '<td title="550,000 gas units at the live network price. Same cost at any loan size.">'+(hasGas?money(gs):'—')+'</td>'+
+          '<td title="'+tipNet+'">'+signed(r.net_usd)+'</td>'+
+          '<td title="'+tipComp+'">'+signed(r.net_usd_competitive)+'</td>'+
           '<td><span class="pill '+(r.would_clear?'yes':'no')+'">'+(r.would_clear?'yes':'no')+'</span></td>'+
           '<td><span class="pill taken">already taken</span></td></tr>';
       }).join('');
