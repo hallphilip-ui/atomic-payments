@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.28.0 - 2026-07-20
+
+**Mode A for the Aave surface — and it caught a coverage gap in today's own drift check.**
+
+- **`scripts/replay-mode-a-aave.js`** validates two things per liquidation row: internal arithmetic recomputed from the row's own inputs, and each row's `bonus_pct` against the **live** Aave liquidation bonus.
+- **Internal arithmetic: 14 of 14 consistent.** Borrow derivation, gross bonus, flash fee, swap cost and both nets all reconcile to the cent. The simulator's maths is sound.
+- **Parameter drift: 2 rows used a stale bonus.** WBTC at 6.25% vs a live 5.00% **overstated** that row's competitive net by **$2.58**; USDe at 4.50% vs a live 8.50% understated it by $1.40. Neither flipped `would_clear`, so no conclusion changes — but the direction of the WBTC error is the one that flatters.
+- **The USDe row exposed a real gap in the drift card shipped earlier today.** It filtered reserves to `canBeCollateral: true`, examining only 19 of 67 — so USDe sat outside its scope while a live liquidation row was actively using the stale value. A checker that reports "all modelled assets match" must examine all modelled assets; otherwise it claims coverage it does not have, which is worse than not checking at all. **Fixed:** all 67 reserves are now examined, collateral status is reported per row rather than used as a filter, and **drift count rises from 4 to 6** — DAI and USDe were both being missed.
+- **Stated limit:** Aave rows carry no tx hash or account, so unlike the Venus check this **cannot confirm the liquidations occurred** — only that the model applied to them is sound. Adding a tx hash to the scanner feed would close that gap; recommended, not done.
+
 ## 2.27.1 - 2026-07-20
 
 **Purged 21 proven-false rows from the clearance ledger.**

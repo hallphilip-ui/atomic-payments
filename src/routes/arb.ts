@@ -307,8 +307,14 @@ router.get('/arb-desk/aave-live', async (req: Request, res: Response) => {
     const m = j?.data?.market;
     if (!m) throw new Error('No market in response');
 
+    // Include EVERY reserve, not just collateral-eligible ones.
+    //
+    // The first cut filtered on canBeCollateral, which silently put modelled assets out
+    // of scope: USDe drifted 4.50% -> 8.50% and the card never flagged it, while a real
+    // Aave liquidation row was using the stale value. A drift check that reports "all
+    // modelled assets match" must actually examine all modelled assets — otherwise it
+    // claims coverage it does not have, which is worse than not checking.
     const reserves = (m.reserves || [])
-      .filter((x: any) => x?.supplyInfo?.canBeCollateral)
       .map((x: any) => {
         const sym = String(x.underlyingToken?.symbol || '?');
         const live = num(x.supplyInfo?.liquidationBonus?.value);
@@ -327,6 +333,7 @@ router.get('/arb-desk/aave-live', async (req: Request, res: Response) => {
           liquidation_threshold: num(x.supplyInfo?.liquidationThreshold?.value),
           max_ltv: num(x.supplyInfo?.maxLTV?.value),
           frozen: !!x.isFrozen, paused: !!x.isPaused,
+          collateral: !!x.supplyInfo?.canBeCollateral,
           modelled: assumed != null,
           drift,
         };
