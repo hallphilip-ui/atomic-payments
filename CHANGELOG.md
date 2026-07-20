@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.20.0 - 2026-07-20
+
+**Live Aave protocol data on the Flash Lab — and it caught four stale assumptions in our own model.**
+
+- **New read-only integration with Aave's keyless GraphQL API** (`api.v3.aave.com`), gated behind the desk auth, 10-minute cache, serves stale-with-a-warning if Aave is unreachable, and fails to a hidden card rather than breaking the desk. **Strictly read-only** — no transaction can originate here, and an Aave flash loan requires a deployed receiver contract we do not have and are not building.
+- **Assumption-drift check — the reason this was worth building.** `flashsim.py` carries a hardcoded liquidation-bonus table. Those are *governance parameters* that change by vote, and a stale one silently mis-states modelled profit. Diffing ours against the live protocol found **4 of 9 modelled assets have drifted**, and **three of the four overstate the bonus** — i.e. our liquidation model has been flattering itself:
+
+  | Asset | We assume | Protocol | Effect |
+  |---|---|---|---|
+  | WBTC | 6.25% | **5.00%** | overstates by 25% |
+  | wstETH | 7.00% | **6.00%** | overstates by 17% |
+  | weETH | 7.50% | **7.00%** | overstates |
+  | cbBTC | 6.00% | **7.50%** | understates |
+
+- Drifted rows are highlighted and sorted first, with a banner naming each. Assets we don't model show `—` rather than being falsely flagged as a mismatch.
+- Also surfaces live supply/borrow APY, max LTV, liquidation threshold and frozen/paused status for all 19 collateral-eligible reserves on Aave v3 Ethereum, with the same hover-help treatment as the other tables.
+- **`v3`, not `v4`, deliberately.** v4's API is live but covers only Ethereum and Avalanche, and our liquidation feed is v3 — mixing v4 parameters into a v3 model would be wrong. The v3 API covers 15+ chains including Base and Arbitrum.
+- **Note:** the drift is *reported*, not auto-corrected. Changing `flashsim.py`'s table alters scanner semantics and is left as a deliberate decision.
+
+**Earn/Vaults scoping doc — the blocking open question is now answered** (`docs/earn-vaults-scope.md`). Read of `ATokenVault.sol`: depositor principal *is* protected from the vault owner (no pause, `withdrawFees` capped at accrued fees, `emergencyRescue` barred from the aToken). But the owner can raise the performance fee to **100% of yield** instantly with no timelock, and can redirect **all reward emissions** to itself — both need disclosing. The binding risk is **proxy admin**: the vault is upgradeable behind a proxy whose admin is a separate address from the owner, and whoever holds that key can reach principal. That is not answerable from source and must be verified per-deployment.
+
 ## 2.19.0 - 2026-07-20
 
 **Flash Lab: the same hover help extended to all five tables — and two mislabelled columns fixed.**

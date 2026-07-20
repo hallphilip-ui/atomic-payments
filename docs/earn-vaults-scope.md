@@ -15,6 +15,16 @@ their own wallet and holds redeemable shares; Atomic never takes custody. A vaul
 manager can levy a performance fee **on yield only, never principal** — so there is a
 native revenue model that does not require us to hold anything.
 
+**Update 2026-07-20 — contract read complete (§6.1).** Depositor principal is protected
+from the vault *owner* in the current implementation: withdrawals cannot be paused,
+`withdrawFees` is capped at accrued fees, and `emergencyRescue` is explicitly barred
+from the aToken. But two things must be disclosed to any depositor: the owner can raise
+the performance fee to **100% of yield** instantly and without timelock, and can
+redirect **all reward emissions** to itself. And the binding risk is **proxy admin** —
+the vault is upgradeable behind a proxy whose admin is a different address from the
+owner; whoever holds that key can replace the implementation and reach principal. That
+must be verified per-deployment before integrating, and it is not answerable from source.
+
 **Commercially: it is a retention play, not a revenue driver.** See the arithmetic
 below — at plausible early TVL the fee income is negligible next to swap fees.
 
@@ -181,13 +191,42 @@ Specific things to put to counsel:
 
 I did not verify these and would not proceed without doing so:
 
-1. **What powers does the vault `owner` actually hold?** The docs list fee parameters
-   and a fee recipient, but I have not read `ATokenVault` to confirm whether the owner
-   can pause, upgrade, or otherwise reach user funds. **Until this is confirmed, the
-   claim "fully non-custodial" is unproven.** This requires a contract read, and it is
-   the single most important open item.
-2. `initialLockDeposit` — what it locks, for how long, and whose capital.
-3. Is there a documented maximum performance fee, or is it unbounded?
+1. ~~**What powers does the vault `owner` actually hold?**~~ **ANSWERED 2026-07-20** by
+   reading [ATokenVault.sol](https://github.com/aave/Aave-Vault/blob/main/src/ATokenVault.sol).
+   There are exactly four `onlyOwner` functions: `setFee`, `withdrawFees`,
+   `claimRewards`, `emergencyRescue`.
+   - **Principal is protected in this implementation.** `withdrawFees` is bounded by
+     `require(amount <= _s.accumulatedFees)`; `emergencyRescue` carries
+     `require(token != address(ATOKEN), "CANNOT_RESCUE_ATOKEN")` — and since user
+     principal is held as the aToken, that single `require` is what stops it being a
+     rug function. No code path moves another account's shares.
+   - **There is no pause.** No `Pausable`, no `whenNotPaused`; `deposit`/`withdraw`
+     carry no access modifier. Depositors can always exit. (Aave *itself* pausing the
+     reserve is a separate availability risk, and is governance's lever, not ours.)
+   - **But the owner can take 100% of yield.** `setFee` is bounded only by
+     `require(newFee <= SCALE)` where `SCALE = 1e18` — i.e. 100%. No cap, no timelock,
+     no notice. It applies only to future yield (`_accrueYield()` runs first), and only
+     to yield, never principal. The docs' "at least 10%" is a *minimum* platform policy,
+     not a maximum, and offers depositors nothing.
+   - **The owner also captures all reward emissions** via `claimRewards(address to)`.
+     Depositors have no claim on Aave incentives. This is value extraction beyond the
+     stated performance fee and would have to be disclosed.
+   - **The decisive risk is the proxy admin, not the owner.** The contract is
+     `ERC4626Upgradeable`/`OwnableUpgradeable` behind a proxy, and Aave's docs note it
+     deliberately does not initialize `OwnableUpgradeable` "to avoid setting the proxy
+     admin as the owner" — confirming proxy admin is a *separate* address. Whoever
+     holds it can replace the implementation and reach principal regardless of
+     everything above. **This is now the single most important open item**, and it
+     cannot be answered from source: it requires reading the EIP-1967 admin slot on
+     the specific proxy. If that admin is an EOA or a non-timelocked multisig, treat
+     depositor principal as **not** safe.
+2. ~~`initialLockDeposit`~~ **ANSWERED.** It is the **deployer's** capital, deposited at
+   `initialize`, with shares minted to `address(this)` — the vault itself. There is no
+   unlock function and no expiry: it is **permanent**, effectively a burn. It exists to
+   block the ERC-4626 first-depositor inflation/donation attack, and must be sized
+   non-trivially against the asset's decimals — passing 1 wei does not mitigate it.
+3. ~~Is there a documented maximum performance fee?~~ **ANSWERED: no meaningful maximum**
+   — see item 1, bounded only at 100%.
 4. **V3 vs V4.** Aave's docs now list V4 as current with V3 as "previous version." The
    vault documentation sits under V3. Building on a superseded version needs a
    deliberate decision, and V4's liquidity model (hubs/spokes/reserves) is a different

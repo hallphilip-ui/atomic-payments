@@ -120,6 +120,24 @@
         <div class="meta" id="breakeven"></div>
       </div>
 
+      <div class="card" id="aaveCard" style="display:none">
+        <h2>Aave protocol — live <span id="aaveMeta" style="font-weight:400;color:var(--muted);font-size:12px"></span></h2>
+        <div id="aaveDrift"></div>
+        <div class="hoverhint">Hover any column heading or figure for the calculation behind it.</div>
+        <div class="scroll"><table id="aaveTbl"><thead><tr>
+          <th title="The collateral asset, read from Aave's own API. Only assets that can be used as collateral are listed — those are the ones a liquidation can seize.">Asset</th>
+          <th title="Aave's liquidation bonus for this asset, live from the protocol. This is the discount a liquidator receives, and it is the entire source of edge in a liquidation.&#10;&#10;This is a GOVERNANCE PARAMETER — it changes by vote.">Liq. bonus (live)</th>
+          <th title="What our flash-loan simulator assumes for this asset.&#10;&#10;'—' means the asset is not in our model at all, which is not an error — just out of scope.">Our assumption</th>
+          <th title="Live value minus our assumption.&#10;&#10;A positive number means we UNDERSTATE the bonus and so understate modelled profit; negative means we OVERSTATE it. Anything non-zero means the simulator should be corrected.">Drift</th>
+          <th title="Supply APY — what a lender currently earns on this asset. Read-only; shown for context on where yield sits.">Supply APY</th>
+          <th title="Borrow APY — what a borrower currently pays.">Borrow APY</th>
+          <th title="Loan-to-value ceiling: how much can be borrowed against this asset as collateral.">Max LTV</th>
+          <th title="The health-factor boundary. Once a position's collateral falls below this ratio it becomes liquidatable.">Liq. threshold</th>
+          <th title="Frozen or paused reserves cannot be supplied to or borrowed from, so no new liquidation opportunity arises from them.">Status</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="meta" style="margin-top:10px">Read-only protocol data from Aave's keyless GraphQL API. <b>No transaction can originate here</b> — an Aave flash loan requires a deployed receiver contract, which we do not have.</div>
+      </div>
+
       <div class="card">
         <h2>Aave liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· the classic flash-loan use — flash-borrow the debt, seize the discounted collateral, swap, repay. <b>Every row below was ALREADY executed by an MEV bot</b>; "net" is what the winner made, not what's on the table.</span></h2>
         <div class="hoverhint">Hover any column heading or figure for the calculation behind it.</div>
@@ -388,6 +406,50 @@
       renderBsc(d.bsc);
     }
 
+    // Live Aave protocol data. Fetched separately from the snapshot because it
+    // comes from Aave's API rather than our scanner, and must not be able to
+    // fail the whole desk if their API is down.
+    function pct(v){ return v==null?'—':(v*100).toFixed(2)+'%'; }
+    async function loadAave(){
+      var k=key();
+      try{
+        var r=await fetch('/arb-desk/aave-live', k?{headers:{'x-atomic-operator-key':k}}:{});
+        if(!r.ok) return;                       // stay hidden rather than show a broken card
+        var d=await r.json();
+        if(!d || !d.reserves) return;
+        document.getElementById('aaveCard').style.display='block';
+        document.getElementById('aaveMeta').textContent =
+          '· '+(d.market||'')+' · market size $'+Math.round(d.total_market_size_usd||0).toLocaleString()+
+          (d.stale?' · STALE (Aave API unreachable)':(d.cached?' · cached '+d.age_sec+'s':' · fresh'));
+
+        var drift=(d.reserves||[]).filter(function(x){return x.drift;});
+        document.getElementById('aaveDrift').innerHTML = drift.length
+          ? '<div style="background:#fff6f6;border:1px solid #f3d0d0;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12.5px">'+
+            '<b>'+drift.length+' assumption'+(drift.length>1?'s have':' has')+' drifted from the live protocol.</b> '+
+            'Our simulator uses a hardcoded liquidation-bonus table; these no longer match what Aave actually pays. '+
+            'Rows are sorted drift-first below. '+drift.map(function(x){
+              return esc(x.symbol)+' (we say '+pct(x.drift.assumed)+', protocol says '+pct(x.drift.live)+')';
+            }).join(', ')+'.</div>'
+          : '<div style="background:#f4faf5;border:1px solid #cfe8d4;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12.5px">'+
+            'All '+(d.modelled_count||0)+' modelled assets match the live protocol parameters.</div>';
+
+        document.querySelector('#aaveTbl tbody').innerHTML=(d.reserves||[]).map(function(x){
+          var dr=x.drift;
+          var status=(x.frozen?'<span class="pill no">frozen</span>':'')+(x.paused?' <span class="pill no">paused</span>':'');
+          if(!status) status='<span class="pill yes">active</span>';
+          return '<tr'+(dr?' style="background:#fff6f6"':'')+'>'+
+            '<td title="'+esc(x.address||'')+'"><b>'+esc(x.symbol)+'</b></td>'+
+            '<td title="Live governance parameter from Aave.">'+pct(x.liquidation_bonus)+'</td>'+
+            '<td title="'+(x.modelled?'From our simulator’s hardcoded table.':'Not modelled by our simulator — out of scope, not an error.')+'">'+(x.modelled?pct(dr?dr.assumed:x.liquidation_bonus):'—')+'</td>'+
+            '<td title="'+(dr?('We are '+(dr.delta<0?'OVERSTATING':'understating')+' this bonus by '+pct(Math.abs(dr.delta))+'.'):'No drift.')+'">'+
+              (dr?'<span class="'+(dr.delta<0?'down':'up')+'">'+(dr.delta>0?'+':'')+pct(dr.delta)+'</span>':'—')+'</td>'+
+            '<td>'+pct(x.supply_apy)+'</td><td>'+pct(x.borrow_apy)+'</td>'+
+            '<td>'+pct(x.max_ltv)+'</td><td>'+pct(x.liquidation_threshold)+'</td>'+
+            '<td>'+status+'</td></tr>';
+        }).join('');
+      }catch(e){ /* leave the card hidden — Aave being down must not break the desk */ }
+    }
+
     function renderBsc(b){
       var card=document.getElementById('bscCard');
       if(!b){ card.style.display='none'; return; }
@@ -462,6 +524,7 @@
         }
         if(!r.ok){ throw new Error('HTTP '+r.status); }
         render(await r.json()); show(true);
+        loadAave();   // deliberately not awaited — Aave's API must not delay or break the desk
       }catch(e){
         document.getElementById('meta') && (document.getElementById('meta').textContent='Load error: '+e.message);
       }

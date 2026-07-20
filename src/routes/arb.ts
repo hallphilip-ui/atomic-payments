@@ -233,4 +233,137 @@ router.post('/arb-desk/test-alert', async (req: Request, res: Response) => {
   return res.json({ ok: true, sent_to: url });
 });
 
+// ---------------------------------------------------------------------------
+// Aave protocol data, live from Aave's own keyless GraphQL API.
+//
+// WHY: the flash-loan simulator carries a HARDCODED liquidation-bonus table
+// (flashsim.py LIQ_BONUS_PCT). Those are governance parameters — they change,
+// and a stale one silently mis-states modelled profit. Reading the protocol's
+// own values lets the desk show where our assumptions have drifted instead of
+// quietly compounding the error. Found on first run: we carry WBTC at 0.0625
+// while the protocol says 0.0500 — a 25% overstatement of that bonus.
+//
+// STRICTLY READ-ONLY. This endpoint fetches data. It cannot and must not
+// originate a transaction; Aave flash loans require a deployed receiver
+// contract, which we do not have and are not building.
+const AAVE_API = 'https://api.v3.aave.com/graphql';
+// Aave v3 Ethereum Pool. The market is addressed by (address, chainId).
+const AAVE_V3_ETH_MARKET = '0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2';
+
+// Our simulator's assumed liquidation bonuses, mirrored here so the desk can
+// diff them against live protocol values. Keep in sync with flashsim.py.
+const ASSUMED_LIQ_BONUS: Record<string, number> = {
+  WETH: 0.05, ETH: 0.05, WSTETH: 0.07, WEETH: 0.075, RETH: 0.075,
+  WBTC: 0.0625, CBBTC: 0.06,
+  USDC: 0.045, USDT: 0.045, DAI: 0.045, EURC: 0.05, USDE: 0.045,
+  LINK: 0.07, AAVE: 0.075, UNI: 0.10, CRV: 0.083,
+};
+
+const AAVE_QUERY = `query M($addr: EvmAddress!, $chain: ChainId!) {
+  market(request: { address: $addr, chainId: $chain }) {
+    name totalMarketSize totalAvailableLiquidity
+    reserves {
+      underlyingToken { symbol address }
+      usdExchangeRate isFrozen isPaused
+      size { amount { value } }
+      supplyInfo {
+        apy { value }
+        liquidationBonus { value }
+        liquidationThreshold { value }
+        maxLTV { value }
+        canBeCollateral
+      }
+      borrowInfo { apy { value } }
+    }
+  }
+}`;
+
+let aaveCache: { at: number; payload: unknown } | null = null;
+const AAVE_TTL_MS = 10 * 60 * 1000;
+
+router.get('/arb-desk/aave-live', async (req: Request, res: Response) => {
+  const auth = await deskAuth(req);
+  if (!auth) return res.status(401).json({ error: 'Sign in required.' });
+
+  if (aaveCache && Date.now() - aaveCache.at < AAVE_TTL_MS) {
+    return res.json({ ...(aaveCache.payload as object), cached: true,
+                      age_sec: Math.round((Date.now() - aaveCache.at) / 1000) });
+  }
+
+  try {
+    const r = await fetch(AAVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: AAVE_QUERY,
+        variables: { addr: AAVE_V3_ETH_MARKET, chain: 1 } }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!r.ok) throw new Error('Aave API HTTP ' + r.status);
+    const j: any = await r.json();
+    // A GraphQL 200 can still carry errors — treat them as a failure rather
+    // than shipping an empty table that looks like "no reserves".
+    if (j?.errors?.length) throw new Error(j.errors[0]?.message || 'GraphQL error');
+    const m = j?.data?.market;
+    if (!m) throw new Error('No market in response');
+
+    const reserves = (m.reserves || [])
+      .filter((x: any) => x?.supplyInfo?.canBeCollateral)
+      .map((x: any) => {
+        const sym = String(x.underlyingToken?.symbol || '?');
+        const live = num(x.supplyInfo?.liquidationBonus?.value);
+        const assumed = ASSUMED_LIQ_BONUS[sym.toUpperCase()];
+        // Only claim drift when BOTH numbers exist. An asset we don't model is
+        // not a mismatch — it is simply out of scope.
+        const drift = (live != null && assumed != null && Math.abs(live - assumed) > 0.0005)
+          ? { assumed, live, delta: Number((live - assumed).toFixed(4)) } : null;
+        return {
+          symbol: sym,
+          address: x.underlyingToken?.address || null,
+          usd_price: num(x.usdExchangeRate),
+          supply_apy: num(x.supplyInfo?.apy?.value),
+          borrow_apy: num(x.borrowInfo?.apy?.value),
+          liquidation_bonus: live,
+          liquidation_threshold: num(x.supplyInfo?.liquidationThreshold?.value),
+          max_ltv: num(x.supplyInfo?.maxLTV?.value),
+          frozen: !!x.isFrozen, paused: !!x.isPaused,
+          modelled: assumed != null,
+          drift,
+        };
+      })
+      .sort((a: any, b: any) => (b.drift ? 1 : 0) - (a.drift ? 1 : 0) || a.symbol.localeCompare(b.symbol));
+
+    const payload = {
+      source: 'api.v3.aave.com (keyless, read-only)',
+      market: m.name,
+      chain: 'Ethereum',
+      total_market_size_usd: num(m.totalMarketSize),
+      total_available_liquidity_usd: num(m.totalAvailableLiquidity),
+      reserves,
+      drift_count: reserves.filter((x: any) => x.drift).length,
+      modelled_count: reserves.filter((x: any) => x.modelled).length,
+      fetched_at: new Date().toISOString(),
+      note: 'Read-only protocol data. Drift = our simulator assumption vs the live governance parameter.',
+    };
+    aaveCache = { at: Date.now(), payload };
+    return res.json({ ...payload, cached: false, age_sec: 0 });
+  } catch (err) {
+    // Serve stale rather than nothing — a 10-minute-old governance parameter is
+    // still far better than a blank card, but say plainly that it is stale.
+    if (aaveCache) {
+      return res.json({ ...(aaveCache.payload as object), cached: true, stale: true,
+        age_sec: Math.round((Date.now() - aaveCache.at) / 1000),
+        error: err instanceof Error ? err.message : String(err) });
+    }
+    return res.status(502).json({
+      error: 'Aave API unavailable',
+      detail: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+function num(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 export default router;
