@@ -84,6 +84,23 @@
       </div>
 
       <div class="card">
+        <h2>What a flash loan actually costs <span style="font-weight:400;color:var(--muted);font-size:12px">· live gas · the key point: <b>gas is size-independent</b> — a $100k loan and a $10M loan burn the same gas. Only the fee legs scale with size.</span></h2>
+        <div class="scroll"><table id="gasTbl"><thead><tr>
+          <th>Gas price</th><th>250k gas</th><th>400k gas (typical arb)</th><th>600k gas</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div style="margin-top:14px">
+          <label style="font-size:12px;color:var(--muted)">Loan size $
+            <input id="notional" type="number" value="100000" min="1000" step="1000"
+              style="width:130px;margin-left:6px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit">
+          </label>
+        </div>
+        <div class="scroll" style="margin-top:8px"><table id="feeTbl"><thead><tr>
+          <th>Cost component</th><th>Scales with size?</th><th>Cost</th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="meta" id="breakeven"></div>
+      </div>
+
+      <div class="card">
         <h2>Aave liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· the classic flash-loan use — flash-borrow the debt, seize the discounted collateral, swap, repay. <b>Every row below was ALREADY executed by an MEV bot</b>; "net" is what the winner made, not what's on the table.</span></h2>
         <div class="scroll"><table id="liqtbl"><thead><tr>
           <th>When (UTC)</th><th>Collateral → Debt</th><th>Seized $</th><th>Bonus %</th><th>Gross $</th>
@@ -130,6 +147,54 @@
 
     function show(ok){ gate.style.display=ok?'none':'block'; lab.style.display=ok?'block':'none'; logoutBtn.style.display=ok?'inline-block':'none'; }
 
+    // Flash-loan cost reference. The point it exists to make: GAS DOES NOT SCALE with
+    // loan size — it's the same computation whether you borrow $100k or $10M. Only the
+    // fee legs scale. So on a big loan gas is rounding error and the fees decide it;
+    // on a small loan gas can dominate. Last assumptions are cached so the notional
+    // input can re-render without waiting for the next poll.
+    var lastAssumptions=null;
+    function renderCosts(a){
+      lastAssumptions = a || lastAssumptions || {};
+      a = lastAssumptions;
+      var gwei = a.gas_gwei, eth = a.eth_price_usd;
+      var gasUsd = function(units, gp){
+        if (gwei==null || eth==null) return null;
+        return units * gp * 1e9 * eth / 1e18;
+      };
+      var scenarios = [];
+      if (gwei!=null) scenarios.push([gwei, true]);
+      [1,5,20,50,100].forEach(function(g){ scenarios.push([g,false]); });
+      document.querySelector('#gasTbl tbody').innerHTML = scenarios.map(function(s){
+        var gp=s[0], live=s[1];
+        var c=[250000,400000,600000].map(function(u){ var v=gasUsd(u,gp); return v==null?'—':'$'+v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); });
+        return '<tr'+(live?' style="background:#f3f1fe"':'')+'><td><b>'+(Math.round(gp*10000)/10000)+' gwei</b>'+(live?' <span class="pill yes">live</span>':'')+'</td>'+
+          '<td>'+c[0]+'</td><td>'+c[1]+'</td><td>'+c[2]+'</td></tr>';
+      }).join('');
+
+      var N = Math.max(0, parseFloat(document.getElementById('notional').value)||0);
+      var flashBps=(a.flash_fee_bps||0), dexBps=(a.dex_fee_bps||0), slipBps=(a.slippage_bps||0);
+      var flashFee = N*flashBps/1e4;
+      var swapFee  = N*(dexBps*2)/1e4;      // two legs
+      var slip     = N*(slipBps*2)/1e4;     // two legs
+      var gasTypical = gasUsd(400000, gwei==null?0:gwei) || 0;
+      var total = flashFee+swapFee+slip+gasTypical;
+      var rows=[
+        ['Gas (400k units, at live '+(gwei==null?'—':(Math.round(gwei*10000)/10000)+' gwei')+')','<span style="color:var(--green)">No — fixed</span>', gasTypical],
+        ['Flash-loan fee ('+flashBps+' bps, Aave)','Yes', flashFee],
+        ['DEX swap fees ('+dexBps+' bps × 2 legs)','Yes', swapFee],
+        ['Slippage ('+slipBps+' bps × 2 legs)','Yes', slip]
+      ];
+      document.querySelector('#feeTbl tbody').innerHTML = rows.map(function(r){
+        return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>$'+r[2].toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td></tr>';
+      }).join('') + '<tr style="font-weight:700"><td>Total round-trip cost</td><td></td><td>$'+total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</td></tr>';
+
+      var bePct = N>0 ? (total/N*100) : 0;
+      document.getElementById('breakeven').innerHTML =
+        'On <b>$'+N.toLocaleString()+'</b> borrowed you must clear <b>'+bePct.toFixed(3)+'%</b> gross just to break even'+
+        ' — and that is <i>before</i> MEV competition, which on contested opportunities takes most of what is left. '+
+        'Note gas is <b>$'+gasTypical.toFixed(2)+'</b> of the <b>$'+total.toFixed(2)+'</b> total: at current gas the fees, not gas, decide whether a flash loan pays.';
+    }
+
     function render(d){
       document.getElementById('viewer').textContent = d.viewer ? ('Signed in: '+d.viewer) : '';
       document.getElementById('verdict').innerHTML = '<b>Verdict.</b> '+esc(d.verdict||'');
@@ -148,6 +213,8 @@
       }).join('');
       var age=d.snapshot_age_sec==null?'':(' · updated '+d.snapshot_age_sec+'s ago');
       document.getElementById('meta').textContent=(d.mode||'')+' · ETH price from '+(a.eth_price_source||'?')+age;
+
+      renderCosts(a);
 
       var L=d.liquidations||{}, rows=L.rows||[];
       var tb=document.querySelector('#liqtbl tbody');
@@ -235,6 +302,8 @@
     });
     document.getElementById('keyInput').addEventListener('keydown',function(e){ if(e.key==='Enter')document.getElementById('loginBtn').click(); });
     logoutBtn.addEventListener('click',function(){try{sessionStorage.removeItem(KEY)}catch(e){}; if(timer)clearInterval(timer); show(false);});
+    // Recompute the cost table as the loan size is typed (uses cached assumptions).
+    document.getElementById('notional').addEventListener('input',function(){ renderCosts(null); });
 
     load();
     timer=setInterval(load, 60000);

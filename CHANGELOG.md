@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.15.0 - 2026-07-20
+
+**Flash Lab: a live "what a flash loan actually costs" reference.**
+
+- New card on the Flash-Loan Lab making the point that trips most people up: **gas does not scale with loan size**. Borrowing $100k and borrowing $10M burn the same gas, because it's the same computation — only the fee legs scale. A live gas table (250k / 400k / 600k gas units × current and historical gas prices, with the live row highlighted) sits next to a size-dependent breakdown driven by an editable loan-size input.
+- The breakdown separates **fixed** cost (gas) from **size-scaling** costs (flash fee, DEX swap fees ×2 legs, slippage ×2 legs) and computes the **break-even gross edge** required — stating plainly that this is *before* MEV competition, which takes most of what's left on contested opportunities.
+- Concretely at today's numbers (0.079 gwei, ETH ~$1,887): a $100k flash loan costs **~$0.06 in gas** but **$50** in Aave flash fee and **$100–600** in swap fees — so ~0.15%+ of gross edge is needed just to break even, and gas is rounding error. At 100 gwei that same tx is only ~$75 of gas, still dwarfed by the fee legs. This is the arithmetic behind the Lab's standing verdict that no capturable flash-loan edge exists on these venues.
+
 ## 2.14.0 - 2026-07-20
 
 **Tron gets transfer history, counterparties and net flow — enough to tell a treasury from an exchange.**
