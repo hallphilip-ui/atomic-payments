@@ -1,0 +1,259 @@
+# Atomic Earn — Aave Vaults scoping
+
+**Status:** scoping only. Nothing built, no contract deployed, no funds moved.
+**Date:** 2026-07-20
+**Question asked:** can Aave Earn Vaults become a supply/earn surface in Atomic — the
+"be our own lender/bank" idea — and what would it take?
+
+---
+
+## Verdict
+
+**Architecturally: yes, and it fits our non-custodial posture better than expected.**
+Aave Earn Vaults are ERC-4626 `ATokenVault` contracts. The user signs a deposit from
+their own wallet and holds redeemable shares; Atomic never takes custody. A vault
+manager can levy a performance fee **on yield only, never principal** — so there is a
+native revenue model that does not require us to hold anything.
+
+**Commercially: it is a retention play, not a revenue driver.** See the arithmetic
+below — at plausible early TVL the fee income is negligible next to swap fees.
+
+**The real blockers are not Aave.** They are (1) we have no authenticated user session,
+and (2) we have no stateful position layer. Both are prerequisites, both are
+substantial, and neither is Aave-specific.
+
+**The gating question is regulatory, not technical**, and it needs counsel before any
+build — not after.
+
+---
+
+## 1. What Aave Earn Vaults actually are
+
+Sourced from Aave's docs (see Sources at the end).
+
+| Property | Detail |
+|---|---|
+| Standard | ERC-4626 tokenized vault (`ATokenVault`) |
+| Mechanism | Vault supplies deposits into the Aave v3 market, receives aTokens which accrue |
+| User holds | Vault shares — a proportional claim on principal + accrued yield |
+| Deposit / withdraw | Standard `deposit`/`mint`, `withdraw`/`redeem` |
+| Fee | Performance fee on **yield only**; settable as low as 0%, no documented maximum |
+| Fee split | **50% of the fee is automatically allocated to Aave Labs** |
+| Manager controls | Fee parameters, fee recipient, explicit fee collection |
+| Init params | `owner`, `initialFee`, `shareName`, `shareSymbol`, `initialLockDeposit` |
+
+Flash loans, for the record, are the wrong primitive for a lending business and always
+were: they are atomic and uncollateralised, so nothing persists past the transaction.
+Vaults and credit delegation are the primitives that actually match the ambition.
+
+---
+
+## 2. Fit against our architecture
+
+### What helps
+
+- **We are strictly non-custodial and it is enforced, not merely claimed.** No user
+  private key is generated or stored server-side anywhere in `src/`. The passkey wallet
+  re-derives its key per signature behind a fresh Touch ID and discards it
+  (`public/passkey-wallet.js:226-236`). `wallet-bridge.html` is an origin-locked signer
+  iframe, not a custodian.
+- **The swap flow is already quote → user-signs → verify → broadcast**, with the server
+  only *verifying* signatures (`src/cryptoCore/authorizationSignature.ts`). A vault
+  deposit is the same shape: build a transaction, user signs it, we observe the result.
+- **Base is already the warm path.** The gas station covers Base
+  (`src/routes/gas.ts:33`, default chain `8453`), and Base USDC is live-routable
+  (`src/cryptoCore/tokens.ts:82-98`).
+- **Sanctions screening already exists and fails safe** (`src/compliance/`), including
+  OFAC address lists, an optional Chainalysis oracle, and jurisdiction blocking.
+
+### What is missing — and these are the real cost
+
+**A. No authenticated user session.** This is the single biggest blocker.
+`src/routes/users.ts` has no token, cookie, or JWT — identity is "whoever POSTs an
+address." Swaps get away with this because every action is ultimately gated by an
+on-chain signature. A product that renders *"your position, your accrued interest, your
+withdrawable balance"* has no safe way to authorize even a **read** today. Note the
+file's own history (`src/routes/users.ts:20-25`): the previous unauthenticated user
+endpoints were removed for IDOR. That pattern must not be reintroduced.
+
+*Needed:* SIWE-style signed sessions, or per-action signature gating on every endpoint.
+
+**B. No stateful position layer.** There is no `Balance`, `Position`, `Deposit`, or
+`Vault` model in `prisma/schema.prisma`, and no yield/APY/accrual code anywhere in the
+codebase — an exhaustive grep returned two incidental hits, both about fee revenue.
+Swaps are stateless quote→sign→broadcast. Yield is inherently stateful over time
+(principal, share price, accrual, harvest, withdrawal). This is a new data layer, not
+an extension of `SwapQuote`.
+
+**C. No user KYC of any kind.** Compliance today is sanctions + jurisdiction + address
+format. There is no identity verification, no tiering, no document flow. See §5.
+
+---
+
+## 3. Proposed design — protocol-direct, non-custodial
+
+The only design that preserves our custody posture:
+
+```
+User wallet ──signs deposit──> Aave ATokenVault (ERC-4626) ──supplies──> Aave v3 market
+     ↑                                    │
+     └────── holds vault shares ──────────┘
+Atomic: builds the tx, renders the position, takes a performance fee on yield.
+        Never holds assets, never holds shares, never signs.
+```
+
+**Explicitly rejected: any pooled design where Atomic aggregates user funds.** That
+makes us a custodian, contradicts custody claims hardcoded across the product
+(`src/seo/swapLandingPages.ts:181-185`, `src/routes/assistant.ts:27`,
+`src/notify/merchantEmail.ts:19`), and changes the entire compliance posture. Not a
+close call.
+
+**Launch scope if it proceeds:** Base USDC only. One chain, one asset, one vault.
+Base because the gas station already covers it and USDC because it is the deepest,
+least volatile supply market.
+
+**Integration points** (path of least resistance, mirroring `/defi-swap`):
+- `earn.html` at repo root + `app.use('/earn', ...)` in `src/index.ts` alongside the
+  swap page handler (`src/index.ts:307-315`) — with `X-Frame-Options: DENY` and
+  `CSP_SWAP`, since it is a funds page.
+- `src/routes/earn.ts`, registered next to `app.use(swapRoutes)` (`src/index.ts:127`).
+- New Prisma models for positions.
+- Exchange front-end: a `functions/api/earn.js` Pages proxy following the `fx.js`
+  pattern — required, because `public/_headers:6` sets `connect-src 'self'`.
+
+**Must use broadcast mode `live` only, never `live_with_fallback`** — that mode
+silently fabricates a tx hash on failure (`src/cryptoCore/walletBroadcastAdapters.ts:141-143`).
+Tolerable for a swap demo; for a deposit ledger it would record a position movement
+that never happened on-chain.
+
+---
+
+## 4. Economics — the honest version
+
+Performance fee applies to **yield**, and **half goes to Aave Labs**.
+
+Assume USDC supply APY ≈ 4.5% and a 10% performance fee:
+
+| TVL | Annual yield | Fee (10%) | **Atomic keeps (50%)** |
+|---|---|---|---|
+| $100k | $4,500 | $450 | **$225** |
+| $1M | $45,000 | $4,500 | **$2,250** |
+| $10M | $450,000 | $45,000 | **$22,500** |
+
+For comparison, our swap integrator fee is 250 bps (`src/cryptoCore/swapConfig.ts:2`).
+**A single $100k swap earns $2,500 — more than $1M of vault TVL earns in a year.**
+
+That is not an argument against building it, but it disqualifies "new revenue line" as
+the reason. The honest cases for Earn are: somewhere for idle post-swap balances to sit,
+a reason to return between swaps, and a foundation for credit delegation later. If the
+goal is revenue this quarter, this is the wrong project.
+
+Raising the fee does not rescue it — high performance fees on a commodity USDC yield
+just push users to Aave's own front-end, which is one click away and charges nothing.
+
+---
+
+## 5. Regulatory — the gating question
+
+**This needs counsel before a line of code, not after.** I am not qualified to clear it,
+and this section is a flag, not advice.
+
+Paying or advertising yield to retail is a materially different regulatory posture from
+facilitating a swap. Custodial retail yield programs have been treated as unregistered
+securities offerings in the US (BlockFi, Celsius, Gemini Earn). A **non-custodial,
+protocol-direct** interface where the user signs and holds their own position is a
+meaningfully different and much more defensible fact pattern — but "we merely provide
+an interface" is a claim regulators test rather than accept, and the answer varies by
+jurisdiction.
+
+Specific things to put to counsel:
+1. Does a non-custodial ERC-4626 interface where Atomic takes a performance fee
+   constitute an investment contract / deposit-taking in our target jurisdictions?
+2. Does taking a fee on yield undercut the "we are merely an interface" position?
+3. What disclosure is required about the risks in §7?
+4. Does this trigger user KYC obligations we currently have no scaffolding for?
+5. Can it be geo-fenced with the jurisdiction machinery we already have
+   (`CF-IPCountry`, `src/compliance/complianceProvider.ts:52-56`)?
+
+---
+
+## 6. Open questions requiring verification before any build
+
+I did not verify these and would not proceed without doing so:
+
+1. **What powers does the vault `owner` actually hold?** The docs list fee parameters
+   and a fee recipient, but I have not read `ATokenVault` to confirm whether the owner
+   can pause, upgrade, or otherwise reach user funds. **Until this is confirmed, the
+   claim "fully non-custodial" is unproven.** This requires a contract read, and it is
+   the single most important open item.
+2. `initialLockDeposit` — what it locks, for how long, and whose capital.
+3. Is there a documented maximum performance fee, or is it unbounded?
+4. **V3 vs V4.** Aave's docs now list V4 as current with V3 as "previous version." The
+   vault documentation sits under V3. Building on a superseded version needs a
+   deliberate decision, and V4's liquidity model (hubs/spokes/reserves) is a different
+   architecture, not a version bump.
+5. Withdrawal liquidity: what happens when Aave utilisation is high and the market
+   cannot service an immediate withdrawal? The vault docs are silent; this is the
+   failure mode users will actually hit and must be surfaced in the UI honestly.
+
+---
+
+## 7. Risks to disclose to users if this ships
+
+- **Smart contract risk** — Aave v3 and the vault contract itself.
+- **Withdrawal liquidity risk** — high utilisation can delay redemption (see §6.5).
+- **Variable rate** — supply APY floats and can approach zero.
+- **Depeg risk** on the underlying stablecoin.
+- **No principal guarantee. Not a deposit. Not insured.**
+
+The Aave vault docs themselves state no risks; that absence is not evidence of safety
+and we should not inherit their silence.
+
+---
+
+## 8. Phased plan, if it proceeds
+
+| Phase | Work | Gate |
+|---|---|---|
+| 0 | Counsel review (§5); contract read to answer §6.1 | **Do not skip** |
+| 1 | Authenticated sessions (SIWE) — prerequisite, useful regardless | — |
+| 2 | Position data layer + read-only "Earn" page showing live Aave APY, no deposits | Ships value, moves no funds |
+| 3 | Deposit/withdraw against an **existing** Aave vault, user-signed, Base USDC only | Post-counsel |
+| 4 | Deploy our own `ATokenVault` with a performance fee | Post-audit |
+| 5 | Credit delegation | Far future |
+
+Phase 2 is the natural stopping point for a first cut: it is genuinely useful, carries
+no custody or regulatory exposure, and forces us to build the session and position
+layers that everything else needs.
+
+---
+
+## Appendix — pre-existing bugs surfaced during this sweep
+
+Unrelated to Earn, found while mapping the code:
+
+1. **`assessTransferCompliance` compares raw `Number(input.amount)` against a 10000
+   threshold with no decimals normalization** (`src/compliance/complianceEngine.ts:167`).
+   `assessSwapCompliance` was explicitly fixed for exactly this (`:99-108`); the
+   transfer path was not. The threshold is meaningless across tokens with differing
+   decimals. Any earn withdrawal routed through transfer compliance would inherit it.
+
+2. **`live_with_fallback` silently fabricates a tx hash when a real broadcast fails**
+   (`src/cryptoCore/walletBroadcastAdapters.ts:141-143`). Acceptable for a demo,
+   dangerous for any ledger-bearing flow.
+
+3. **`blockedAddressFragments` is substring keyword matching** on strings like `'ofac'`
+   and `'tornado'` (`src/compliance/complianceEngine.ts:14-21`). The real screening is
+   layered above it in `complianceProvider.ts`, so this is not load-bearing — but it
+   reads as a risk engine and is not one.
+
+---
+
+## Sources
+
+- [Aave Earn (Vaults) overview](https://aave.com/docs/aave-v3/vaults/overview)
+- [Aave docs index](https://aave.com/docs)
+- [Aave v3 flash loans guide](https://aave.com/docs/aave-v3/guides/flash-loans) — for the
+  contrast in §1
+- [Deploy Earn Vault](https://aave.com/docs/developers/aave-v3/vaults/deploy)
+- [Vaults smart contracts](https://aave.com/docs/developers/smart-contracts/vaults)
