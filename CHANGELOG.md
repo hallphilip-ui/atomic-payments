@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.17.1 - 2026-07-20
+
+**Document the arb-desk Access variables in `.env.example`.**
+
+- `.env.example` documented the operator key but **neither** Cloudflare Access variable (`ARB_ACCESS_TEAM_DOMAIN`, `ARB_ACCESS_AUD`) nor the new `ARB_DESK_ADMIN_EMAILS`. A box rebuilt from the example would come up with a desk nobody can administer from the browser and no hint as to why — the failure is safe (fails closed) but silent, which is the worst kind to debug.
+- The `ARB_DESK_ADMIN_EMAILS` entry states the fail-closed behaviour, that the operator admin key prevents lockout, that a 403 on desk writes is the symptom, and that the value must match the email **Cloudflare Access asserts** — shown in the desk as the signed-in `viewer` — because a Google alias won't match the address you'd type.
+- Docs only; no code change. `ARB_DESK_ADMIN_EMAILS=hall.philip@gmail.com` was set on the production box under 2.17.0 and verified live (no startup warning across two restarts).
+
 ## 2.17.0 - 2026-07-20
 
 **Security: an Access login no longer confers arb-desk admin.**
