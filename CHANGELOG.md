@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.14.0 - 2026-07-20
+
+**Tron gets transfer history, counterparties and net flow — enough to tell a treasury from an exchange.**
+
+- **TRC-20 transfer history and counterparties** on the Tron path (previously EVM-only). Tron reported holdings but no activity, so a treasury wallet and an exchange hot wallet looked identical. Now: the last 15 transfers with direction/asset/amount/counterparty, plus the top 8 counterparties with a sent-to / received-from split.
+- **Net flow for the dominant held token**, which is the figure that actually characterises a wallet — and doubles as an **integrity check**: `in − out` is reconciled against the on-chain balance and reported as `reconciles: true/false`. If the visible history doesn't explain the balance, you know funds arrived outside the window.
+- **Behavioural labels derived from flow**: `accumulation pattern (inflow ≫ outflow)` and `low transaction count for size — treasury/custody profile, not an exchange hot wallet`. On a real $122M USDT wallet this correctly reclassified it: 20 transfers in ~8 months with lumpy inbound deposits and near-zero spend is custody, **not** the exchange hot wallet an eyeballed balance suggests.
+- **Tron spam/poisoning detection** — flags non-ASCII symbols and domain-style token names (e.g. `tre.pw`) that scammers airdrop onto high-value wallets, so real flow isn't buried.
+- **Stated limitation:** Tron counterparties are **unlabelled** — the ~33k address-label corpus is EVM-only. An unnamed Tron address means *"no label available"*, not *"unknown/suspicious"*.
+
 ## 2.13.0 - 2026-07-20
 
 **Wallet Intelligence: a self-refreshing address-label corpus — hex becomes meaning, and scam exposure becomes a risk verdict.**

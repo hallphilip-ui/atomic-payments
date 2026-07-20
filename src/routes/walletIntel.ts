@@ -331,6 +331,56 @@ async function tronReport(raw: string): Promise<any> {
     }
   } catch { /* account read best-effort */ }
 
+  // --- TRC-20 transfer history, counterparties and net flow -------------------
+  // Tron previously reported holdings but no activity, so a treasury wallet and an
+  // exchange hot wallet looked identical. Transfer count + flow direction is what
+  // actually distinguishes them (an exchange churns constantly; a treasury receives
+  // lumpy deposits and barely spends).
+  let trTransfers: any[] = [];
+  try {
+    const r = await fetch(`https://api.trongrid.io/v1/accounts/${raw}/transactions/trc20?limit=200`,
+      { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+    trTransfers = ((await r.json()) as any)?.data || [];
+  } catch { /* history best-effort */ }
+
+  const trRows = trTransfers
+    .filter((t: any) => t?.block_timestamp && (t.from || t.to))
+    .sort((a: any, b: any) => b.block_timestamp - a.block_timestamp);
+
+  const trCp: Record<string, { count: number; out: number; in: number }> = {};
+  for (const t of trRows) {
+    const out = t.from === raw;
+    const cp = out ? t.to : t.from;
+    if (!cp || !TRON.test(String(cp))) continue;
+    const e = (trCp[cp] ||= { count: 0, out: 0, in: 0 });
+    e.count++; out ? e.out++ : e.in++;
+  }
+
+  const trTransactions = trRows.slice(0, 15).map((t: any) => {
+    const info = t.token_info || {};
+    const dec = Number.isFinite(Number(info.decimals)) ? Number(info.decimals) : 6;
+    let amount: number | null = null;
+    try { amount = Number(BigInt(t.value)) / 10 ** dec; } catch { /* keep null */ }
+    const sym = String(info.symbol || '?');
+    // Tron spam/poisoning tokens typically use non-ASCII glyphs or a domain name as
+    // the symbol (e.g. "tre.pw") to bait a visit. Flag so real flow isn't buried.
+    const spoofed = /[^\x20-\x7E]/.test(sym) || /\.[a-z]{2,}$/i.test(sym);
+    return {
+      ts: new Date(Number(t.block_timestamp)).toISOString(),
+      chain: 'Tron',
+      direction: (t.from === raw ? 'out' : 'in') as 'in' | 'out',
+      asset: sym,
+      amount,
+      counterparty: t.from === raw ? (t.to || null) : (t.from || null),
+      counterparty_label: null, // the label corpus is EVM-only; Tron is unlabelled
+      suspected_spam: spoofed,
+    };
+  });
+
+  const trCounterparties = Object.entries(trCp)
+    .sort((a, b) => b[1].count - a[1].count).slice(0, 8)
+    .map(([address, s]) => ({ address, count: s.count, sent_to: s.out, received_from: s.in, label: null, tags: [], scam: false }));
+
   const known = holdings.filter((h) => TRON_TOKENS[h.contract]);
   const px = await cgPricesByIds(['tron', ...known.map((h) => TRON_TOKENS[h.contract].cg)]);
   const trxUsd = px['tron'] ?? null;
@@ -343,6 +393,31 @@ async function tronReport(raw: string): Promise<any> {
     return { symbol: meta.sym, name: '', amount, contract: h.contract, price, usd: price != null ? amount * price : null };
   }).filter((t) => t.usd == null || t.usd >= 1).sort((a, b) => (b.usd || 0) - (a.usd || 0));
   const tokensHidden = holdings.length - tokens.length;
+
+  // Net flow for the DOMINANT held token (top by USD, so it's the money that matters).
+  // Doubles as an integrity check: in − out should reconcile to the reported balance.
+  // Accumulation with near-zero spend = treasury/custody; heavy churn = exchange.
+  let flow: { asset: string; in: number; out: number; net: number; transfers: number; reconciles: boolean } | null = null;
+  const dom = tokens[0];
+  if (dom && TRON_TOKENS[dom.contract]) {
+    const meta = TRON_TOKENS[dom.contract];
+    let fin = 0, fout = 0, n = 0;
+    for (const t of trRows) {
+      if (String((t.token_info || {}).address) !== dom.contract) continue;
+      let v = 0;
+      try { v = Number(BigInt(t.value)) / 10 ** meta.dec; } catch { continue; }
+      n++; t.from === raw ? (fout += v) : (fin += v);
+    }
+    if (n) {
+      const net = fin - fout;
+      flow = {
+        asset: meta.sym, in: fin, out: fout, net, transfers: n,
+        // Within 0.01 of the on-chain balance => the visible history explains the
+        // whole balance (no funds arrived outside the window we can see).
+        reconciles: Math.abs(net - dom.amount) < 0.01,
+      };
+    }
+  }
 
   const now = Date.now();
   const firstSeen = createTime ? new Date(createTime).toISOString() : null;
@@ -367,7 +442,22 @@ async function tronReport(raw: string): Promise<any> {
     reasons.push('No match on the OFAC SDN list (daily snapshot, includes Tron). The live on-chain oracle covers EVM chains only.');
   }
 
-  const summary = `Tron account holding ${balTrx.toLocaleString(undefined, { maximumFractionDigits: 2 })} TRX${trxUsd ? ` (~$${Math.round(balTrx * trxUsd).toLocaleString()})` : ''} and ${tokens.length} priced token(s)${daysActive != null ? `, ~${daysActive}d old` : ''}. Risk: ${level}.`;
+  // Behavioural read from the flow: lumpy inflow with almost no spend is a
+  // treasury/custody pattern; constant two-way churn is an exchange/operational one.
+  if (flow) {
+    labels.push(`${flow.transfers} ${flow.asset} transfer(s)`);
+    if (flow.in > 0 && flow.out / Math.max(flow.in, 1) < 0.1) {
+      labels.push('accumulation pattern (inflow ≫ outflow)');
+    }
+    if (flow.transfers < 50 && (dom?.usd || 0) > 1_000_000) {
+      labels.push('low transaction count for size — treasury/custody profile, not an exchange hot wallet');
+    }
+  }
+
+  const flowStr = flow
+    ? ` ${flow.asset} flow: ${Math.round(flow.in).toLocaleString()} in / ${Math.round(flow.out).toLocaleString()} out across ${flow.transfers} transfer(s)${flow.reconciles ? ' (reconciles to balance)' : ''}.`
+    : '';
+  const summary = `Tron account holding ${balTrx.toLocaleString(undefined, { maximumFractionDigits: 2 })} TRX${trxUsd ? ` (~$${Math.round(balTrx * trxUsd).toLocaleString()})` : ''} and ${tokens.length} priced token(s)${daysActive != null ? `, ~${daysActive}d old` : ''}.${flowStr} Risk: ${level}.`;
 
   return {
     address: raw,
@@ -380,6 +470,10 @@ async function tronReport(raw: string): Promise<any> {
     activity: { outbound_tx: null, first_seen: firstSeen, last_seen: lastSeen, days_active: daysActive, dormant },
     tokens,
     tokens_hidden: tokensHidden,
+    transactions: trTransactions,
+    counterparties: trCounterparties,
+    flow,
+    labels_note: 'Tron counterparties are unlabelled — the address-label corpus covers EVM chains only. An unnamed Tron address means "no label available", not "unknown/suspicious".',
     labels,
     summary,
     disclaimer: 'Heuristic diligence on public on-chain data (Tron mainnet). Not investment or legal advice; labels are indicative, not definitive.',
