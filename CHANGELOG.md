@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.30.2 - 2026-07-20
+
+**Earn scope: fold in Balancer v3 Boosted Pools as a yield venue.**
+
+- New §1a evaluates Balancer's 100% Boosted Pools — pool liquidity routed into Aave for yield while staying available for swaps, so a depositor earns **Aave supply APY + swap fees**. Non-custodial, ERC-4626-style shares, same posture as the Aave vault.
+- **Recorded honestly as a different risk/return point, not an upgrade.** The extra yield is compensation for **impermanent loss**, which the single-asset Aave vault does not carry. Recommendation: launch (if Earn proceeds) on the plain Aave vault; offer a Boosted Pool later, only for users who explicitly want swap-fee yield and understand the IL trade. **Never default an idle balance into an LP position** — that silently turns a lender into a liquidity provider, a different product with a risk they didn't choose.
+- **Does not fix the revenue problem** (§4): Boosted Pools raise the depositor's yield, not our cut — no clean per-vault fee handle, and Balancer takes 10% of yield. Earn stays a retention/foundation play, not a revenue line.
+- Adds trust surfaces to the §6 open-questions list: the Balancer Vault and the pool's **hooks** (new v3 code) must be read and their audits confirmed before user funds sit behind them, plus per-pair IL profile and compounded withdrawal-liquidity risk across two protocols.
+- Docs only. No contract, no deployment; Earn remains gated on the §5/§6 unknowns (chiefly the proxy-admin identity).
+
 ## 2.30.1 - 2026-07-20
 
 **Receiver spec: record Balancer v3 as the 0%-fee flash-loan source.**

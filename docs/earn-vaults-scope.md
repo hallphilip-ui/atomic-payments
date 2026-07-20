@@ -58,6 +58,49 @@ Vaults and credit delegation are the primitives that actually match the ambition
 
 ---
 
+## 1a. Alternative venue — Balancer v3 Boosted Pools
+
+Folded in 2026-07-20 after evaluating Balancer alongside the flash-loan work. It is the
+other credible venue for the same "put idle balances to work" goal, and it changes the
+economics in one specific way worth recording.
+
+**What it is.** Balancer v3's **100% Boosted Pools** route *all* underlying pool liquidity
+into Aave lending markets (as aTokens) for yield, while keeping it available for swaps.
+A depositor therefore earns **two stacked streams**: Aave supply yield **plus** the swap
+fees the pool collects. Same non-custodial, ERC-4626-style share model as the Aave vault.
+
+**Why it is interesting here, and where it isn't.**
+
+| Dimension | Aave `ATokenVault` (§1) | Balancer Boosted Pool |
+|---|---|---|
+| Yield source | Aave supply APY only | Aave supply APY **+ swap fees** |
+| Extra risk taken | none beyond Aave | **impermanent loss / LP exposure** on the pool's assets |
+| Best fit | single-asset idle USDC | paired/correlated assets a user already holds |
+| Fee to us | performance fee (half to Aave Labs) | Balancer LP dynamics; no clean per-vault fee handle |
+| Protocol fee | — | v3 takes 10% of yield (down from v2's 50%) |
+| New trust surface | vault owner + proxy admin (§6) | **+ Balancer Vault + the pool's hooks** |
+
+**The honest read.** Boosted Pools are a genuinely better *yield* than the plain Aave
+vault **for assets where LP exposure is acceptable** — a stablecoin-pair or
+correlated-pair depositor gets swap fees on top of lending yield. But that extra return is
+not free: it is compensation for **impermanent loss**, which the single-asset Aave vault
+does not carry. So this is not a strict upgrade; it is a different risk/return point.
+
+For Atomic specifically, two frictions: (1) there is no clean per-vault performance-fee
+hook the way `ATokenVault` has, so the revenue story is even weaker than §4's already-weak
+one; and (2) it adds the Balancer Vault **and** the pool's hooks as trust surfaces on top
+of the Aave and proxy-admin surfaces §6 already flags — more code that must be sound
+before user funds sit behind it.
+
+**Recommendation:** treat Boosted Pools as a **Phase 2+ option for correlated-asset
+deposits**, not the starting point. Launch, if Earn proceeds at all, on the plain Aave
+vault (simpler, no IL, clean fee handle); offer a Boosted Pool later for users who
+explicitly want swap-fee yield and understand the IL trade. Do **not** default anyone's
+idle balance into an LP position — that silently converts a lender into a liquidity
+provider, which is a different product with a different risk they did not choose.
+
+---
+
 ## 2. Fit against our architecture
 
 ### What helps
@@ -161,6 +204,12 @@ goal is revenue this quarter, this is the wrong project.
 Raising the fee does not rescue it — high performance fees on a commodity USDC yield
 just push users to Aave's own front-end, which is one click away and charges nothing.
 
+**Boosted Pools (§1a) do not fix the revenue problem either.** They raise the *depositor's*
+yield (Aave APY + swap fees) but not *our* cut — there is no clean per-vault fee handle,
+and Balancer's protocol already takes 10% of the yield. So the extra return accrues to the
+user (in exchange for IL risk), not to Atomic. Same conclusion: Earn is a retention and
+foundation play, not a revenue line, and Boosted Pools reinforce rather than change that.
+
 ---
 
 ## 5. Regulatory — the gating question
@@ -234,6 +283,13 @@ I did not verify these and would not proceed without doing so:
 5. Withdrawal liquidity: what happens when Aave utilisation is high and the market
    cannot service an immediate withdrawal? The vault docs are silent; this is the
    failure mode users will actually hit and must be surfaced in the UI honestly.
+6. **Balancer Boosted Pools (§1a) — trust surfaces unverified.** If a Boosted Pool is
+   ever offered, the Balancer Vault and the specific pool's **hooks** become additional
+   trust surfaces beyond Aave and the proxy admin. Balancer v3's hooks framework is new
+   code; any pool considered must have its hooks read and its audits confirmed before
+   user funds sit behind it. Also unverified: the exact impermanent-loss profile per
+   candidate pair, and whether withdrawals can be blocked by the underlying Aave market
+   the pool is boosted into (the §5 risk, compounded by a second protocol).
 
 ---
 
@@ -296,3 +352,5 @@ Unrelated to Earn, found while mapping the code:
   contrast in §1
 - [Deploy Earn Vault](https://aave.com/docs/developers/aave-v3/vaults/deploy)
 - [Vaults smart contracts](https://aave.com/docs/developers/smart-contracts/vaults)
+- [Balancer v3 + Aave Boosted Pools](https://www.theblock.co/post/330379/balancer-v3-launches-aave) — for §1a
+- [Balancer Boosted Pools / Vault concepts](https://docs.balancer.fi/concepts/vault/flash-loans.html)
