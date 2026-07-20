@@ -61,7 +61,7 @@ app.use((_req: Request, res: Response, next: () => void) => {
       // This excludes sitemap XML (<?xml), JSON ({/[), and /assets/*.js (//…), so we
       // never corrupt a non-HTML body. Inject before </body>, else </html>, else append.
       if (typeof body === 'string' && /^\s*<(!doctype|html|head|meta)/i.test(body)) {
-        const tag = '  <script src="/assets/consent.js" defer></script>\n  <script src="/assets/homenav.js" defer></script>\n';
+        const tag = '  <script src="/assets/consent.js" defer></script>\n  <script src="/assets/homenav.js" defer></script>\n  <script src="/assets/ga.js" defer></script>\n';
         if (body.includes('</body>')) body = body.replace('</body>', tag + '</body>');
         else if (/<\/html>/i.test(body)) body = body.replace(/<\/html>/i, tag + '</html>');
         else body = body + '\n' + tag;
@@ -536,6 +536,12 @@ app.use('/assets/analytics.js', (_req: Request, res: Response) => {
 
 app.use('/assets/extension-cta.js', (_req: Request, res: Response) => {
   const script = readFileSync(join(process.cwd(), 'public', 'extension-cta.js'), 'utf8');
+  res.header('Content-Type', 'application/javascript; charset=utf-8');
+  return res.send(script);
+});
+
+app.use('/assets/ga.js', (_req: Request, res: Response) => {
+  const script = readFileSync(join(process.cwd(), 'public', 'ga.js'), 'utf8');
   res.header('Content-Type', 'application/javascript; charset=utf-8');
   return res.send(script);
 });

@@ -5,7 +5,8 @@
 //     "Do Not Sell or Share My Personal Information" control (CCPA/CPRA).
 //   • Rest of world       → NOTICE: informational acknowledgement.
 // The choice is recorded (versioned + timestamped + region) in a strictly-necessary
-// cookie. analytics.js gates PostHog on AtomicConsent.ready(). Copy + region list
+// cookie. analytics.js gates PostHog and ga.js gates Google Analytics on
+// AtomicConsent.ready(). Copy + region list
 // are sensible defaults — have your privacy counsel confirm for your cookie set.
 (function () {
   'use strict';
@@ -103,7 +104,7 @@
       html += '<div class="tx"><b>We value your privacy.</b> We use strictly necessary cookies to run Atomic and, only with your consent, analytics cookies to improve it. See our ' + priv + '.</div>' +
         '<div class="btns"><button class="link" data-act="manage">Manage</button><button data-act="reject">Reject non-essential</button><button class="pri" data-act="accept">Accept all</button></div>' +
         '<div class="manage"><div class="cat"><div>Strictly necessary<small>Required to run Atomic — always on.</small></div><span class="badge">Always on</span></div>' +
-        '<div class="cat"><div>Analytics<small>Helps us understand and improve the product (PostHog).</small></div><label><input type="checkbox" id="axcon-an"> Allow</label></div>' +
+        '<div class="cat"><div>Analytics<small>Helps us understand and improve the product (PostHog, Google Analytics).</small></div><label><input type="checkbox" id="axcon-an"> Allow</label></div>' +
         '<div class="btns" style="justify-content:flex-end;"><button class="pri" data-act="save">Save choices</button></div></div>';
     } else if (model === 'optout') {
       html += '<div class="tx"><b>Your privacy choices.</b> We use cookies for analytics to improve Atomic. California residents can opt out of the sale/sharing of personal information. See our ' + priv + '.</div>' +

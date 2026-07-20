@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.16.1 - 2026-07-20
+
+**Fix: `/assets/ga.js` 404'd on every page.**
+
+- `public/ga.js` was **untracked in git** and absent from the production box, while the site-wide script injector emitted `<script src="/assets/ga.js">` on every page and a route to serve it already existed. Every page load therefore fired a request that 404'd. Now committed and deployed.
+- **No analytics behaviour changes.** `MEASUREMENT_ID` is still the `G-XXXXXXXXXX` placeholder, so the script returns on line 18 and loads nothing — no GA property, no cookies, no collection. The impact of the bug was a console 404, not lost data, and the fix does not start tracking. Paste a real measurement ID to enable it; consent gating (`AtomicConsent`, opt-in in EU/EEA/UK/CH) is already wired.
+- **Edge cache caveat:** Cloudflare cached the 404 with `max-age=14400`, so the bare URL keeps serving it for up to 4h after this deploy. Verified fixed at origin via a cache-busted request (200, `application/javascript`, 3247 bytes). Purge `/assets/ga.js` to clear it immediately.
+- **Untracked-file lesson:** because the file was never committed, nothing flagged that production lacked it. The deploy rsync had it queued the whole time.
+
 ## 2.16.0 - 2026-07-20
 
 **Spam flagging: renamed to what it actually claims, and taught to catch plain-ASCII scam tokens.**
