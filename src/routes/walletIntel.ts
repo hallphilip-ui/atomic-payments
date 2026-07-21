@@ -861,26 +861,58 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       if (hit) taintedCounterparty = hit.matchedAddress || 'a screened address';
     }
 
-    // --- risk verdict ---
-    let level: 'clean' | 'caution' | 'high' | 'critical' = 'clean';
+    // --- risk verdict: composite, not first-match-wins ---
+    //
+    // The previous logic was an escalating if/else: the first matching condition set the
+    // level and the rest were never evaluated. So a sanctioned address never reported
+    // that it ALSO had scam counterparties or unlimited approvals — real signals were
+    // masked by a higher one. This accumulates EVERY triggered factor independently and
+    // derives the headline level from the most severe, so the full picture is shown.
+    // Each factor carries its own severity, so the UI can render the breakdown, not just
+    // a single word. Deliberately NOT a 0-100 score — that would imply precision we do
+    // not have. A transparent factor list is more honest than a fabricated number.
+    type Sev = 'critical' | 'high' | 'caution' | 'info';
+    const factors: Array<{ signal: string; severity: Sev; detail: string }> = [];
+    const addFactor = (severity: Sev, signal: string, detail: string) => factors.push({ severity, signal, detail });
+
     if (selfHit) {
-      level = 'critical';
-      reasons.push(`This address is on a sanctions list (${selfHit.source}). Do not transact.`);
+      addFactor('critical', 'sanctioned', `On a sanctions list (${selfHit.source}). Do not transact.`);
       labels.push('SANCTIONED');
-    } else if (selfLabel.scam) {
-      level = 'critical';
-      reasons.push(`This address is on a public scam/phishing blacklist${selfLabel.name ? ` — "${selfLabel.name}"` : ''}. Do not send funds to it.`);
-      labels.push('REPORTED SCAM ADDRESS');
-    } else if (taintedCounterparty) {
-      level = 'high';
-      reasons.push(`Sent funds to a sanctioned/flagged address (${taintedCounterparty.slice(0, 10)}…). Possible taint.`);
-    } else if (scamCounterparties.length) {
-      level = 'high';
-      reasons.push(`Interacted with ${scamCounterparties.length} address(es) on a public scam/phishing blacklist (e.g. ${scamCounterparties[0].address.slice(0, 10)}…) — possible drainer exposure or a compromised wallet.`);
-    } else if (fresh && (ethBalance > 5 || stableHeld)) {
-      level = 'caution';
-      reasons.push('Newly created and already holding meaningful value — verify provenance before trusting.');
     }
+    if (selfLabel.scam) {
+      addFactor('critical', 'reported-scam', `On a public scam/phishing blacklist${selfLabel.name ? ` — "${selfLabel.name}"` : ''}. Do not send funds to it.`);
+      labels.push('REPORTED SCAM ADDRESS');
+    }
+    if (taintedCounterparty) {
+      addFactor('high', 'tainted-counterparty', `Sent funds to a sanctioned/flagged address (${taintedCounterparty.slice(0, 10)}…). Possible taint.`);
+    }
+    if (scamCounterparties.length) {
+      addFactor('high', 'scam-counterparties', `Interacted with ${scamCounterparties.length} address(es) on a public scam/phishing blacklist (e.g. ${scamCounterparties[0].address.slice(0, 10)}…) — possible drainer exposure or a compromised wallet.`);
+    }
+    // Funding provenance — a mixer/scam-funded wallet is a distinct signal the old
+    // verdict ignored entirely.
+    const funderInfo = fundedBy ? labelInfo(fundedBy.address) : { name: null as string | null, tags: [] as string[], scam: false };
+    const funderMixer = funderInfo.tags.some((t) => /mixer|tornado|sanction/i.test(t));
+    if (fundedBy && (funderInfo.scam || funderMixer)) {
+      addFactor('high', 'tainted-funding', `First funded by ${funderInfo.name || fundedBy.address.slice(0, 10) + '…'}${funderMixer ? ' (mixer/sanctioned source)' : ' (blacklisted source)'} — provenance is tainted at origin.`);
+    }
+    // Unlimited approvals: a real surface, but ONLY to UNLABELLED spenders. Approvals to
+    // a known mainstream router are DeFi hygiene-debt, not evidence of compromise — the
+    // report already says so, and inflating the verdict for them would cry wolf.
+    const unlabelledUnlimited = (approvalsRes.approvals || []).filter((a: any) => a.unlimited && !a.spender_label).length;
+    if (unlabelledUnlimited) {
+      addFactor('caution', 'unlimited-approvals', `${unlabelledUnlimited} unlimited approval(s) to UNLABELLED contracts — each can move that token without further consent. Consider revoking.`);
+    }
+    if (fresh && (ethBalance > 5 || stableHeld)) {
+      addFactor('caution', 'fresh-funded', 'Newly created and already holding meaningful value — verify provenance before trusting.');
+    }
+
+    const sevRank: Record<Sev, number> = { info: 0, caution: 1, high: 2, critical: 3 };
+    const worst = factors.reduce((m, f) => Math.max(m, sevRank[f.severity]), 0);
+    let level: 'clean' | 'caution' | 'high' | 'critical' =
+      worst === 3 ? 'critical' : worst === 2 ? 'high' : worst === 1 ? 'caution' : 'clean';
+    // Keep `reasons` populated from the factors so existing consumers keep working.
+    factors.filter((f) => f.severity !== 'info').forEach((f) => reasons.push(f.detail));
     // Honest about which sanctions layers actually ran — never assert "clean" when
     // the live oracle was unreachable; the daily OFAC snapshot alone is provisional.
     const sanctionsScreen = {
@@ -907,7 +939,7 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       valid: true,
       type: isContract ? 'contract' : 'EOA',
       known_label: known || null,
-      risk: { level, sanctioned: !!selfHit, screen: sanctionsScreen, tainted_counterparty: taintedCounterparty, reasons },
+      risk: { level, sanctioned: !!selfHit, screen: sanctionsScreen, tainted_counterparty: taintedCounterparty, reasons, factors },
       native: { symbol: 'ETH', balance: ethBalance, usd: px ? ethBalance * px : null },
       portfolio_total_usd: portfolioUsd,
       // Per-chain breakdown — only chains where the address actually holds something.

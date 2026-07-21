@@ -2,6 +2,16 @@
 
 ## 2.31.0 - 2026-07-20
 
+**Wallet Intelligence: composite risk verdict — every signal shown, not just the top one.**
+
+- The EVM risk verdict was an escalating if/else: the first matching condition set the level and the rest were never evaluated. A sanctioned address therefore never reported that it *also* had scam counterparties or unlimited approvals — real signals masked by a higher one.
+- Now an **accumulator**: every signal is evaluated independently and collected as a `factors` array, each with its own severity (`critical`/`high`/`caution`/`info`); the headline level is the most severe present. **Proven live** — a sanctioned address now returns `critical: sanctioned` **and** `high: tainted-counterparty`, where the second was previously invisible.
+- **New signal folded in:** tainted funding provenance — a wallet first funded by a mixer or blacklisted source is now a `high` factor (the old verdict ignored the funder entirely).
+- **Honest scoping preserved:** unlimited approvals only escalate for **unlabelled** spenders — approvals to a known mainstream router are hygiene-debt, not compromise, and inflating the verdict for them would cry wolf. Deliberately **not** a 0–100 score: a transparent factor list beats a fabricated number that implies precision we don't have.
+- The exchange wallet page renders the factor breakdown with per-severity colour dots, falling back to the flat reasons list for older report shapes. `reasons` stays populated from the factors, so nothing downstream breaks.
+
+## 2.31.0 - 2026-07-20
+
 **Flash Lab shows the live-bonus provenance.**
 
 - The Aave liquidations table now carries a badge stating whether its liquidation bonuses are **live from Aave** or the offline fallback, with the live/total row count (currently **14 of 14 live**). Pairs with arb-scanner v1.2.0, which reads bonuses live from Aave's API and demotes the hardcoded table to a fallback.
