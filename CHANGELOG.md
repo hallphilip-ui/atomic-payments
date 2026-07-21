@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.32.0 - 2026-07-20
+
+**Wallet Intelligence: Arkham entity attribution, layered above the free corpus.**
+
+- **`src/compliance/arkhamLabels.ts`** — cached, fail-open client for Arkham's `/intelligence/address/{addr}` endpoint (`API-Key` header, key stays server-side). Resolves the live entity attribution the free 33k-corpus structurally can't: which exchange an address belongs to, hot vs deposit wallet, named individuals, DeFi routers. Verified live: `0x28C6…` → **Binance — Hot Wallet** (cex), vitalik.eth → **Vitalik Buterin** (individual), Uniswap router → **Uniswap — Router v2** (dex).
+- **Closes the deposit-address / exchange-attribution gap** flagged since the feature was built. Wired into the two highest-value spots: the **self label** and **funding provenance** — "first funded by a Binance hot wallet" is now distinguishable from "funded by an unlabelled EOA," which directly sharpens the funding-provenance factor in the composite risk verdict.
+- **Fails open, always.** Arkham down / rate-limited / unconfigured → returns null and the free corpus answers; a paid dependency never blanks a label or breaks a lookup. Verified: an unlabelled address returns `known_source: null` cleanly, and a 429/5xx is never cached as "unknown."
+- **States its source.** Every attribution is tagged `arkham` vs `corpus` (`known_source`, `funded_by.label_source`, an "Arkham" badge in the UI) so a paid attribution is never presented as a corpus guess or vice versa.
+- Cached 7 days (attribution barely moves), negative results re-checked daily since Arkham adds labels over time; disk-backed at `prisma/arkham_cache.json`. Comfortably under the ~20 req/s Basic-tier limit.
+
 ## 2.31.0 - 2026-07-20
 
 **Wallet Intelligence: composite risk verdict — every signal shown, not just the top one.**

@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { rpcCall } from './rpc';
 import { screenAddressLocal, screenAddressOracleChecked, screenAddresses } from '../compliance/sanctions';
 import { lookupLabel } from '../compliance/addressLabels';
+import { arkhamLabel, arkhamConfigured } from '../compliance/arkhamLabels';
 
 // Wallet Intelligence — LOG-ONLY, READ-ONLY diligence on a pasted EVM address.
 // Public (no funds, no keys, only public on-chain data + our OFAC screen). Reuses
@@ -674,9 +675,14 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     const portfolioUsd = chains.reduce((s, c) => s + (c.total_usd || 0), 0);
     const outboundTx = hexToNum(nonceHex);
     const selfLabel = labelInfo(addr);
-    const known = selfLabel.name;
+    // Arkham attribution, layered above the free corpus. Fails open: null → corpus name.
+    // Arkham wins when present because it resolves live entities (which exchange, hot vs
+    // deposit wallet, named individual) the corpus can't — exactly the deposit-address gap.
+    const selfArkham = await arkhamLabel(addr).catch(() => null);
+    const known = selfArkham?.display || selfLabel.name;
 
-    if (known) labels.push(`known: ${known}`);
+    if (known) labels.push(`known: ${known}${selfArkham ? ' (Arkham)' : ''}`);
+    if (selfArkham?.entity_type) labels.push(selfArkham.entity_type);
     for (const t of selfLabel.tags.slice(0, 3)) labels.push(t);
     labels.push(isContract ? 'contract' : (delegated ? 'EIP-7702 delegated EOA' : 'EOA (externally-owned account)'));
 
@@ -743,9 +749,14 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
     // Funding provenance — who sent that first inbound transfer, and on which chain.
     const funder0 = earliest?.t;
     const funderAddr = funder0?.from && EVM.test(String(funder0.from)) ? String(funder0.from).toLowerCase() : null;
+    // Funder attribution: Arkham first (names the exchange/deposit wallet — the whole
+    // point of adding it), corpus as fallback. `label_source` says which answered.
+    const funderArkham = funderAddr ? await arkhamLabel(funderAddr).catch(() => null) : null;
     const fundedBy = funderAddr ? {
       address: funderAddr,
-      label: labelFor(funderAddr),
+      label: funderArkham?.display || labelFor(funderAddr),
+      label_source: funderArkham ? 'arkham' : (labelFor(funderAddr) ? 'corpus' : null),
+      entity_type: funderArkham?.entity_type || null,
       asset: funder0?.asset || earliest?.chain.sym || 'ETH',
       amount: Number.isFinite(Number(funder0?.value)) ? Number(funder0.value) : null,
       at: firstSeen,
@@ -939,6 +950,8 @@ router.get('/v1/wallet-intel/:address', limiter, async (req: Request, res: Respo
       valid: true,
       type: isContract ? 'contract' : 'EOA',
       known_label: known || null,
+      known_source: selfArkham ? 'arkham' : (selfLabel.name ? 'corpus' : null),
+      attribution_provider: arkhamConfigured() ? 'arkham+corpus' : 'corpus',
       risk: { level, sanctioned: !!selfHit, screen: sanctionsScreen, tainted_counterparty: taintedCounterparty, reasons, factors },
       native: { symbol: 'ETH', balance: ethBalance, usd: px ? ethBalance * px : null },
       portfolio_total_usd: portfolioUsd,
