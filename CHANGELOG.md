@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.32.0 - 2026-07-20
+
+**Sell-quote endpoint — read-only price discovery for selling crypto to fiat.**
+
+- **`GET /v1/sell-quote?asset=BTC&amount=1.5`** returns indicative net proceeds across venues so the platform can show "you'll receive ~$X, and where's best". Verified live: 1.5 BTC → Kraken $99,555 vs Coinbase $99,369 (best flagged); 10 ETH quotes Kraken/Coinbase **and** a live DeFi→USDC route ($18,756) when a wallet address is supplied.
+- **Two venue classes, quoted side by side.** CEX via keyless public Kraken + Coinbase tickers (net of an assumed, env-configurable taker fee, surfaced per quote so the assumption is never hidden); DeFi via the existing swap engine quoting asset → USDC.
+- **Honest about what DeFi actually is:** the DeFi venue outputs USDC, a *stablecoin, not fiat* — flagged `to_fiat: false` with a note that the fiat leg still needs a licensed off-ramp. The "best" comparison surfaces `to_fiat` per venue so the UI can caveat a stablecoin-out figure against a fiat-out one.
+- **Strictly read-only, and it says so.** No order is placed, no key is used, no fund moves. Every response carries a disclaimer stating that execution — placing the sale, paying out fiat — is operated by you with your own credentials, not by this endpoint. That boundary is the money-movement / custodial line held all session.
+- Fails soft per venue (a dead ticker or DeFi outage degrades to `available: false`, never sinks the whole quote), median-of-available reference spot, per-client-IP rate limit, `no-store` (a quote must never be cached), and clean guardrails for unlisted assets and non-USD fiat.
+
 ## 2.31.0 - 2026-07-20
 
 **Wallet Intelligence: Arkham live, funding provenance extended to Tron, and surfaced as a top KPI.**
