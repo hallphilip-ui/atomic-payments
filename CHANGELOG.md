@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.33.0 - 2026-07-20
+
+**Sell-quote: real Kraken fee tier via a read-only key — and it flipped the recommendation.**
+
+- **`krakenFees.ts`** authenticates with a **query-only** Kraken key (`KRAKEN_QUERY_KEY`/`_SECRET`) and reads this account's live taker tier from the private `TradeVolume` endpoint. Read-only: it cannot place a trade or move funds; key stays server-side, never logged or returned; cached hourly; **fails open** to the assumed default on any error.
+- **The finding that justifies it:** the assumed Kraken fee was **40bps; the account's real tier is 80bps** (zero 30-day volume → top tier). Quoting at the assumption overstated proceeds by ~$530 on a 1.5 BTC sale — and, worse, **named the wrong venue**: at 40bps Kraken looked best; at the real 80bps, Coinbase wins ($99,134 vs $98,964). An assumed fee isn't just imprecise, it can steer the user to the more expensive exchange.
+- Each CEX quote now carries `fee_source: 'kraken-live' | 'assumed'` so the UI never presents an assumption as a measured number. Coinbase stays `assumed` (no per-account fee read wired).
+- Verified end-to-end live: key authenticates (query-capable, confirmed via `TradeVolume`), real 80bps tier flows into the quote, `best` recomputes correctly.
+
+**Handoff note:** the key was created query-only (Query Funds/Ledger/Orders — no Create Orders, no Withdraw), added to `.env` on the box by the operator, never pasted in chat. A key that cannot trade or withdraw cannot be misused by this code even in principle.
+
 ## 2.32.0 - 2026-07-20
 
 **Sell-quote endpoint — read-only price discovery for selling crypto to fiat.**

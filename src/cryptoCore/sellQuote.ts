@@ -16,6 +16,7 @@
 // Every number is INDICATIVE and time-boxed. Spot moves; fees vary by tier. The response
 // says so, per venue.
 import { getEnforcedPlatformQuote } from './routing';
+import { krakenTakerBps } from './krakenFees';
 
 // Taker fees are tier-dependent and change; these are conservative low-tier defaults,
 // env-overridable, and surfaced in every quote so the assumption is never hidden.
@@ -46,7 +47,8 @@ export type VenueQuote = {
   available: boolean;
   spot_usd: number | null;     // reference unit price used
   gross_usd: number | null;    // spot × amount, before fees
-  fee_bps: number | null;      // the fee assumption applied
+  fee_bps: number | null;      // the fee applied
+  fee_source?: 'kraken-live' | 'assumed';  // was fee_bps the account's real tier, or a default?
   net_usd: number | null;      // what the seller nets
   to_fiat: boolean;            // true = fiat out; false = stablecoin, needs an off-ramp
   note?: string;
@@ -89,13 +91,16 @@ async function coinbaseSpot(product: string): Promise<number | null> {
   return Number.isFinite(px) ? px : null;
 }
 
-function cexVenue(name: string, spot: number | null, amount: number, feeBps: number): VenueQuote {
+function cexVenue(name: string, spot: number | null, amount: number, feeBps: number, feeSource: 'kraken-live' | 'assumed'): VenueQuote {
   const gross = spot != null ? spot * amount : null;
   const net = gross != null ? gross * (1 - feeBps / 1e4) : null;
+  const feeNote = feeSource === 'kraken-live'
+    ? "net of this account's real Kraken taker tier"
+    : 'net of an ASSUMED taker fee (no live tier available)';
   return {
     venue: name, kind: 'cex', available: spot != null,
-    spot_usd: spot, gross_usd: gross, fee_bps: feeBps, net_usd: net, to_fiat: true,
-    note: spot == null ? 'ticker unavailable' : 'net of an assumed taker fee; a real sale needs a funded, authenticated account (not wired)',
+    spot_usd: spot, gross_usd: gross, fee_bps: feeBps, fee_source: feeSource, net_usd: net, to_fiat: true,
+    note: spot == null ? 'ticker unavailable' : `${feeNote}; a real sale needs a funded, authenticated account (not wired)`,
   };
 }
 
@@ -124,14 +129,21 @@ export async function getSellQuote(asset: string, amount: number, fiat = 'USD', 
       disclaimer: `Only USD quotes are supported for now; ${fiat} needs an FX conversion step (not yet modelled).` };
   }
 
-  const [kSpot, cSpot] = await Promise.all([
+  // Kraken's REAL taker tier for this account (read-only key) when available; the assumed
+  // default is the fallback. Fetched in parallel with the spots. Coinbase has no public
+  // per-account fee read here, so it stays on the documented assumption.
+  const [kSpot, cSpot, kRealBps] = await Promise.all([
     map.kraken ? krakenSpot(map.kraken) : Promise.resolve(null),
     map.coinbase ? coinbaseSpot(map.coinbase) : Promise.resolve(null),
+    map.kraken ? krakenTakerBps(map.kraken).catch(() => null) : Promise.resolve(null),
   ]);
 
   const venues: VenueQuote[] = [];
-  if (map.kraken) venues.push(cexVenue('Kraken', kSpot, amount, KRAKEN_TAKER_BPS));
-  if (map.coinbase) venues.push(cexVenue('Coinbase', cSpot, amount, COINBASE_TAKER_BPS));
+  if (map.kraken) {
+    const bps = kRealBps ?? KRAKEN_TAKER_BPS;
+    venues.push(cexVenue('Kraken', kSpot, amount, bps, kRealBps != null ? 'kraken-live' : 'assumed'));
+  }
+  if (map.coinbase) venues.push(cexVenue('Coinbase', cSpot, amount, COINBASE_TAKER_BPS, 'assumed'));
 
   // Reference spot = median of the CEX spots we actually got (robust to one bad feed).
   const spots = [kSpot, cSpot].filter((x): x is number => x != null).sort((a, b) => a - b);
