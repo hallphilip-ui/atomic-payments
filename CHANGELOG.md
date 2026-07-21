@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.31.0 - 2026-07-20
+
+**Wallet Intelligence: Arkham live, funding provenance extended to Tron, and surfaced as a top KPI.**
+
+- **Arkham attribution is now active.** The `arkhamLabels.ts` client (built earlier) was dormant for want of a key; the key is now in `.env` and the backend restarted to load it. Verified end-to-end: an EVM wallet now shows `funded_by: Vitalik Buterin [arkham]`. Fails open, cached 7 days, source-tagged, key stays server-side.
+- **Funding provenance extended from EVM-only to Tron.** Arkham resolves Tron entities (confirmed: Binance/HTX Tron hot wallets), so "funded by a Binance deposit wallet" is now answerable on Tron. The Tron report computes the earliest inbound sender in the visible window and labels it via Arkham (`chain=tron`). Honestly scoped with `window_scoped: true` — earliest in the ~200-transfer window, not provably first-ever.
+- **Self-attribution on Tron** — if the wallet itself is a known Arkham entity, it now populates `known_label` and leads the label list.
+- **Provenance promoted to a headline KPI.** "Funded by" now sits in the top grey-box row (position 2, next to Type), with the Arkham/corpus source chip; the detailed line (date, amount, address) stays in the section below. Verified live on a Tron wallet.
+- **`arkhamLabel(address, chain)`** generalised to any chain, with Tron-safe casing (base58 is case-sensitive — lowercasing would corrupt it) and a chain-qualified cache key.
+- Correctly shows an **unlabelled** funder as its address when Arkham genuinely has no attribution, rather than inventing one — verified: the test wallet's funder is a real Arkham-unknown address.
+
 ## 2.32.0 - 2026-07-20
 
 **Wallet Intelligence: Arkham entity attribution, layered above the free corpus.**

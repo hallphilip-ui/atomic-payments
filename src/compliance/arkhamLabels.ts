@@ -65,9 +65,14 @@ export function arkhamConfigured(): boolean { return !!KEY; }
  * Attribution for one EVM address. null = no data OR Arkham unavailable — the caller
  * MUST treat null as "consult the free corpus", never as "clean/unknown".
  */
-export async function arkhamLabel(address?: string | null): Promise<ArkhamLabel | null> {
+export async function arkhamLabel(address?: string | null, chain = 'ethereum'): Promise<ArkhamLabel | null> {
   if (!KEY || !address) return null;
-  const key = address.toLowerCase();
+  // Tron addresses are case-sensitive base58 — lowercasing corrupts them. Only fold
+  // case for EVM hex, where it is the canonical cache key. Cache is keyed by chain too
+  // so the same string on two chains never collides.
+  const isEvm = /^0x[a-fA-F0-9]{40}$/.test(address);
+  const addr = isEvm ? address.toLowerCase() : address;
+  const key = `${chain}:${addr}`;
   const cache = loadCache();
   const hit = cache[key];
   if (hit) {
@@ -77,7 +82,7 @@ export async function arkhamLabel(address?: string | null): Promise<ArkhamLabel 
 
   let data: ArkhamLabel | null = null;
   try {
-    const r = await fetch(`${ARKHAM_BASE}/intelligence/address/${key}?chain=ethereum`, {
+    const r = await fetch(`${ARKHAM_BASE}/intelligence/address/${encodeURIComponent(addr)}?chain=${encodeURIComponent(chain)}`, {
       headers: { 'API-Key': KEY },
       signal: AbortSignal.timeout(8000),
     });

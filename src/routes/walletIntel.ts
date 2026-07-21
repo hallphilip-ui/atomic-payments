@@ -466,6 +466,39 @@ async function tronReport(raw: string): Promise<any> {
   const daysActive = createTime ? Math.round((now - createTime) / 86_400_000) : null;
   const dormant = !!lastOp && (now - lastOp) > 180 * 86_400_000;
 
+  // --- Funding provenance (Tron) --------------------------------------------------
+  // Who first funded this wallet, named via Arkham. Previously EVM-only; Arkham resolves
+  // Tron entities (exchange hot/deposit wallets), so "funded by a Binance deposit wallet"
+  // is now answerable on Tron too. trRows is newest-first, so the EARLIEST inbound is the
+  // last inbound in the array. Honestly scoped: this is the earliest inbound in the
+  // visible ~200-transfer window, not necessarily the wallet's first-ever funding.
+  let fundedBy: any = null;
+  const inboundOldest = [...trRows].reverse().find((t: any) => t.from && t.from !== raw && TRON.test(String(t.from)));
+  if (inboundOldest?.from) {
+    const funder = String(inboundOldest.from);
+    const fArk = await arkhamLabel(funder, 'tron').catch(() => null);
+    const meta = TRON_TOKENS[String((inboundOldest.token_info || {}).address || '')];
+    let amt: number | null = null;
+    try { amt = Number(BigInt(inboundOldest.value)) / 10 ** (meta?.dec ?? Number((inboundOldest.token_info || {}).decimals) ?? 6); } catch { /* keep null */ }
+    fundedBy = {
+      address: funder,
+      label: fArk?.display || null,
+      label_source: fArk ? 'arkham' : null,
+      entity_type: fArk?.entity_type || null,
+      asset: (inboundOldest.token_info || {}).symbol || 'TRX',
+      amount: amt,
+      at: new Date(Number(inboundOldest.block_timestamp)).toISOString(),
+      chain: 'Tron',
+      window_scoped: true, // earliest in the visible window, not provably first-ever
+    };
+  }
+
+  // Self-attribution — is THIS wallet itself a known entity (exchange, etc.)? The single
+  // most important label if present, so it goes to known_label and the top of the report.
+  const selfArk = await arkhamLabel(raw, 'tron').catch(() => null);
+  const knownLabel = selfArk?.display || null;
+  if (selfArk?.entity) labels.unshift(`${selfArk.entity}${selfArk.label ? ' — ' + selfArk.label : ''}`);
+
   const stableHeld = tokens.some((t) => ['USDT', 'USDC', 'USDD', 'TUSD'].includes(t.symbol));
   if (stableHeld) labels.push('holds stablecoins');
   if (balTrx >= 1_000_000) labels.push('whale (native TRX)');
@@ -505,7 +538,7 @@ async function tronReport(raw: string): Promise<any> {
     chain: 'tron',
     valid: true,
     type: 'account',
-    known_label: null,
+    known_label: knownLabel,
     risk: { level, sanctioned: !!localHit, screen: sanctionsScreen, tainted_counterparty: null, reasons },
     native: { symbol: 'TRX', balance: balTrx, usd: trxUsd ? balTrx * trxUsd : null },
     activity: { outbound_tx: null, first_seen: firstSeen, last_seen: lastSeen, days_active: daysActive, dormant },
@@ -513,6 +546,7 @@ async function tronReport(raw: string): Promise<any> {
     tokens_hidden: tokensHidden,
     transactions: trTransactions,
     counterparties: trCounterparties,
+    funded_by: fundedBy,
     flow,
     labels_note: 'Tron counterparties are unlabelled — the address-label corpus covers EVM chains only. An unnamed Tron address means "no label available", not "unknown/suspicious".',
     labels,
