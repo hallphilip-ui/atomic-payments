@@ -154,6 +154,7 @@
 
       <div class="card">
         <h2>Aave liquidations <span style="font-weight:400;color:var(--muted);font-size:12px">· the classic flash-loan use — flash-borrow the debt, seize the discounted collateral, swap, repay. <b>Every row below was ALREADY executed by an MEV bot</b>; "net" is what the winner made, not what's on the table.</span></h2>
+        <div id="bonusSrc" style="font-size:12px;margin:0 0 8px"></div>
         <div class="hoverhint">Hover any column heading or figure for the calculation behind it.</div>
         <div class="scroll"><table id="liqtbl"><thead><tr>
           <th title="Block timestamp of the liquidation, in UTC. This feed contains COMPLETED liquidations only — each one already happened.">When (UTC)</th>
@@ -356,6 +357,17 @@
       document.getElementById('meta').textContent=(d.mode||'')+' · ETH price from '+(a.eth_price_source||'?')+age;
 
       renderCosts(a);
+
+      // Bonus provenance: are the liquidation bonuses live from Aave, or the offline
+      // fallback table? Surfaced so a silently-unreachable API is visible, not hidden.
+      var bs=document.getElementById('bonusSrc');
+      if(a.bonus_source==='aave-api-live'){
+        bs.innerHTML='<span class="pill yes">bonuses: live from Aave</span> '+
+          '<span style="color:var(--muted)">'+(a.bonus_live_count||0)+' of '+((a.bonus_live_count||0)+(a.bonus_fallback_count||0))+' rows sourced live from the protocol — no hardcoded drift.</span>';
+      } else if(a.bonus_source){
+        bs.innerHTML='<span class="pill no">bonuses: fallback table</span> '+
+          '<span style="color:var(--muted)">Aave API unreachable — using the offline table, which can drift from live governance values.</span>';
+      } else { bs.innerHTML=''; }
 
       var L=d.liquidations||{}, rows=L.rows||[];
       var tb=document.querySelector('#liqtbl tbody');

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.31.0 - 2026-07-20
+
+**Flash Lab shows the live-bonus provenance.**
+
+- The Aave liquidations table now carries a badge stating whether its liquidation bonuses are **live from Aave** or the offline fallback, with the live/total row count (currently **14 of 14 live**). Pairs with arb-scanner v1.2.0, which reads bonuses live from Aave's API and demotes the hardcoded table to a fallback.
+- Green pill "bonuses: live from Aave" when sourced live; red "bonuses: fallback table" with an explicit drift warning if the Aave API is unreachable — so a silent outage is visible rather than mistaken for live data.
+- Verified end-to-end: feed reports `aave-api-live` 14/0, the badge renders, and the Bonus % column shows the corrected live values (WBTC 5.0% not the old 6.25%; USDE 8.5%). Instrument validation aave drift is 0.
+
 ## 2.30.2 - 2026-07-20
 
 **Earn scope: fold in Balancer v3 Boosted Pools as a yield venue.**
