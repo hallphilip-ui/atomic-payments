@@ -30,6 +30,7 @@ import marketRoutes from './routes/markets';
 import fxRoutes from './routes/fx';
 import offrampRoutes from './routes/offramp';
 import sellQuoteRoutes from './routes/sellQuote';
+import screenRoutes from './routes/screens';
 import { startPaymentWatcher } from './payments/paymentWatcher';
 import { startSanctionsRescreen } from './compliance/rescreen';
 import { startOfacRefresh } from './compliance/ofacRefresh';
@@ -64,7 +65,18 @@ app.use((_req: Request, res: Response, next: () => void) => {
       // This excludes sitemap XML (<?xml), JSON ({/[), and /assets/*.js (//…), so we
       // never corrupt a non-HTML body. Inject before </body>, else </html>, else append.
       if (typeof body === 'string' && /^\s*<(!doctype|html|head|meta)/i.test(body)) {
-        const tag = '  <script src="/assets/consent.js" defer></script>\n  <script src="/assets/homenav.js" defer></script>\n  <script src="/assets/ga.js" defer></script>\n';
+        // consent.js + homenav.js are same-origin, so they load under every policy.
+        // ga.js pulls gtag.js from googletagmanager.com, which only the content-page
+        // CSP allows — so inject it only where the page's CSP permits it (no CSP set,
+        // or script-src lists googletagmanager). This keeps GA off the funds/wallet/
+        // signing pages (CSP_SWAP/CHECKOUT/WALLET_*) without spraying CSP-refused
+        // console errors there.
+        // Express Response is a Node ServerResponse at runtime; read the CSP header
+        // through it (the express type shim here doesn't expose the getter cleanly).
+        const csp = String((res as unknown as { getHeader(n: string): unknown }).getHeader('Content-Security-Policy') || '');
+        const gaAllowed = !csp || /script-src[^;]*googletagmanager\.com/.test(csp);
+        const tag = '  <script src="/assets/consent.js" defer></script>\n  <script src="/assets/homenav.js" defer></script>\n'
+          + (gaAllowed ? '  <script src="/assets/ga.js" defer></script>\n' : '');
         if (body.includes('</body>')) body = body.replace('</body>', tag + '</body>');
         else if (/<\/html>/i.test(body)) body = body.replace(/<\/html>/i, tag + '</html>');
         else body = body + '\n' + tag;
@@ -127,6 +139,7 @@ app.use(marketRoutes);
 app.use(fxRoutes);
 app.use(offrampRoutes);
 app.use(sellQuoteRoutes);
+app.use(screenRoutes);
 app.use(settlementRoutes);
 app.use(swapRoutes);
 app.use(transferRoutes);
@@ -170,12 +183,17 @@ const CSP_SWAP = [
   "form-action 'self'"
 ].join('; ');
 // Content pages (landing, transfers, partners, help, releases, docs, legal, admin
-// console). Self-hosted scripts + PostHog analytics only, no framing. 'unsafe-inline'
-// is retained for the pages' inline scripts/styles (nonce-ing is a larger refactor).
+// console). Self-hosted scripts + PostHog + Google Analytics, no framing.
+// 'unsafe-inline' is retained for the pages' inline scripts/styles (nonce-ing is a
+// larger refactor). GA hosts are allowed HERE ONLY — these are ordinary marketing/
+// content pages, NOT the wallet realm. The funds/wallet/signing policies below
+// (CSP_SWAP / CSP_CHECKOUT / CSP_WALLET_*) deliberately do NOT list googletagmanager,
+// so no third-party script source touches the pages that handle keys/funds; ga.js is
+// omitted on those pages at injection time (see the res.send hook) to avoid CSP errors.
 const CSP_CONTENT = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "connect-src 'self' https://*.posthog.com",
+  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+  "connect-src 'self' https://*.posthog.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",

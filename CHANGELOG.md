@@ -2,6 +2,15 @@
 
 ## 2.33.0 - 2026-07-20
 
+**Crypto relative-strength screen — log-only signal, the honest first step toward strategy-on-crypto.**
+
+- **`GET /v1/screens/crypto-momentum`** ranks the top ~100 coins by **cross-sectional relative strength** — the one momentum approach that actually validated in the AutoTraderX research (absolute momentum lost to buy-and-hold; the relative version won). Blends 7d/14d/30d percentile ranks (weights 0.25/0.35/0.40), rank-based so one outlier can't dominate. Verified live: 93-coin universe, PUMP/ONDO/HASH leading.
+- **Read-only. It ranks; it does not trade and never touches a wallet.** This is the prove-the-edge-first step before any execution, exactly like the arb clearance counter — the equity edge is NOT assumed to transfer to crypto, and this surface exists to forward-test whether it does.
+- **Regime-aware, because a long-only RS screen has a known trap.** In a downtrend, relative strength just ranks the least-bad faller. The screen surfaces the universe's median 30d return, labels the regime (risk-on/off/mixed), and shows each name's **absolute** 30d direction beside its relative rank — the research's core lesson was that absolute momentum is what pays.
+- Page at **atomicexchange.cloud/screen** (leaders + laggards, methodology, disclaimer), proxied edge-cached through a Pages Function like the other market surfaces. Stablecoins and pegged wrappers excluded from the ranking.
+
+## 2.33.0 - 2026-07-20
+
 **Sell-quote: real Kraken fee tier via a read-only key — and it flipped the recommendation.**
 
 - **`krakenFees.ts`** authenticates with a **query-only** Kraken key (`KRAKEN_QUERY_KEY`/`_SECRET`) and reads this account's live taker tier from the private `TradeVolume` endpoint. Read-only: it cannot place a trade or move funds; key stays server-side, never logged or returned; cached hourly; **fails open** to the assumed default on any error.

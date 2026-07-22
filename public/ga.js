@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  var MEASUREMENT_ID = 'G-XXXXXXXXXX'; // ← paste the GA4 measurement ID here
+  var MEASUREMENT_ID = 'G-5M3YSQ0JFF'; // ← paste the GA4 measurement ID here
 
   if (!MEASUREMENT_ID || MEASUREMENT_ID === 'G-XXXXXXXXXX') return;
 
