@@ -37,6 +37,29 @@ assert.equal(highValueTransfer.status, 'MANUAL_REVIEW', 'large transfer requires
 assert.equal(highValueTransfer.riskTier, 'MEDIUM', 'large transfer is medium risk');
 assert.ok(highValueTransfer.flags.includes('large_transfer_threshold'), 'large transfer threshold flag is present');
 
+// `amount` is a human decimal string, not atomic base units — a decimal amount must
+// not throw (BigInt-style normalization would), and must compare as written.
+const decimalAmount = assess({ amount: '9999.99' });
+assert.deepEqual(decimalAmount.flags, [], 'human decimal amount under threshold does not flag');
+const decimalOverThreshold = assess({ amount: '10000.01' });
+assert.ok(decimalOverThreshold.flags.includes('large_transfer_threshold'), 'human decimal amount over threshold flags');
+
+// When a trusted USD notional is supplied it governs the threshold, so the flag
+// means dollars rather than token count.
+const usdOverThreshold = assess({ asset: 'TRX', amount: '50000', amountUsd: 12500 });
+assert.ok(usdOverThreshold.flags.includes('large_transfer_over_10k_usd'), 'USD notional over threshold flags');
+assert.ok(!usdOverThreshold.flags.includes('large_transfer_threshold'), 'USD path replaces the token-count flag');
+assert.equal(usdOverThreshold.riskTier, 'MEDIUM', 'USD large transfer scores the same tier as before');
+
+// 50,000 TRX is well over the token-count threshold but only ~$5k of notional —
+// the USD figure must suppress the flag the raw token count would have raised.
+const usdUnderThreshold = assess({ asset: 'TRX', amount: '50000', amountUsd: 5000 });
+assert.deepEqual(usdUnderThreshold.flags, [], 'USD notional under threshold does not flag despite large token count');
+
+// A non-finite USD figure must fall back to the token count, not silently skip the check.
+const usdUnusable = assess({ amount: '25000.00', amountUsd: Number.NaN });
+assert.ok(usdUnusable.flags.includes('large_transfer_threshold'), 'unusable USD figure falls back to token count');
+
 const tronTransfer = assess({
   network: 'tron',
   destinationAddress: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE'

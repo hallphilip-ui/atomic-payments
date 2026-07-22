@@ -140,10 +140,20 @@ function getTransferAddressFormatCheck(network: string, address: string): { ok: 
 
 export function assessTransferCompliance(input: {
   connectorId: string;
+  // Ticker only (e.g. 'USDC'), not a registry entry — so no decimals are available
+  // here, and none are needed: see the `amount` note below.
   asset: string;
+  // HUMAN-denominated decimal string (e.g. '25000.00'), NOT atomic base units.
+  // This differs from assessSwapCompliance, whose `amount` is atomic and must be
+  // divided by the asset's decimals. Do not apply that normalization here — the
+  // value is already human, and BigInt('25000.00') throws.
   amount: string;
   destinationAddress: string;
   network?: string;
+  // USD notional from a TRUSTED server-side price source. Never populate this from
+  // client/request input: a caller who can set it could understate notional and
+  // suppress the large-transfer review flag.
+  amountUsd?: number;
 }): ComplianceAssessment {
   const checks: string[] = ['sanctions_keyword_screen', 'transfer_destination_format', 'outgoing_transfer_release_gate'];
   const flags: string[] = [];
@@ -163,10 +173,21 @@ export function assessTransferCompliance(input: {
     flags.push('sanctions_watchlist_keyword_match');
   }
 
-  const amount = Number(input.amount);
-  if (Number.isFinite(amount) && amount >= 10000) {
-    riskScore += 35;
-    flags.push('large_transfer_threshold');
+  // Large-value flag. Prefer a USD figure so the threshold means dollars across
+  // assets — a bare token count only tracks notional for ~$1 stablecoins (10,000
+  // TRX and 10,000 ETH are wildly different money). Falls back to the token-count
+  // comparison when no trusted USD figure is supplied, which is today's behaviour.
+  if (typeof input.amountUsd === 'number' && Number.isFinite(input.amountUsd)) {
+    if (input.amountUsd >= 10000) {
+      riskScore += 35;
+      flags.push('large_transfer_over_10k_usd');
+    }
+  } else {
+    const amount = Number(input.amount);
+    if (Number.isFinite(amount) && amount >= 10000) {
+      riskScore += 35;
+      flags.push('large_transfer_threshold');
+    }
   }
 
   if (['tron', 'trx'].includes(network.trim().toLowerCase())) {
